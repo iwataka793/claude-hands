@@ -2,6 +2,16 @@
 
 新しいものが上。
 
+## 2026-11-24（実物で確認：SideStore が署名し直した WDA は PlugIns が空）
+
+- SideStore の「Export Resigned Apps」をオンにして WDA（wda-4）を入れ直し、PC から LiveContainer の書類フォルダ（/Documents/SideStore/Documents/ResignedApps）を取り出した（15-pull）
+  - 署名し直した WebDriverAgentRunner-Runner.app の PlugIns/ は空。WebDriverAgentRunner.xctest が丸ごと無い
+  - SideStore の記録（ConsoleLogs）でも、iPhone に送った IPA は 174,736 バイト。元の IPA（716,481 バイト）の中で一番大きい WebDriverAgentLib（約 1.4MB）が入っていない大きさ
+  - 起動するとエラー 104 が再現（App.app/PlugIns/WebDriverAgentRunner.xctest が無い）
+- → 原因は「SideStore が iPhone に送る前に、自分の手元で xctest を落としている」。署名の作り方の違いではない
+- 訂正：この SideStore の署名は AltSign + ldid（記録に [AltSign] ALTSigner.performSigning）。CodeSignKit ではなかった。diag-1 の比較は対象違い
+- 落ちる段階は「IPA を開いて Cached.app にした後〜署名の前」のどこか。次は SideStore の詳しい記録（Verbose Logging）をオンにして、もう一度入れて段階を特定する
+
 ## 2026-11-24（エラー 104 の深掘り：xctest が「置かれていない」とほぼ確定）
 
 - 13-dig（PC）：今の iloader 版 WDA で、わざと無いテスト本体（NoSuchBundle.xctest）を指定して起動した
