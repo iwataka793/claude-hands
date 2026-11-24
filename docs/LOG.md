@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-24（片付け：PC 方式の自動更新をやめて SideStore に一本化）
+
+- 確認：SideStore の My Apps に WebDriverAgentRunner-Runner が載っている（残り 7 日）。18:31 にもう一度 PC から起動して、DevKit の上下左右スワイプ 4 回とも記録に出た
+- PC：スケジューラーのタスク「iPhone WebDriverAgent 自動更新」を削除。使わなくなった台本（1〜16）・wda-refresh.exe・古い WDA の IPA 2 つをごみ箱へ（18-cleanup。記録の txt / png / フォルダは残した）
+  - PC に残した実行道具：17-ss（WDA を `--xctestconfig=WebDriverAgentRunner` で起動して操作）、WebDriverAgentRunner-ss.ipa（SideStore で入れ直す用）
+- repo：tools/wda-refresh・tools/sign-compare とそれぞれの Actions を削除（履歴には残る）。Releases（tools-1〜4、diag-1、wda-1〜3）はこのセッションの権限では消せないので残っている
+- これからの WDA の更新：SideStore の 7 日更新に任せる。WDA を作り直したときは tools/wda-sidestore/make_ss_ipa.py で SideStore 向けにしてから入れる
+
 ## 2026-11-24（SideStore で入れた WebDriverAgent が動いた）
 
 - tools/wda-sidestore/make_ss_ipa.py で作った WebDriverAgentRunner-ss.ipa（PlugIns/WebDriverAgentRunner.xctest → PlugIns/WebDriverAgentRunner、テスト本体の ID を本体と同じに）を SideStore で入れた
