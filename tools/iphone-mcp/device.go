@@ -29,6 +29,9 @@ import (
 const (
 	wdaPort        = 8100
 	tunnelBasePort = 60205 // go-ios のコマンド（既定 60105）とぶつからないように
+	// holdPort は「いま iPhone を使っているのは自分」という札。Claude デスクトップがこのサーバーを
+	// 2 つ同時に動かすことがあるので、つなぐのは札を取れた 1 つだけにする（PC の中だけで開く）。
+	holdPort = 60204
 	logKeep        = 30000 // ログを何行まで覚えておくか
 )
 
@@ -61,6 +64,8 @@ type Phone struct {
 	http       *http.Client
 
 	lcBundle string
+
+	hold net.Listener // holdPort の札
 }
 
 func NewPhone(pairDir, wdaTest string) *Phone {
@@ -90,15 +95,44 @@ func (p *Phone) Disconnect() {
 	p.cancel, p.wdaCancel, p.tm = nil, nil, nil
 	p.hasRSD, p.wdaRunning, p.session, p.wdaBundle = false, false, "", ""
 	p.http = nil
+	if p.hold != nil {
+		_ = p.hold.Close()
+		p.hold = nil
+	}
 	slog.Info("disconnected")
 }
 
 // Ensure はつながっていなければつなぐ（USB の端末 → ログ → トンネル）。
-func (p *Phone) Ensure(ctx context.Context) error {
+func (p *Phone) Ensure(ctx context.Context) (err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	defer func() {
+		// つなげなかったら、途中まで持ったもの（札・ログ読み）を手放す
+		if err != nil && !p.hasRSD {
+			if p.cancel != nil {
+				p.cancel()
+				p.cancel = nil
+			}
+			if p.tm != nil {
+				_ = p.tm.Close()
+				p.tm = nil
+			}
+			if p.hold != nil {
+				_ = p.hold.Close()
+				p.hold = nil
+			}
+		}
+	}()
 	if p.hasRSD {
 		return nil
+	}
+	if p.hold == nil {
+		l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", holdPort))
+		if err != nil {
+			return fmt.Errorf("別の iPhone の道具（Claude のほかの会話など）が iPhone を使っています。そちらを使い終わるか、30 分たつか、スイッチをいったんオフにすると使えます")
+		}
+		p.hold = l
+		slog.Info("hold", "pid", os.Getpid())
 	}
 	list, err := ios.ListDevices()
 	if err != nil {

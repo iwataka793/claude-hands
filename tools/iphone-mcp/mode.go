@@ -3,7 +3,10 @@ package main
 // 3 段のスイッチ（オフ・見るだけ・操作も可）。
 // 切り替えるのはカオルだけ：PC のファイル mode.txt を、デスクトップに置いた .bat が書き換える。
 // この MCP サーバーには切り替える道具を作らない（Claude からは変えられない）。
-// 起動時はオフ。最後の呼び出しから一定時間（既定 30 分）たつと自動でオフに戻す。
+// 最後の動き（.bat で切り替えた時刻か、道具が呼ばれた時刻の新しい方）から一定時間（既定 30 分）たつと自動でオフに戻す。
+// 時刻はファイル（mode.txt と last-used.txt の更新時刻）で持つ。Claude デスクトップはこのサーバーを
+// 同時に 2 つ動かしたり、途中で起動し直したりするため（2026-11-24 の server.log で確認）、
+// 起動のたびに「オフ」を書くと .bat で入れたスイッチが消えてしまう。
 
 import (
 	"os"
@@ -33,16 +36,19 @@ func (m Mode) String() string {
 }
 
 type Switch struct {
-	path     string
-	idle     time.Duration
-	mu       sync.Mutex
-	lastUsed time.Time
+	path string // mode.txt
+	used string // last-used.txt（道具が呼ばれた時刻。中身は使わず更新時刻だけ見る）
+	idle time.Duration
+	mu   sync.Mutex
 }
 
 func NewSwitch(dir string, idle time.Duration) *Switch {
 	_ = os.MkdirAll(dir, 0o755)
-	s := &Switch{path: filepath.Join(dir, "mode.txt"), idle: idle, lastUsed: time.Now()}
-	s.write("off") // 起動時はオフ
+	s := &Switch{path: filepath.Join(dir, "mode.txt"), used: filepath.Join(dir, "last-used.txt"), idle: idle}
+	if _, err := os.Stat(s.path); err != nil {
+		s.write("off") // まだ無ければオフで作る
+	}
+	s.IdleExpired() // PC を起動し直したときなど、しばらく使っていなければここでオフになる
 	return s
 }
 
@@ -64,11 +70,25 @@ func (s *Switch) Current() Mode {
 	}
 }
 
-// Touch は道具が呼ばれた時刻を記録する。
+// Touch は道具が呼ばれた時刻を記録する（ほかのサーバーとも共有するためファイルに）。
 func (s *Switch) Touch() {
 	s.mu.Lock()
-	s.lastUsed = time.Now()
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	if err := os.Chtimes(s.used, now, now); err != nil {
+		_ = os.WriteFile(s.used, []byte("used\r\n"), 0o644)
+	}
+}
+
+// lastActivity は最後の動きの時刻（スイッチを切り替えた時刻と道具が呼ばれた時刻の新しい方）。
+func (s *Switch) lastActivity() time.Time {
+	var t time.Time
+	for _, f := range []string{s.path, s.used} {
+		if st, err := os.Stat(f); err == nil && st.ModTime().After(t) {
+			t = st.ModTime()
+		}
+	}
+	return t
 }
 
 // IdleExpired は、しばらく使われていなければ true を返し、スイッチをオフに戻す。
@@ -78,7 +98,7 @@ func (s *Switch) IdleExpired() bool {
 	if s.Current() == ModeOff {
 		return false
 	}
-	if time.Since(s.lastUsed) >= s.idle {
+	if time.Since(s.lastActivity()) >= s.idle {
 		s.write("off")
 		return true
 	}

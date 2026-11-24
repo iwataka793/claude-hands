@@ -8,6 +8,8 @@
 - iPhone-OPERATE.bat を押してもスイッチが「オフ」のまま。中身は正しかった
 - 原因：Claude がストア版（MSIX）のため、そこから動く道具の AppData への書き込みは `AppData\Local\Packages\Claude_…\LocalCache\Local\iphone-mcp` に振り分けられていた。.bat は本物の `AppData\Local\iphone-mcp` に書くので、別のファイルを見ていた（両方のフォルダが実在するのを確認）
 - 直し：置き場所（mode.txt・server.log・backup）を `%USERPROFILE%\devkit\iphone-mcp` に変えた（0.1.3）。.bat も同じ場所に書く
+- 0.1.3 で .bat は効いたが、すぐまたオフに戻った。server.log を見ると、サーバーが同じ時刻に 2 つ起動（20:24:43 に 2 回 start）し、20:25:40 に 1 つが終わって起動し直していた。起動のたびに「オフ」を書く作りだったため、そのたびに消えていた
+- 直し（0.1.4）：起動時にオフを書かない。30 分の時計は mode.txt と last-used.txt の更新時刻で持ち、どのサーバーからも同じに見える。iPhone につなぐのは札（127.0.0.1:60204）を取れた 1 つだけ
 
 ## 2026-11-24（MCP サーバーの試作：tools/iphone-mcp）
 
