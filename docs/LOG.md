@@ -2,6 +2,18 @@
 
 新しいものが上。
 
+## 2026-11-24（エラー 104 の深掘り：xctest が「置かれていない」とほぼ確定）
+
+- 13-dig（PC）：今の iloader 版 WDA で、わざと無いテスト本体（NoSuchBundle.xctest）を指定して起動した
+  - 出たエラーは SideStore 版と同じ：Code 104「Failed to create a bundle instance … Check that the bundle exists on disk.」。下に付く理由（UserInfo）は説明文だけで、ほかには何も無い
+  - iPhone のログにも Sandbox（読ませなかった）の行は無し。クラッシュレポートも無し
+  - → SideStore 版のエラー 104 は「その場所に xctest のフォルダが無かった」とみてよい
+- iloader 版も、入った場所は …/App.app、ID は com.facebook.WebDriverAgentRunner.xctrunner.<チームID> で SideStore 版と同じ。「App.app への改名」は原因ではない（前の見立てを取り消す）
+- 受け渡し場所（PublicStaging）には SideStore が作ったフォルダ com.facebook.WebDriverAgentRunner.xctrunner/ が残っていたが、中は空。送った中身はもう無い
+- ソースを読んだ範囲（実物はまだ見ていない）：minimuxer はアプリのフォルダにあるファイルを全部そのまま送っていて、選り分けはしていない。なので、SideStore が送る前の「署名し直したアプリ」の段階で xctest が無くなっている疑いが一番強い
+- 次：SideStore の設定「Export Resigned App」をオンにして WDA を一度入れると、送ったのと同じ IPA が SideStore の書類フォルダ（ResignedApps）に残る。これを PC で開いて確かめる。iloader 版は上書きされるので、終わったら wda-refresh で戻す
+- ついで：16:00 の自動更新は「iPhone が見つからない」で失敗（USB につながっていなかった）。待ち直しが効かずに 3 秒で終わっている。あとで直す
+
 ## 2026-11-24（SideStore で WebDriverAgent が動かない原因調べ：署名は白）
 
 - `tools/sign-compare`（Actions の Mac）で、同じ WDA を 3 通りに署名して比べた（Releases の diag-1）
