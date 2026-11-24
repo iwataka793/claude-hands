@@ -222,7 +222,7 @@ LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て�
 ### 次に PC がつながったらやること（2026-11-25 カオルに頼まれた）
 
 PC の道具（[PC.md](PC.md)）を入れて確かめる：
-1. （済 2026-11-25。2〜4 も済。5 は .bat の日本語と DPI が残り）Releases の最新の `pc-N`（いまは pc-4）の `pc-dev-kit.mcpb` と `pc-switch.zip` を PC のダウンロードに置く
+1. （済 2026-11-25。2〜5 も済。残りは DPI と画面・部品の操作）Releases の最新の `pc-N`（いまは pc-4）の `pc-dev-kit.mcpb` と `pc-switch.zip` を PC のダウンロードに置く
 2. カオルに `pc-switch.zip` の中の `pc-setup.bat` を 1 回実行してもらい、`pc-dev-kit.mcpb` を拡張機能に入れてもらう
 3. カオルに PC-VIEW を押してもらい、`pc_status` → `pc_disk`（引数なし）→ `pc_problems` で、カオルの PC で実際に動くか確かめる
 4. PC-ALLOW の流れ（UAC の「はい」→ 10 分の許可 → 切り替えで取り消し）を 1 回試す
