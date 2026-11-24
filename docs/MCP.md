@@ -121,6 +121,11 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 - ロック中は画面が真っ黒に写り、`iphone_button` home は「ロックが外れていない」と断られる
 - 外す試しを続けると顔認証が止まる。くり返さない
 
+### 処理中にロックさせない
+
+- カオルに頼まれて長い処理をするときは、iPhone は設定の「自動ロック」を「なし」に（設定 → 検索「自動ロック」→ 1 つ目）、PC は pc_powershell で `SetThreadExecutionState`（ES_CONTINUOUS・ES_SYSTEM_REQUIRED・ES_DISPLAY_REQUIRED）。PC の常駐役の PowerShell は開きっぱなしなので、戻すまで効く
+- 終わったら必ず元に戻す。iPhone の自動ロックの元の値は 4 分（2026-11-25）。PC は ES_CONTINUOUS だけを渡して戻す
+
 ### 仮の位置
 
 - `iphone_location` は、いまは使えない。iPhone の窓口（com.apple.dt.simulatelocation）に開発者のディスクイメージが要り、入っていない（2026-11-25）。入れるには go-ios の `image auto`（ネットから取る）が要る。使うときはカオルに相談
@@ -173,7 +178,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ### のぞき窓（iphone_devkit）
 
-- DevKit は iPhone の中の 127.0.0.1:8765 で待つ（Wi-Fi など外からは届かない）。道具は USB の経路で直接つなぐ
+- DevKit は iPhone の中のループバックの 8765 番で待つ（Wi-Fi など外からは届かない）。道具は USB の経路で直接つなぐ（届いた接続は 127.0.0.1 から来る）
 - `/state`：版（commit）・画面に出ている行・行の数・呼ばれた回数
 - `/cmd?do=clear`（行を消す）・`/cmd?do=add&text=…`（行を足す）：画面を触らずに DevKit を動かす
 - DevKit が前で動いているときだけ答える（裏に回ると iOS が止める。前に戻ると待ち受けを始め直す）

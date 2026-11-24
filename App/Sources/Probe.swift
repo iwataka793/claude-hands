@@ -39,8 +39,8 @@ final class Probe {
         queue.async { [self] in
             guard listener == nil else { return }
             do {
-                // iPhone の中のループバック（127.0.0.1 と ::1）だけで待つ。
-                // 127.0.0.1 だけに縛ると USB からの接続が届かなかった（2026-11-25。USB の口は ::1 から来るらしい）
+                // iPhone の中のループバックだけで待つ。USB からの接続は 127.0.0.1 から来る。
+                // requiredLocalEndpoint で 127.0.0.1:8765 に縛る書き方では、ready になるのに接続が届かなかった（2026-11-25）
                 let params = NWParameters.tcp
                 params.allowLocalEndpointReuse = true
                 params.requiredInterfaceType = .loopback
