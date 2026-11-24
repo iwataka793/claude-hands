@@ -56,7 +56,16 @@ func (s *Switch) write(v string) { _ = os.WriteFile(s.path, []byte(v+"\r\n"), 0o
 
 // Current は今のスイッチ。ファイルを毎回読む（カオルが切り替えたらすぐ効く）。
 func (s *Switch) Current() Mode {
-	b, err := os.ReadFile(s.path)
+	// 読みそこね（.bat やほかのサーバーが同時に触っている瞬間）でオフと取り違えないよう、少し待って読み直す
+	// （2026-11-25 に 1 回だけ「オフです」が出て、すぐ後は「操作も可」だった）
+	var b []byte
+	var err error
+	for i := 0; i < 5; i++ {
+		if b, err = os.ReadFile(s.path); err == nil && len(strings.TrimSpace(string(b))) > 0 {
+			break
+		}
+		time.Sleep(60 * time.Millisecond)
+	}
 	if err != nil {
 		return ModeOff
 	}

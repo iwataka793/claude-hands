@@ -82,7 +82,11 @@ func thumb(png []byte) []uint8 {
 }
 
 // changedDots は 2 枚の絵で、はっきり違う点の数。
-func changedDots(a, b []uint8) int {
+func changedDots(a, b []uint8) int { return changedDotsOver(a, b, 20) }
+
+// changedDotsOver は、明るさが thr より違う点の数。
+// 同じ形の行が並ぶ一覧（設定など）は、スクロールしても 5pt 四方の明るさが少ししか変わらないので、端の判定は小さい thr で見る。
+func changedDotsOver(a, b []uint8, thr int) int {
 	if len(a) != len(b) || len(a) == 0 {
 		return math.MaxInt32
 	}
@@ -92,7 +96,7 @@ func changedDots(a, b []uint8) int {
 		if d < 0 {
 			d = -d
 		}
-		if d > 20 {
+		if d > thr {
 			n++
 		}
 	}
@@ -376,7 +380,19 @@ func (a *app) opType(ctx context.Context, text, field string, partial, clear, en
 		return "", err
 	}
 	if clear {
-		if _, err := a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{}); err != nil {
+		// 押すと欄が作り直されることがある（設定の検索欄）。そのときは探し直す
+		_, err := a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
+		if err != nil && strings.Contains(err.Error(), "stale element") {
+			time.Sleep(300 * time.Millisecond)
+			if again, e := a.findIDs(ctx, textPred(field, partial)); e == nil && len(again) > 0 {
+				id = again[0]
+				_, err = a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
+			} else if fid, e := a.focusedID(ctx); e == nil {
+				id = fid
+				_, err = a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
+			}
+		}
+		if err != nil {
 			return "", fmt.Errorf("消せません：%v", err)
 		}
 	}
@@ -561,7 +577,7 @@ func (a *app) opScrollTo(ctx context.Context, text string, partial bool, directi
 		}
 		if png, err := a.shotPNG(ctx); err == nil {
 			t := thumb(png)
-			if prev != nil && changedDots(prev, t) <= 3 {
+			if prev != nil && changedDotsOver(prev, t, 4) <= 3 {
 				return "", fmt.Errorf("端まで来ても「%s」が見つかりません（%d 回スクロール）", text, i)
 			}
 			prev = t
@@ -756,4 +772,16 @@ func (p *Phone) FindApp(name string) string {
 		}
 	}
 	return ""
+}
+
+// focusedID は、いま文字を打てる（キーボードが向いている）部品。
+func (a *app) focusedID(ctx context.Context) (string, error) {
+	ids, err := a.findIDs(ctx, "hasKeyboardFocus == 1")
+	if err != nil {
+		return "", err
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("文字を打てる欄がありません")
+	}
+	return ids[0], nil
 }

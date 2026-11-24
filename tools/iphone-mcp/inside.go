@@ -658,9 +658,11 @@ func (p *Phone) WebEval(ctx context.Context, page, expr string) (string, error) 
 	if err != nil {
 		return "", err
 	}
+	// page が空なら、Safari のふつうのページ（http / https）を選ぶ（機能拡張の裏のページを選ばない）
 	var hit *webinspector.ApplicationPage
 	for i := range l {
-		if (page != "" && l[i].Page.Key == page) || (page == "" && l[i].Application.BundleID == webinspector.SafariBundleID) {
+		web := strings.HasPrefix(l[i].Page.URL, "http://") || strings.HasPrefix(l[i].Page.URL, "https://")
+		if (page != "" && l[i].Page.Key == page) || (page == "" && l[i].Application.BundleID == webinspector.SafariBundleID && web) {
 			hit = &l[i]
 			break
 		}
