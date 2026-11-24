@@ -21,6 +21,7 @@ import (
 	ios "github.com/danielpaulus/go-ios/ios"
 	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/installationproxy"
+	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/danielpaulus/go-ios/ios/syslog"
 	"github.com/danielpaulus/go-ios/ios/testmanagerd"
 	"github.com/danielpaulus/go-ios/ios/tunnel"
@@ -72,6 +73,9 @@ type Phone struct {
 
 	hold    net.Listener // holdPort の札
 	checked time.Time    // 最後につながりを確かめた時刻
+
+	locMu sync.Mutex
+	loc   *instruments.LocationSimulationService // 仮の位置（つないでいる間だけ効く）
 }
 
 func NewPhone(pairDir, wdaTest, logDir string) *Phone {
@@ -106,6 +110,7 @@ func (p *Phone) Disconnect() {
 
 // dropLocked はつながり（トンネル・ログ・WDA）を捨てる。札（hold）は持ったまま。
 func (p *Phone) dropLocked() {
+	go p.stopLocation()
 	if p.wdaCancel != nil {
 		p.wdaCancel()
 	}

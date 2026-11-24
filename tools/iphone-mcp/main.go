@@ -253,6 +253,12 @@ type devkitIn struct {
 	Path string `json:"path,omitempty" jsonschema:"のぞき窓の道。/state（既定。版と画面の行）か、/cmd に do と text を付けたもの（行を消す clear・行を足す add。/cmd は操作も可のときだけ）"`
 }
 
+type webIn struct {
+	Action string `json:"action,omitempty" jsonschema:"list（見られるページの一覧・既定）／eval（ページで JavaScript を動かす。操作も可のときだけ）"`
+	Page   string `json:"page,omitempty" jsonschema:"eval するページ（list の page の値）。省くと Safari のいちばん上のページ"`
+	Expr   string `json:"expr,omitempty" jsonschema:"eval で動かす JavaScript（例 document.title）"`
+}
+
 type clipboardIn struct {
 	Action string `json:"action" jsonschema:"get（読む）／set（文字を入れる）"`
 	Text   string `json:"text,omitempty" jsonschema:"set で入れる文字"`
@@ -621,6 +627,39 @@ func (a *app) register(s *mcp.Server) {
 			return text(fmt.Sprintf("%d %s", code, body)), nil, nil
 		})
 
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_web", Description: "Safari やアプリの中の Web のページを、画面を使わずに見る（list：開いているページ）・ページで JavaScript を動かす（eval・操作も可のときだけ）。iPhone の設定で Web インスペクタがオンのときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in webIn) (*mcp.CallToolResult, any, error) {
+			need := ModeView
+			if in.Action == "eval" {
+				need = ModeOperate
+			}
+			if r := a.gate(need); r != nil {
+				return r, nil, nil
+			}
+			if err := a.phone.Ensure(ctx); err != nil {
+				return fail("%v", err), nil, nil
+			}
+			cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+			defer cancel()
+			var m string
+			var err error
+			switch in.Action {
+			case "", "list":
+				m, err = a.phone.WebList(cctx)
+			case "eval":
+				if in.Expr == "" {
+					return fail("expr（JavaScript）を指定してください"), nil, nil
+				}
+				m, err = a.phone.WebEval(cctx, in.Page, in.Expr)
+			default:
+				return fail("action は list / eval"), nil, nil
+			}
+			if err != nil {
+				return fail("%v", err), nil, nil
+			}
+			return text(m), nil, nil
+		})
+
 	mcp.AddTool(s, &mcp.Tool{Name: "iphone_clipboard", Description: "iPhone のクリップボードを読む（get）・文字を入れる（set。長い文を打つ代わりに入れて貼る）。中にパスワードなどが入っていることがあるので、読むのは要るときだけ。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in clipboardIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
@@ -648,7 +687,7 @@ func (a *app) register(s *mcp.Server) {
 			return fail("action は get / set"), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_location", Description: "開発用に iPhone の位置を仮の場所にする（set・緯度経度）／元に戻す（reset）。地図や位置を使うアプリを試すとき用。使い終わったら必ず reset。操作も可のときだけ"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_location", Description: "開発用に iPhone の位置を仮の場所にする（set・緯度経度）／元に戻す（reset）。地図や位置を使うアプリを試すとき用。道具がつないでいる間だけ効き、切れると本当の位置に戻る。使い終わったら reset。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in locationIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil

@@ -83,6 +83,10 @@
       "description": "自分のアプリ DevKit ののぞき窓"
     },
     {
+      "name": "iphone_web",
+      "description": "Safari などの中のページを見る・JavaScript を動かす"
+    },
+    {
       "name": "iphone_clipboard",
       "description": "クリップボードを読む・入れる"
     },

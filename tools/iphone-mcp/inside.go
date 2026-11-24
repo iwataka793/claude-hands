@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -32,6 +33,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/mcinstall"
 	"github.com/danielpaulus/go-ios/ios/pasteboard"
 	"github.com/danielpaulus/go-ios/ios/simlocation"
+	"github.com/danielpaulus/go-ios/ios/webinspector"
 )
 
 // devs は USB の端末とトンネルの端末を返す（つないでから使う）。
@@ -549,22 +551,133 @@ func (p *Phone) ClipboardSet(s string) error {
 	return c.SetText(s)
 }
 
+// Location は仮の位置にする／戻す。iOS 17 からは instruments の LocationSimulation を使い、
+// つないだままの間だけ効く（だから p.loc に持ち続け、reset か切るときに止める）。
 func (p *Phone) Location(reset bool, lat, lon float64) error {
 	usb, rsd := p.devs()
-	var errs []string
-	for _, d := range []ios.DeviceEntry{rsd, usb} {
-		var err error
-		if reset {
-			err = simlocation.ResetLocation(d)
-		} else {
-			err = simlocation.SetLocation(d, strconv.FormatFloat(lat, 'f', 6, 64), strconv.FormatFloat(lon, 'f', 6, 64))
+	p.locMu.Lock()
+	defer p.locMu.Unlock()
+	if reset {
+		if p.loc != nil {
+			err := p.loc.StopSimulateLocation()
+			p.loc = nil
+			if err == nil {
+				return nil
+			}
 		}
-		if err == nil {
+		if err := simlocation.ResetLocation(usb); err == nil {
 			return nil
 		}
-		errs = append(errs, err.Error())
+		return nil // もともと仮の位置にしていない
 	}
-	return fmt.Errorf("仮の位置の窓口が答えません：%s", strings.Join(errs, " / "))
+	if p.loc == nil {
+		l, err := instruments.NewLocationSimulationService(rsd)
+		if err != nil {
+			if err2 := simlocation.SetLocation(usb, strconv.FormatFloat(lat, 'f', 6, 64), strconv.FormatFloat(lon, 'f', 6, 64)); err2 == nil {
+				return nil
+			}
+			return fmt.Errorf("仮の位置の窓口が答えません：%w", err)
+		}
+		p.loc = l
+	}
+	if err := p.loc.StartSimulateLocation(lat, lon); err != nil {
+		p.loc.Close()
+		p.loc = nil
+		return fmt.Errorf("仮の位置にできません：%w", err)
+	}
+	return nil
+}
+
+// stopLocation は切るときに仮の位置を止める。
+func (p *Phone) stopLocation() {
+	p.locMu.Lock()
+	defer p.locMu.Unlock()
+	if p.loc != nil {
+		_ = p.loc.StopSimulateLocation()
+		p.loc = nil
+	}
+}
+
+// ---- Safari などの中のページ（Web インスペクタ。iPhone の設定でオンが要る） ----
+
+func (p *Phone) webClient(ctx context.Context) (*webinspector.Client, error) {
+	_, rsd := p.devs()
+	c, err := webinspector.New(rsd)
+	if err != nil {
+		return nil, fmt.Errorf("Web インスペクタの窓口につなげません：%w", err)
+	}
+	if err := c.Connect(ctx); err != nil {
+		c.Close()
+		return nil, fmt.Errorf("Web インスペクタが答えません（iPhone の設定 → アプリ → Safari → 詳細 → Web インスペクタ がオンか）：%w", err)
+	}
+	return c, nil
+}
+
+func webPages(ctx context.Context, c *webinspector.Client) ([]webinspector.ApplicationPage, error) {
+	l, err := c.ListPages(ctx, 700*time.Millisecond)
+	if err != nil {
+		return nil, err
+	}
+	var out []webinspector.ApplicationPage
+	for _, x := range l {
+		if x.Page.Type == webinspector.WIRTypeWeb || x.Page.Type == webinspector.WIRTypeWebPage || x.Page.Type == webinspector.WIRTypeJavaScript {
+			out = append(out, x)
+		}
+	}
+	return out, nil
+}
+
+func (p *Phone) WebList(ctx context.Context) (string, error) {
+	c, err := p.webClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	l, err := webPages(ctx, c)
+	if err != nil {
+		return "", err
+	}
+	if len(l) == 0 {
+		return "見られるページはありません（Safari でページを開くか、アプリの中の Web の画面を出す）", nil
+	}
+	var lines []string
+	for _, x := range l {
+		lines = append(lines, fmt.Sprintf("page=%s  %s  「%s」 %s", x.Page.Key, x.Application.Name, x.Page.Title, x.Page.URL))
+	}
+	return fmt.Sprintf("ページ %d 個（page の値を eval で使う）\n%s", len(l), strings.Join(lines, "\n")), nil
+}
+
+// WebEval はページで JavaScript を動かして結果を返す。page が空なら Safari のいちばん上のページ。
+func (p *Phone) WebEval(ctx context.Context, page, expr string) (string, error) {
+	c, err := p.webClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	l, err := webPages(ctx, c)
+	if err != nil {
+		return "", err
+	}
+	var hit *webinspector.ApplicationPage
+	for i := range l {
+		if (page != "" && l[i].Page.Key == page) || (page == "" && l[i].Application.BundleID == webinspector.SafariBundleID) {
+			hit = &l[i]
+			break
+		}
+	}
+	if hit == nil {
+		return "", fmt.Errorf("ページが見つかりません（action=list で page を確かめる）")
+	}
+	r, err := c.Evaluate(ctx, hit.Application, hit.Page, expr)
+	if err != nil {
+		return "", err
+	}
+	b, _ := json.Marshal(r)
+	s := string(b)
+	if len(s) > 20000 {
+		s = cut(s, 20000) + "…"
+	}
+	return fmt.Sprintf("「%s」 %s\n%s", hit.Page.Title, hit.Page.URL, s), nil
 }
 
 // waitPid は、起動したアプリが一覧に出るまで少し待つ（確かめ）。
