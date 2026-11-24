@@ -1,0 +1,84 @@
+{
+  "manifest_version": "0.2",
+  "name": "iphone-dev-kit",
+  "display_name": "iPhone（iphone-dev-kit）",
+  "version": "0.1.0",
+  "description": "USB でつないだ iPhone を Claude が見て・動かす（go-ios と WebDriverAgent）。カオルのスイッチ（オフ・見るだけ・操作も可）で止められる。",
+  "author": {
+    "name": "iwataka793"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iwataka793/iphone-dev-kit"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "server/iphone-mcp.exe",
+    "mcp_config": {
+      "command": "${__dirname}/server/iphone-mcp.exe",
+      "args": [],
+      "env": {
+        "IPHONE_MCP_IDLE_MINUTES": "${user_config.idle_minutes}"
+      }
+    }
+  },
+  "user_config": {
+    "idle_minutes": {
+      "type": "number",
+      "title": "自動オフまでの分数",
+      "description": "使わない時間がこれだけ続いたら、スイッチをオフに戻して iPhone から切る",
+      "default": 30,
+      "min": 1,
+      "max": 600,
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "iphone_status",
+      "description": "スイッチとつながり具合"
+    },
+    {
+      "name": "iphone_logs",
+      "description": "iPhone のログを正規表現で絞る"
+    },
+    {
+      "name": "iphone_screenshot",
+      "description": "画面を撮る"
+    },
+    {
+      "name": "iphone_elements",
+      "description": "画面の部品の一覧"
+    },
+    {
+      "name": "iphone_tap",
+      "description": "タップ"
+    },
+    {
+      "name": "iphone_swipe",
+      "description": "スワイプ"
+    },
+    {
+      "name": "iphone_tap_text",
+      "description": "文字で部品を探して押す"
+    },
+    {
+      "name": "iphone_app",
+      "description": "アプリを前に出す・終わらせる"
+    },
+    {
+      "name": "iphone_lc_install",
+      "description": "LiveContainer の中のアプリを入れ替える"
+    },
+    {
+      "name": "iphone_lc_list",
+      "description": "LiveContainer の中の一覧"
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "win32"
+    ]
+  },
+  "license": "MIT"
+}

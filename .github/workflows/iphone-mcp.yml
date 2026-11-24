@@ -1,0 +1,83 @@
+# iPhone を見て・動かす MCP サーバー（Windows の exe）をビルドして、Claude デスクトップの拡張機能（.mcpb）にまとめる。
+# Releases には mcp-N として置く（DevKit の最新版は変えない）。
+name: iphone-mcp build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/iphone-mcp/**"
+      - ".github/workflows/iphone-mcp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iphone-mcp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/iphone-mcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: false
+
+      - name: 依存を揃える
+        run: |
+          go mod tidy
+          git diff --stat go.mod || true
+
+      - name: 確かめる（vet）
+        run: GOOS=windows GOARCH=amd64 go vet ./...
+
+      - name: Windows 用にビルド
+        run: |
+          mkdir -p pkg/server
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath \
+            -ldflags "-s -w -X main.version=0.1.${{ github.run_number }}+${GITHUB_SHA::7}" \
+            -o pkg/server/iphone-mcp.exe .
+          ls -la pkg/server
+
+      - name: 拡張機能（.mcpb）にまとめる
+        run: |
+          python3 - <<'PY'
+          import json
+          m = json.load(open("manifest.json", encoding="utf-8"))
+          m["version"] = "0.1.${{ github.run_number }}"
+          json.dump(m, open("pkg/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+          PY
+          npx -y @anthropic-ai/mcpb validate pkg/manifest.json
+          npx -y @anthropic-ai/mcpb pack pkg iphone-dev-kit.mcpb
+          (cd switch && zip -q ../iphone-switch.zip *.bat)
+          ls -la iphone-dev-kit.mcpb iphone-switch.zip
+
+      - name: 結果を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone-mcp
+          path: |
+            tools/iphone-mcp/iphone-dev-kit.mcpb
+            tools/iphone-mcp/iphone-switch.zip
+            tools/iphone-mcp/go.sum
+            tools/iphone-mcp/go.mod
+
+      - name: Releases に置く（main のみ・最新版にはしない）
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="mcp-${{ github.run_number }}"
+          gh release create "$TAG" iphone-dev-kit.mcpb iphone-switch.zip \
+            --title "iPhone MCP $TAG" \
+            --notes "Claude デスクトップの拡張機能（設定 → 拡張機能 → 詳細設定 → Install Extension… で iphone-dev-kit.mcpb を選ぶ）。iphone-switch.zip はカオル用のスイッチ（オフ・見るだけ・操作も可）。commit ${GITHUB_SHA::7}" \
+            --latest=false
