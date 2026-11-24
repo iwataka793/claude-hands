@@ -41,13 +41,15 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
    - 結果は REST で見る（このセッションの gh は GraphQL を使うコマンドが通らないことがある）：
      `gh api 'repos/iwataka793/iphone-dev-kit/actions/runs?per_page=5' --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) \(.conclusion) \(.head_sha[0:7])"'`
      失敗したら `gh api repos/iwataka793/iphone-dev-kit/actions/runs/<id>/jobs` で段階を見る
-   - ファイルは `curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/<タグ>/<ファイル>` で取れる。最新のタグは `gh api repos/iwataka793/iphone-dev-kit/releases/latest --jq .tag_name`
+   - ファイルは `curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/<タグ>/<ファイル>` で取れる。最新のタグは `gh api repos/iwataka793/iphone-dev-kit/releases/latest --jq .tag_name`。そのタグのコミットは `gh api repos/iwataka793/iphone-dev-kit/git/ref/tags/build-N --jq .object.sha`（リリースの説明文にも書いてある）
    - Releases の `build-N` に DevKit.ipa・simulator-check.zip（シミュレーターの画面）・simulator-test.log が置かれる
    - このセッションからは Releases を作れない（403）。作るのは Actions に任せる
 3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/build-N/simulator-check.zip` などで取って見る
 4. **iPhone に入れる**（人の手なし。2026-11-24 確認済み）：3-5 の手順で PC から LiveContainer に直接置く
    - 予備：カオルに Safari で `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa` を開いて LiveContainer で入れてもらう
    - 入ったかどうかは DEVKIT のログの `commit=` か、画面下の `build:` がコミット番号と同じかで確かめる
+   - 比べる相手は「入れた build-N のタグのコミット」。ios.yml は App/・Core/・ios.yml・scripts/*.sh が変わったときだけ動くので、ほかのファイル（docs など）だけのコミットでは新しい build-N はできない
+   - Actions が実行中なら、終わるまで待ってから比べる
 5. **実機で動かして見る**：PC の go.bat（3 章）。ログ・画面・操作が一度にできる
 6. **記録**：分かったことは LOG.md の一番上に書く
 
@@ -63,6 +65,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 ### 3-2. 台本を置く（初回・更新時）
 
+最初に、PC の go.ps1 / go.bat が repo と同じかを確かめる（`device_stage_files` で取って `cmp`）。違えば置き直す。
+
 repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 
 1. `SendUserFile` で go.ps1 / go.bat を送る（file_uuid が返る）
@@ -76,11 +80,15 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 
 1. `plan.json`（3-4）を作り、`SendUserFile` → `device_commit_files` で `devkit-setup\plan.json` に置く
 2. computer use でエクスプローラーを開き、`devkit-setup` の `go.bat` をダブルクリックする
+   - 開き方：`computer_open_application("エクスプローラー")`（またはタスクバーのフォルダのアイコン）→ ホームが開くので、左の一覧の「devkit-setup」を押す
+   - 許可していないアプリ（通知の窓など）が一番前にあるとクリックが断られる。エクスプローラーの窓を一度押して前に出してからやり直す
    - 初回は `computer_resolve_access(["File Explorer"])` → `computer_request_access`
    - エクスプローラーは click 権限だけ（打鍵・右クリック不可）。ダブルクリックで .bat を動かすのは可
    - 一覧の並びはファイルを置くたびに変わる（新しい順）。**ファイルを置いたら 2 秒待ち、押す直前に `computer_zoom` で名前を確かめてから、別の呼び出しで押す**（zoom と押すのを同じ batch に入れると確かめた意味がない。2026-11-24 に config.ps1 を開いてしまった）
    - 待ちは 1 回 50 秒まで。長いときは分けて待つ
 3. 結果を読む：`device_stage_files` で `devkit-setup\last-result.txt` を取る。画面は `runs\<日時>-<name>\*.png`
+   - かかる時間：WDA ありで 40〜90 秒（トンネル 15 秒＋WDA の起動 5 秒＋操作）。最後の行が `== 完了` なら終わっている。1 行目の時刻が今回のものかも確かめる（前の結果を読まない）
+   - iPhone のログの時刻は PC の記録より 2 秒ほど早く出ることがある（時計のずれ）
 4. 終わったら `computer_release_lock`
 
 ### 3-4. plan.json の書き方
@@ -103,6 +111,8 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 }
 ```
 
+- よく使う形（DevKit を前に出して上下にスワイプ）：`{"name":"check","match":"DEVKIT","wda":true,"target":"livecontainer","actions":[{"do":"activate"},{"do":"wait","sec":2},{"do":"drag","from":[195,250],"to":[195,550]},{"do":"wait","sec":2},{"do":"drag","from":[195,550],"to":[195,250]},{"do":"screenshot","name":"after"}]}`
+  - `activate` で LiveContainer の一覧（マイアプリ）が出たときは、DevKit は動いていない。`{"do":"tapText","text":"実行"}` と `wait` 8 秒を足す。どちらが出るかは、その前の状態しだい
 - `match`：iPhone のログから抜き出す文字（正規表現）。結果に最後の 60 行が出る。全部は `runs\...\syslog-match.txt`
 - `wda: false`：操作せず、`seconds` 秒ログを取って前後の画面を撮るだけ
 - 座標は WebDriverAgent の単位（iPhone 16e は 390×844）。結果の「画面の大きさ」に出る
@@ -141,6 +151,7 @@ LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て�
 
 ### 3-6. 守ること（PC）
 
+- 結果（last-result.txt・iPhone のログ）には、チーム ID 付きの bundle id や端末の名前が入る。LOG.md などに写すときは `<チームID>` のように伏せる
 - iPhone の出力は**必要な行だけに絞ってから読む**。`ios apps --list` などはアプリ一覧が全部出る（個人情報）
 - SideStore の記録（ConsoleLogs）には Apple ID のメールアドレスやログイン用の一時データが入る。チャットに出さない・repo に入れない
 - PC のファイルを消すときは、先にカオルに確認する。消すときは完全削除ではなく「ごみ箱へ」（`Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(..., 'SendToRecycleBin')`）
@@ -202,4 +213,4 @@ LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て�
 
 ## 8. 未検証・これから
 
-- **新しいセッションでの試験**：この文書と repo だけで 1 周回せるか
+- 新しいセッションでの試験は 2026-11-24 に済み（LOG 参照）。手順が大きく変わったらもう一度やる

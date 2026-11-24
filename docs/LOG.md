@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-24（新しいセッション役の試験：手順書だけで実機確認ができた）
+
+- 前の会話を知らない Claude に repo だけを渡し、「iPhone の DevKit が最新ビルドか」を PC から確かめさせた
+  - 結果：latest は build-3（e1e0f66）。DEVKIT の commit=e1e0f66、画面の build: e1e0f66 で一致（19:23）。iPhone には何も入れていない
+- 出てきた手順書の穴を直した（OPERATIONS.md）：build-N のコミットの調べ方、比べる相手、エクスプローラーの開き方と前に出す方法、台本が最新かの確かめ方、終わった印とかかる時間、よく使う plan の形、結果に入る ID・端末名を写すときは伏せる、時計のずれ
+- ios.yml：scripts/pc などの変更では DevKit をビルドしないようにした（paths を scripts/*.sh に）。比べるとき紛らわしいため
+
 ## 2026-11-24（PC の新しい台本で 1 周＋DevKit を人の手なしで LiveContainer に入れた）
 
 - scripts/pc の go.bat ＋ plan.json を PC に置いて実行（設定 config.ps1 は devkit-setup に置く）

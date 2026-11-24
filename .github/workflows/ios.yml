@@ -10,7 +10,7 @@ on:
     paths:
       - "App/**"
       - "Core/**"
-      - "scripts/**"
+      - "scripts/*.sh"
       - ".github/workflows/ios.yml"
   workflow_dispatch:
 
