@@ -8,7 +8,11 @@ function Click-At($x, $y, $kind) {
   }
 }
 $w = $null
-if ($A.window) { $w = Find-PcWindow $A.window; if (-not $w) { 'ERROR: 窓「{0}」が見つかりません' -f $A.window; return }; Activate-PcWindow $w }
+if ($A.window) {
+  $w = Find-PcWindow $A.window
+  if (-not $w) { 'ERROR: 窓「{0}」が見つかりません' -f $A.window; return }
+  if (-not (Activate-PcWindow $w) -and $act -match '_xy$|^(double|right)$') { 'ERROR: 窓「{0}」を前に出せませんでした。別の窓を押さないよう、やめました' -f $w.Name; return }
+}
 if ($act -in 'click_xy', 'double_xy', 'right_xy') {
   $k = 'left'; if ($act -eq 'double_xy') { $k = 'double' } elseif ($act -eq 'right_xy') { $k = 'right' }
   Click-At $A.x $A.y $k

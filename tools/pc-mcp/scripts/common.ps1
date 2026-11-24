@@ -44,14 +44,23 @@ function Find-PcWindow($spec) {
   return $null
 }
 
+# 窓を前に出す。出せたら $true。
+# 注意：Alt キーを押す昔からの手は使わない（メニューが開いて、そのあとに打った文字がメニューの操作になる。
+#       2026-11-24 の GitHub の Windows の試験で、メモ帳が「閉じる」になった）
 function Activate-PcWindow($w) {
   $h = [IntPtr]$w.Handle
   if ([PcNative]::IsIconic($h)) { [void][PcNative]::ShowWindow($h, 9) }
-  # Alt を一度押すと、前に出すのを Windows が許しやすい
-  [PcNative]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [PcNative]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-  [void][PcNative]::SetForegroundWindow($h)
-  try { $w.El.SetFocus() } catch {}
-  Start-Sleep -Milliseconds 150
+  for ($i = 0; $i -lt 3; $i++) {
+    [void][PcNative]::SetForegroundWindow($h)
+    Start-Sleep -Milliseconds 120
+    if ([PcNative]::GetForegroundWindow() -eq $h) { return $true }
+    # 何も押さない「空のキー」で、前に出す権利をもらう
+    [PcNative]::keybd_event(0, 0, 0, [UIntPtr]::Zero); [PcNative]::keybd_event(0, 0, 2, [UIntPtr]::Zero)
+    try { $w.El.SetFocus() } catch {}
+    Start-Sleep -Milliseconds 120
+    if ([PcNative]::GetForegroundWindow() -eq $h) { return $true }
+  }
+  return $false
 }
 
 function Fmt-Rect($r) { if ($r.IsEmpty) { return '' } ; '位置({0},{1}) 大きさ{2}x{3}' -f [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height }

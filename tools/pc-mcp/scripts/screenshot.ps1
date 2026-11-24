@@ -4,7 +4,7 @@ $title = ''
 if ($A.window) {
   $w = Find-PcWindow $A.window
   if (-not $w) { 'ERROR: 窓「{0}」が見つかりません' -f $A.window; return }
-  if ($A.activate) { Activate-PcWindow $w }
+  if ($A.activate) { [void](Activate-PcWindow $w); Start-Sleep -Milliseconds 200 }
   $r = $w.Rect; $x = [int]$r.X; $y = [int]$r.Y; $wd = [int]$r.Width; $ht = [int]$r.Height; $title = $w.Name
 }
 $bmp = New-Object System.Drawing.Bitmap $wd, $ht

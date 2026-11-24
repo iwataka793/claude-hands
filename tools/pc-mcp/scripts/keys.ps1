@@ -1,4 +1,8 @@
-if ($A.window) { $w = Find-PcWindow $A.window; if (-not $w) { 'ERROR: 窓「{0}」が見つかりません' -f $A.window; return }; Activate-PcWindow $w }
+if ($A.window) {
+  $w = Find-PcWindow $A.window
+  if (-not $w) { 'ERROR: 窓「{0}」が見つかりません' -f $A.window; return }
+  if (-not (Activate-PcWindow $w)) { 'ERROR: 窓「{0}」を前に出せませんでした。別の窓に打たないよう、やめました' -f $w.Name; return }
+}
 $fg = [PcNative]::GetForegroundWindow(); $fpid = 0; [void][PcNative]::GetWindowThreadProcessId($fg, [ref]$fpid)
 $pn = ''; try { $pn = (Get-Process -Id $fpid -ErrorAction Stop).ProcessName } catch {}
 if ($A.text -and $A.paste) {
