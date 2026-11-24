@@ -1,6 +1,6 @@
 # iPhone の MCP サーバー（tools/iphone-mcp）
 
-この md は道具の動かし方だけを書く。書いてあることは 2026-11-24 に実機（iPhone 16e・iOS 27.2.1）で確かめたもの。確かめていないものは「（未確認）」と書く。
+この md は道具の動かし方だけを書く。書いてあることは 2026-11-24・25 に実機（iPhone 16e・iOS 27.2.1）で確かめたもの。確かめていないものは「（未確認）」と書く。
 
 Claude が iPhone を「その場で」見て・動かすための道具。Claude デスクトップの拡張機能（.mcpb）として PC に入れる。
 go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ログ・WebDriverAgent をつないだまま持ち、1 回の操作が数秒で返る。
@@ -17,8 +17,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | .bat | 状態 | Claude ができること |
 | --- | --- | --- |
 | iPhone-OFF | オフ | 何もできない（iPhone につながない） |
-| iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・ポップアップを読む・文字が出るまで待つ・LiveContainer の中の一覧 |
-| iPhone-OPERATE | 操作も可 | 上に加えて、タップ・長押し・スワイプ・ピンチ・文字で押す・文字入力・ボタン・ポップアップを押す・スクロールして探す・アプリの操作・まとめて実行・LiveContainer への入れ替え |
+| iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・ポップアップを読む・文字が出るまで待つ・中の様子（iphone_info）・アプリの中のファイルを見る・読む・PC に取る |
+| iPhone-OPERATE | 操作も可 | 上に加えて、タップ・長押し・スワイプ・ピンチ・文字で押す・文字入力・ボタン・ポップアップを押す・スクロールして探す・アプリの操作・まとめて実行・LiveContainer への入れ替え・アプリの中のファイルを書く・クリップボード・仮の位置 |
 
 - 状態は `%USERPROFILE%\devkit\iphone-mcp\mode.txt`。MCP サーバーには切り替える道具を作っていない
 - 置き場所を `%LOCALAPPDATA%` にしないこと：ストア版の Claude から動くと、AppData への書き込みが `AppData\Local\Packages\Claude_…\LocalCache\Local\` に振り分けられ、.bat が書いたファイルとずれる（0.1.2 で実際に起きた）
@@ -34,7 +34,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 1. この会話で道具が見えるか：道具の一覧に `iphone_status` があるか。無ければ、この会話が PC の Claude デスクトップとつながっていない（カオルがスマホのアプリだけで話しているときなど）。カオルに「PC の Claude デスクトップでこの会話を開いてほしい」と頼む
 2. `iphone_status` を呼ぶ（iPhone にはつながない・スイッチがオフでも使える）。見るところ：`スイッチ`、`つながっている`、`WebDriverAgent`、`版`
 3. スイッチがオフなら、カオルにオンにしてもらう
-4. ほかの道具を初めて呼んだとき、USB でつなぎ（1 秒かからない）、画面・部品・操作が要るときは WDA を起動する（数秒〜10 秒）
+4. ほかの道具を初めて呼んだとき、USB でつなぐ（1 秒かからない）。部品を使う操作（押す・打つ・部品の一覧など）が要るときだけ WDA を起動する（数秒〜10 秒）。画面を撮る・アプリの起動と終了・中の様子・ファイルは WDA なしで動く
 5. Claude デスクトップは、道具ごとに初回だけ「許可」を聞いてくることがある。カオルが「常に許可」を選べば次から出ない（Claude からは変えられない）
 
 ## 外から見る（観察）
@@ -50,15 +50,20 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | アプリの通信の相手のポート・量・時間（相手の IP は伏せ字） | `iphone_logs`（下のレシピ） |
 | アプリごとの通信量の合計と増えた分 | `iphone_logs`（下のレシピ） |
 | ポップアップの文とボタン | `iphone_alert` read |
-| LiveContainer の中のファイル | `iphone_lc_list` |
+| 機種・iOS・ロック・容量・電池・言語・時刻の形式・デベロッパモード・構成プロファイルの数 | `iphone_info`（既定） |
+| 動いているアプリ（新しく起動した順・pid） | `iphone_info` what=processes（`all` でアプリ以外も） |
+| 入れたアプリの大きさ（本体・データ） | `iphone_info` what=apps |
+| 落ちた記録（クラッシュなど。ほかのアプリの分も） | `iphone_info` what=crashes（`file` で中身） |
+| 開発者の署名のアプリ（LiveContainer など）の中のファイル・写真などのフォルダ | `iphone_files` |
 
-分からないもの：ほかのアプリのコード・関数・変数、暗号化された通信の中身、ほかのアプリが保存したデータ、ロック中の画面（真っ黒に写る）。
+分からないもの：ほかのアプリのコード・関数・変数、暗号化された通信の中身、ほかのアプリが保存したデータ（中を開けるのは開発者の署名のアプリだけ）、ロック中の画面（真っ黒に写る）。
 
 ### ログの読み方
 
 - 1 行の形：`PC が受け取った時刻 iPhone の時刻 端末名 プロセス名(サブシステム)[pid] <レベル>: 本文`
 - iPhone の時計は PC より 2〜3 秒遅れている。操作の時刻（道具の返事に出る）と比べるときは、この分をずらす
-- 道具が覚えているのは、つないでからの最新 3 万行だけ。iPhone のログは数分で数万行流れるので、5 分以上前のことはもう消えていることがある。**見たいことが起きたら、すぐ取る**
+- 道具が覚えているのは最新 3 万行（1〜2 分ぶん。iPhone のログは 1 分で 9 MB ほど流れる）。それより前は PC のファイル `%USERPROFILE%\devkit\iphone-mcp\logs\syslog.txt` から探す（`since_seconds` を大きくすれば自動。ファイルから来た行は先頭に日付が付く）。ファイルは 200 MB で `syslog.1.txt` に回すので、残るのは 1 時間ほど。**見たいことが起きたら、なるべく早く取る**
+- ログのファイルは PC の中だけ。端末の名前などが入るので repo に写さない
 - `max_lines` は新しい方から数える。うるさい行（例：ロック中の `bioLockoutState` は 1 秒ごとに出る）に合う正規表現にすると、見たい古い行が押し出される。**正規表現はできるだけ狭くする**
 - 本文の中の値は、アプリが公開にしていないものは `<private>` になる（自分のアプリは `privacy: .public` を付ければ出る）
 - アプリの実行ファイル名（ログのプロセス名）は、bundle id や画面の名前と違うことがある（画面の名前とまったく違う英数字のこともある）。まず操作した直後のログを広く見て、名前をつかむ
@@ -81,7 +86,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 ### 押す場所の決め方
 
 - 画面の画像の座標は、そのまま `iphone_tap` の座標に使える（縮めた画像 390x844 = WDA の単位）。画像を見て押すのがいちばん早い
-- 文字がはっきりしているボタンは `iphone_tap_text`。返事が「2 個中 0 番」のように 2 個以上で、画面が変わらなかったら、見えていない方を押している。`index` を変えるか、画像の座標で `iphone_tap` する（マップの「出発」で起きた）
+- 文字がはっきりしているボタンは `iphone_tap_text`。見えている部品から先に探す（0.1.7 から。前はマップの「出発」で隠れた方を押した）。それでも画面が変わらなかったら、`index` を変えるか、画像の座標で `iphone_tap` する
 - `iphone_elements` は確実だが遅い（ホーム画面で 10 秒ほど）。押す場所が画像で分からないときに使う
 
 ### 返事の読み方
@@ -95,7 +100,10 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 | したいこと | やり方 |
 | --- | --- |
-| アプリを開く | `iphone_app` action=activate、bundle=ホーム画面の名前（標準アプリは「マップ」「設定」など日本語）か bundle id |
+| アプリを開く | `iphone_app` action=activate、bundle=ホーム画面の名前（標準アプリは「マップ」「設定」など日本語）か bundle id。WDA が動いていなければ中から開く（0.1 秒） |
+| アプリを起動し直す・終わらせる | `iphone_app` action=launch / terminate（中から。WDA なし） |
+| 長い文を入れる | `iphone_clipboard` set で入れて、欄を長押しして「ペースト」 |
+| 設定の項目を探す | app activate「設定」→ tap_text「検索」→ type で項目名（見るだけなら、ここで止める） |
 | ホーム画面のページ送り | `iphone_swipe` (330,400)→(60,400)。戻るは逆。1 回 2.5 秒ほど |
 | 検索欄に打って検索 | `iphone_type` field=欄の薄い文字（`partial: true`）、`enter: true` |
 | 何回か続けて操作 | `iphone_steps`。途中で失敗したらそこで止まり、その時の画面が付く |
@@ -105,10 +113,15 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ### ロック
 
-- `iphone_button` lock：ロックはかかる。ただし WDA は「ロックの完了を待って時間切れ」とエラーを返す（実際はかかっている）
-- `iphone_button` unlock：外れない（パスコード・顔認証の端末）。画面をつけてパスコードの画面に進めるだけで、返事は「押した」になる。外すのはカオル
-- ロック中は画面が真っ黒に写り、`iphone_button` home は「ロックが外れていない」と断られる。ロック中かどうかはログで見る（上のレシピ）
+- ロック中かどうかは `iphone_info` の「ロック」（iOS の lockdown の PasswordProtected）。外れているときに「外れている」と出ることは確かめた。かかっているときの値は（未確認）
+- `iphone_button` lock：使えない。iOS 27 では WDA の lock がサイドボタンの長押しになり、Siri の案内が出るだけ（2026-11-25）。道具は断る。かけるならカオルにサイドボタンを押してもらう
+- `iphone_button` unlock：外れない（パスコード・顔認証の端末）。ロックがかかっていれば「外すのはカオル」と返す
+- ロック中は画面が真っ黒に写り、`iphone_button` home は「ロックが外れていない」と断られる
 - 外す試しを続けると顔認証が止まる。くり返さない
+
+### 仮の位置
+
+- `iphone_location` は、いまは使えない。iPhone の窓口（com.apple.dt.simulatelocation）に開発者のディスクイメージが要り、入っていない（2026-11-25）。入れるには go-ios の `image auto`（ネットから取る）が要る。使うときはカオルに相談
 
 ## うまくいかないとき
 
@@ -130,7 +143,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_logs | 見るだけ〜 | つないだ時から覚えているログを正規表現で絞る。`wait_seconds` で出るまで待つ |
 | iphone_screenshot | 見るだけ〜 | 画面（既定は 1/3 の JPEG、`full` で元の PNG） |
 | iphone_elements | 見るだけ〜 | 画面の部品を「種類 「文字」 中心(x,y)」で |
-| iphone_lc_list | 見るだけ〜 | LiveContainer の中のフォルダ（1 段） |
+| iphone_info | 見るだけ〜 | 中の様子：summary（既定）/ processes / apps / crashes。WDA なし |
+| iphone_files（list / read / pull） | 見るだけ〜 | アプリの中のファイル（省略で LiveContainer）、`app=media` で写真などのフォルダ。pull は PC の `devkit\iphone-mcp\files` へ |
 | iphone_alert（read） | 見るだけ〜 | ポップアップの文とボタンを読む |
 | iphone_wait | 見るだけ〜 | 文字が出るまで（`gone` なら消えるまで）待つ |
 | iphone_tap | 操作も可 | (x, y) をタップ。`count=2` でダブルタップ、`hold` で長押し。WDA の単位（390x844） |
@@ -143,6 +157,9 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_scroll_to | 操作も可 | 文字が出るまでスクロール。端で止まる。`tap` で押す |
 | iphone_app | 操作も可 | activate / launch / terminate / state / url。`bundle` はホーム画面の名前（標準アプリは日本語名）か bundle id。省略時 LiveContainer |
 | iphone_steps | 操作も可 | 上の操作を並べて 1 回で行う。失敗したらそこで止めてその時の画面を返す |
+| iphone_files（write / push） | 操作も可 | アプリの中にファイルを書く・置く（テストのデータ・設定） |
+| iphone_clipboard | 操作も可 | クリップボードを読む・入れる（パスワードが入っていることがあるので、読むのは要るときだけ） |
+| iphone_location | 操作も可 | 仮の位置（いまは使えない。上の「仮の位置」） |
 | iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
 
 
@@ -158,6 +175,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 - Go。go-ios v1.3.2 をライブラリとして組み込み（トンネルは userspace、鍵は `%USERPROFILE%\devkit\go-ios` の selfIdentity.plist を使い回す）
 - WDA への HTTP は USB の経路を直接つなぐ（PC にポートを開けない。`ios forward` は 0.0.0.0 で開くので使わない）
-- ログは USB の経路で取り続け、3 万行まで覚える
+- ログは USB の経路で取り続け、3 万行まで覚え、PC のファイルにも書く
+- 画面は、WDA が動いていれば WDA、動いていなければ instruments（1 秒かからない）で撮る。前のアプリは WDA が動いているときだけ返す
+- 中の様子・アプリの起動と終了は instruments・lockdown・installation_proxy・coredevice の窓口に直接たのむ（WDA なし）
 - 記録：`%USERPROFILE%\devkit\iphone-mcp\server.log`
 - ビルド：`.github/workflows/iphone-mcp.yml`（Linux で MCP の受け答えとスイッチの試験 → Windows exe → .mcpb → Releases `mcp-N`）

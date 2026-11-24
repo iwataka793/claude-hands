@@ -2,6 +2,19 @@
 
 新しいものが上。
 
+## 2026-11-25 iPhone の道具 0.1.7（mcp-7）：中を見る・中から動かす
+
+- 先に go-ios のコマンドで、iOS 27 で窓口が答えるかを 1 つずつ確かめた（PC の道具から ios.exe を実行。go-ios の場所は鍵があるので PC-ALLOW の間だけ使える）
+  - 答えた：容量・日時・電池・言語・時刻の形式・デベロッパモード・構成プロファイル・端末の情報（lockdown・afc）、動いているもの（instruments。トンネルが要る）、アプリの起動・終了（instruments processcontrol。WDA なし）、クリップボード（coredevice）、WDA なしの画面（instruments 0.8 秒）、落ちた記録の一覧（coredevice の fileservice。昔の crashreport の窓口は EOF で答えない）、ホーム画面の並び
+  - 答えない：Safari の中（設定の「Web インスペクタ」がオフ）、仮の位置（開発者のディスクイメージが要る）
+  - 電池の 1 % ごとの温度・容量の細かい値は 0 で返る（iOS 27 では出さないらしい）。充電の回数は出る
+- 0.1.7 で入れたもの：iphone_info・iphone_files（iphone_lc_list をまとめた）・iphone_clipboard・iphone_location。画面を撮る・前のアプリを知るためだけに WDA を起こさない。iphone_app の launch / terminate / state と、WDA が無いときの activate を中から。ログを PC のファイルにも残す。文字で押すは見えている方から
+- 実機で確かめた：上のどれも WDA なしで 1〜3 秒。計算機の起動 → 終了、設定を中から開く（0.1 秒）→ 検索欄に打つ。ログのファイルからの検索（3 万行からあふれた分）
+- ログは 1 分で 9 MB ほど。覚えている 3 万行は 1〜2 分ぶんしかない
+- iOS 27 では WDA の lock がサイドボタンの長押しになり、Siri の案内が出る（「今はしない」で閉じた）。lock は道具で断るようにした
+- SideStore の入れ直し：LiveContainer が RefreshAllIntent（ショートカットから呼べる形）を持っている。ショートカットで動くかは未確認
+- 失敗：アプリの一覧を PowerShell で読んだとき、文字コードの読み違いで JSON が読めず、エラーの文に一覧の中身が全部出た。repo にも会話にも写していない。iPhone の JSON は `-Encoding UTF8` で読み、エラーは try / catch で中身を出さない
+
 ## 2026-11-25 PC の道具をカオルの PC に入れた・片付け・遠隔で電源の下調べ
 
 - pc-4 を入れた（pc-setup.bat・拡張機能）。拡張機能 → 常駐役のつながり、PC-ALLOW の UAC の流れ、容量・不具合の記録・PowerShell・ごみ箱が、カオルの PC で動いた
