@@ -1,0 +1,136 @@
+# WebDriverAgent を 3 通りに署名して、署名の中身を比べる（原因調べ用）。
+#   A: SideStore と同じ部品（CodeSignKit）… iPhone で失敗する側
+#   B: rcodesign（iloader の isideload が使う apple-codesign 系）… iPhone で動く側
+#   C: Apple の codesign（Xcode と同じ）… 正解の見本
+# 証明書はその場で作る仮のもの（自己署名）。Apple には何も送らない。結果は Releases の diag-N（最新版にはしない）。
+name: sign compare
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/sign-compare/**"
+      - ".github/workflows/sign-compare.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  compare:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 材料（wda-4 の IPA、仮の証明書、entitlements）
+        run: |
+          set -e
+          mkdir -p w && cd w
+          curl -sSL -o wda.ipa https://github.com/${{ github.repository }}/releases/download/wda-4/WebDriverAgentRunner.ipa
+          for x in A B C; do mkdir $x; (cd $x && unzip -q ../wda.ipa); done
+          T=ABCDE12345
+          cat > cert.cnf <<EOF
+          [req]
+          distinguished_name=dn
+          x509_extensions=ext
+          prompt=no
+          [dn]
+          CN=Apple Development: Test (${T})
+          OU=${T}
+          O=Test
+          [ext]
+          keyUsage=critical,digitalSignature
+          extendedKeyUsage=codeSigning
+          basicConstraints=critical,CA:false
+          EOF
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 30 -config cert.cnf
+          openssl pkcs12 -export -legacy -inkey key.pem -in cert.pem -out cert.p12 -passout pass:test 2>/dev/null || \
+            openssl pkcs12 -export -inkey key.pem -in cert.pem -out cert.p12 -passout pass:test
+          cat > ent.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>application-identifier</key><string>${T}.com.facebook.WebDriverAgentRunner.xctrunner</string>
+          <key>com.apple.developer.team-identifier</key><string>${T}</string>
+          <key>get-task-allow</key><true/>
+          </dict></plist>
+          EOF
+          sed -i '' 's/^          //' ent.plist cert.cnf || true
+          ls -la
+
+      - name: A：CodeSignKit（SideStore と同じ）
+        run: |
+          cd tools/sign-compare
+          swift build -c release 2>&1 | tail -5
+          ./.build/release/SignCompare "$GITHUB_WORKSPACE/w/A/Payload/WebDriverAgentRunner-Runner.app" "$GITHUB_WORKSPACE/w/cert.p12" "$GITHUB_WORKSPACE/w/ent.plist" | tee "$GITHUB_WORKSPACE/w/A-sign.txt"
+
+      - name: B：rcodesign（iloader 側に近い）
+        run: |
+          set -e
+          cd w
+          V=0.29.0
+          curl -sSL -o rc.tgz "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${V}/apple-codesign-${V}-macos-universal.tar.gz"
+          tar xzf rc.tgz
+          RC=$(find . -name rcodesign -type f | head -1)
+          $RC --version
+          $RC sign --p12-file cert.p12 --p12-password test --entitlements-xml-file ent.plist B/Payload/WebDriverAgentRunner-Runner.app 2>&1 | tail -20 | tee B-sign.txt
+
+      - name: C：Apple の codesign（見本）
+        run: |
+          set -e
+          cd w
+          security create-keychain -p kc test.keychain
+          security unlock-keychain -p kc test.keychain
+          security import cert.p12 -k test.keychain -P test -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k kc test.keychain >/dev/null
+          security list-keychains -d user -s test.keychain $(security list-keychains -d user | tr -d '"')
+          ID=$(security find-certificate -c "Apple Development: Test" -Z test.keychain | awk '/SHA-1/{print $3}')
+          echo "identity $ID"
+          APP=C/Payload/WebDriverAgentRunner-Runner.app
+          X=$APP/PlugIns/WebDriverAgentRunner.xctest
+          codesign -f -s "$ID" --keychain test.keychain $X/Frameworks/WebDriverAgentLib.framework 2>&1 | tee C-sign.txt
+          codesign -f -s "$ID" --keychain test.keychain --entitlements ent.plist $X 2>&1 | tee -a C-sign.txt
+          codesign -f -s "$ID" --keychain test.keychain --entitlements ent.plist $APP 2>&1 | tee -a C-sign.txt
+
+      - name: 比べる
+        if: always()
+        run: |
+          cd w
+          for x in A B C; do
+            APP=$x/Payload/WebDriverAgentRunner-Runner.app
+            X=$APP/PlugIns/WebDriverAgentRunner.xctest
+            {
+              echo "################ $x"
+              echo "== codesign --verify --deep --strict（本体）"
+              codesign -vvvv --deep --strict $APP 2>&1
+              echo "== codesign --verify（テスト本体）"
+              codesign -vvvv --strict $X 2>&1
+              echo "== codesign --verify（WebDriverAgentLib）"
+              codesign -vvvv --strict $X/Frameworks/WebDriverAgentLib.framework 2>&1
+              echo "== 本体 -dvvv"
+              codesign -dvvv $APP 2>&1
+              echo "== テスト本体 -dvvv"
+              codesign -dvvv $X 2>&1
+              echo "== テスト本体の entitlements"
+              codesign -d --entitlements - --xml $X 2>&1 | head -c 1500; echo
+              echo "== 本体 CodeResources の PlugIns 部分"
+              plutil -convert xml1 -o - $APP/_CodeSignature/CodeResources 2>&1 | grep -n -A12 "PlugIns/WebDriverAgentRunner.xctest" | head -60
+              echo "== テスト本体 CodeResources（先頭）"
+              plutil -convert xml1 -o - $X/_CodeSignature/CodeResources 2>&1 | head -80
+              echo "== ファイル一覧"
+              (cd $APP && find . -path '*/_CodeSignature/*' -o -name embedded.mobileprovision | sort)
+            } > $x-report.txt 2>&1
+          done
+          ls -la *-report.txt
+          head -c 4000 A-report.txt
+
+      - name: Releases に置く（最新版にはしない）
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd w
+          TAG="diag-${{ github.run_number }}"
+          gh release create "$TAG" A-report.txt B-report.txt C-report.txt A-sign.txt B-sign.txt C-sign.txt \
+            --title "署名の比較 $TAG" --notes "WebDriverAgent を CodeSignKit / rcodesign / codesign で署名して比べた結果（仮の証明書）" --latest=false
