@@ -212,7 +212,7 @@ type scrollToIn struct {
 type appIn struct {
 	Action string `json:"action" jsonschema:"activate（前に出す）／launch（起動し直す）／terminate（終わらせる）／state（動いているか）／url（URL を開く）"`
 	Bundle string `json:"bundle,omitempty" jsonschema:"アプリの名前（ホーム画面の名前。標準アプリは「設定」など日本語でよい）か bundle id。省略か livecontainer なら LiveContainer"`
-	URL    string `json:"url,omitempty" jsonschema:"action=url のときの URL（https:// や アプリの URL スキーム）"`
+	URL    string `json:"url,omitempty" jsonschema:"開く URL（action が url のとき。https:// や アプリの URL スキーム）"`
 	Show   string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
 	Log    string `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
 }
