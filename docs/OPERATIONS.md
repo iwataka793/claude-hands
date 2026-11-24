@@ -243,3 +243,7 @@ iPhone の道具（[MCP.md](MCP.md)）の残り：
 
 12. PC の道具で、見るだけで調べる（何も変えない）：スリープの方式（`powercfg /a`。モダン スタンバイか S3 か）、LAN アダプター（USB-C の変換）の種類と起こす機能（`Get-NetAdapter`・`Get-NetAdapterPowerManagement`・`Get-NetAdapterAdvancedProperty` のマジックパケット）、起こせる機器（`powercfg /devicequery wake_armed`）、最近の起きた理由（イベントログの Power-Troubleshooter）。見込み：USB の LAN アダプターは電源を切った状態からは起こせない。スリープからなら見込みあり。結果と、変えるなら要る設定をまとめてカオルに出し、変えるのは決めてから
 
+iPhone の中身を調べる道具（PC の道具の iPhone 版。2026-11-25 カオルの頼み）：
+
+13. 今の iPhone の道具は画面の操作が中心。PC の道具のように、iPhone の中身を見る道具にする。先に、各窓口が iOS 27 で答えるかを見るだけで 1 つずつ試す（go-ios v1.3.2 に部品あり）：端末の情報と空き容量（lockdown・disk_usage）、アプリごとの大きさ（installationproxy）、クラッシュの記録（crashreport。ほかのアプリの分も）、プログラムごとの CPU・メモリ（instruments の sysmontap）、電池の状態（diagnostics の IORegistry）、構成プロファイル（mcinstall）。答えたものだけを道具にする（5〜7 個に抑える。見るだけで使える）。アプリの一覧・クラッシュの記録は個人の情報なので repo に写さない
+
