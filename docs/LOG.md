@@ -2,6 +2,20 @@
 
 新しいものが上。
 
+## 2026-11-24（PC から実機を操作できた：WebDriverAgent）
+
+- `.github/workflows/wda.yml`：appium/WebDriverAgent（30aac06）を署名なしでビルドし、Releases に `wda-N` として置く（`--latest=false`。DevKit の最新版リンクは変えない）
+- 入れ方で3回つまずいた
+  1. LiveContainer の「＋」で入れて開く → testmanagerd がなく落ちる（当然。WDA は本体に入れて PC から起動する）
+  2. SideStore で入れる → go-ios `runwda` が「WebDriverAgentRunner.xctest を作れない（Error 104）」。同梱の XCTest 一式を外しても同じ
+  3. iloader の「Import IPA」→「Extension WebDriverAgentRunner is not part of the main app bundle identifier」で拒否。**テスト本体の ID（com.facebook.WebDriverAgentRunner）が本体の ID（…xctrunner）の下にない**のが原因。SideStore の失敗も同じ理由と見ている
+- 対処（wda-4）：IPA 作成時に、dSYM と同梱の XCTest 一式（XC*.framework、Testing.framework、libXCTestSwiftSupport.dylib）を外し、テスト本体の ID を `com.facebook.WebDriverAgentRunner.xctrunner.WebDriverAgentRunner` に変える → **iloader の Import IPA で入った**
+- 起動：`ios tunnel start --userspace`（管理者なし）→ `ios runwda --bundleid=<id> --testrunnerbundleid=<id> --xctestconfig=WebDriverAgentRunner.xctest` → `ios forward 8100 8100`。go-ios のログに「ServerURLHere」は出ないが、5秒で `/status` が返る（WDA 16.15.3、iOS 27.2.1）
+- 操作：`POST /session` → `/wda/apps/activate`（LiveContainer）→ `/wda/dragfromtoforduration` を下・上・右・左。画面は 390×844（ポイント）
+- 結果：DevKit のログに `DEVKIT swipe=down/up/right/left` の4行、画面にも4行。**PC から操作 → 実機のログと画面で確認、の一周がつながった**
+- 注意：syslog はトンネルより先に始める（トンネルがあると RSD 経由になり失敗した）。WDA はアプリの枠を1つ使う（無料は3個まで：LiveContainer、WDA）
+- PC 側のスクリプト：`Downloads\devkit-setup\9-wda.*`
+
 ## 2026-11-24（SideStore の更新が通るようになった）
 
 - 症状：「Refresh All」で「You do not appear to be connected to VPN」。LocalDevVPN（1.3.0）のログでは接続済み（状態3）でエラーなし
