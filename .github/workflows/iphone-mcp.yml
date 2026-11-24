@@ -40,6 +40,37 @@ jobs:
       - name: 確かめる（vet）
         run: GOOS=windows GOARCH=amd64 go vet ./...
 
+      - name: 起動の試験（Linux 版で MCP の受け答えを確かめる。iPhone は無し）
+        run: |
+          go build -o /tmp/iphone-mcp-linux .
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"iphone_status","arguments":{}}}' \
+            '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"iphone_screenshot","arguments":{}}}' \
+            > /tmp/in.jsonl
+          (cat /tmp/in.jsonl; sleep 3) | IPHONE_MCP_STATE_DIR=/tmp/mcpstate timeout 20 /tmp/iphone-mcp-linux > /tmp/out.jsonl || true
+          cat /tmp/out.jsonl | cut -c1-600
+          python3 - <<'PY'
+          import json
+          rs = {}
+          for l in open("/tmp/out.jsonl"):
+              l = l.strip()
+              if l:
+                  m = json.loads(l)
+                  if "id" in m: rs[m["id"]] = m
+          tools = [t["name"] for t in rs[2]["result"]["tools"]]
+          print("道具:", tools)
+          assert len(tools) == 10, tools
+          st = rs[3]["result"]["content"][0]["text"]
+          print(st)
+          assert "オフ" in st
+          sc = rs[4]["result"]
+          assert sc.get("isError") and "オフ" in sc["content"][0]["text"], sc
+          print("スイッチがオフのとき画面は撮れない：OK")
+          PY
+
       - name: Windows 用にビルド
         run: |
           mkdir -p pkg/server
