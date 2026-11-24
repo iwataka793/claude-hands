@@ -43,12 +43,31 @@ struct ContentView: View {
         }
         // 画面下の端からのスワイプは、1回目をアプリが受け取る（2回目でホームに戻る）
         .defersSystemGestures(on: .bottom)
+        .onAppear {
+            // のぞき窓（Probe.swift）から来た命令を画面に反映する
+            Probe.shared.onCommand = { what, text in
+                switch what {
+                case "clear":
+                    lines.removeAll()
+                    Probe.shared.clear()
+                case "add":
+                    add("PC: \(text)")
+                default:
+                    break
+                }
+            }
+            Probe.shared.start()
+        }
     }
 
     private func record(_ direction: SwipeDirection) {
         let time = Date().formatted(date: .omitted, time: .standard)
-        let line = "\(direction.label)  \(time)"
-        lines.append(line)
+        add("\(direction.label)  \(time)")
         logger.notice("DEVKIT swipe=\(direction.rawValue, privacy: .public) commit=\(BuildInfo.commit, privacy: .public)")
+    }
+
+    private func add(_ line: String) {
+        lines.append(line)
+        Probe.shared.record(line)
     }
 }

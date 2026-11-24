@@ -5,6 +5,10 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"io"
+	"net"
+	"net/http"
 	"fmt"
 	"io/fs"
 	"os"
@@ -21,6 +25,7 @@ import (
 	"github.com/danielpaulus/go-ios/ios/afc"
 	"github.com/danielpaulus/go-ios/ios/diagnostics"
 	"github.com/danielpaulus/go-ios/ios/fileservice"
+	"github.com/danielpaulus/go-ios/ios/forward"
 	"github.com/danielpaulus/go-ios/ios/house_arrest"
 	"github.com/danielpaulus/go-ios/ios/imagemounter"
 	"github.com/danielpaulus/go-ios/ios/instruments"
@@ -572,4 +577,39 @@ func (p *Phone) waitPid(bundle string, sec float64) uint64 {
 		time.Sleep(300 * time.Millisecond)
 	}
 	return 0
+}
+
+// ---- 自分のアプリ（DevKit）ののぞき窓 ----
+
+const devkitPort = 8765
+
+// DevKitCall は DevKit ののぞき窓（iPhone の中の 127.0.0.1:8765）に USB 経由で聞く。
+func (p *Phone) DevKitCall(ctx context.Context, target string) (int, string, error) {
+	usb, _ := p.devs()
+	deviceID := usb.DeviceID
+	cl := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				a, b := net.Pipe()
+				go func() { _ = forward.StartNewProxyConnection(ctx, b, deviceID, devkitPort) }()
+				return a, nil
+			},
+			DisableKeepAlives: true,
+		},
+	}
+	if !strings.HasPrefix(target, "/") {
+		target = "/" + target
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://devkit"+target, nil)
+	if err != nil {
+		return 0, "", err
+	}
+	res, err := cl.Do(req)
+	if err != nil {
+		return 0, "", fmt.Errorf("DevKit ののぞき窓に届きません（DevKit が前に出ていて動いているか。裏に回ると止まる）：%w", err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	return res.StatusCode, string(b), nil
 }

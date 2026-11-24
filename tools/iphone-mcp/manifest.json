@@ -79,6 +79,10 @@
       "description": "アプリの中のファイルを見る・読む・取る・書く"
     },
     {
+      "name": "iphone_devkit",
+      "description": "自分のアプリ DevKit ののぞき窓"
+    },
+    {
       "name": "iphone_clipboard",
       "description": "クリップボードを読む・入れる"
     },

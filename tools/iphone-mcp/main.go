@@ -249,6 +249,10 @@ type filesIn struct {
 	MaxChars  int    `json:"max_chars,omitempty" jsonschema:"read で何文字まで返すか（既定 20000）"`
 }
 
+type devkitIn struct {
+	Path string `json:"path,omitempty" jsonschema:"のぞき窓の道：/state（既定。版・画面の行）／/cmd?do=clear／/cmd?do=add&text=…（/cmd は操作も可のときだけ）"`
+}
+
 type clipboardIn struct {
 	Action string `json:"action" jsonschema:"get（読む）／set（文字を入れる）"`
 	Text   string `json:"text,omitempty" jsonschema:"set で入れる文字"`
@@ -593,6 +597,28 @@ func (a *app) register(s *mcp.Server) {
 				return text(fmt.Sprintf("%s を %s に置いた（%s）", src, in.Path, size(int64(len(b))))), nil, nil
 			}
 			return fail("action は list / read / pull / write / push"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_devkit", Description: "自分のアプリ DevKit の中の様子を、画面を使わずに聞く（のぞき窓。DevKit が前で動いているときだけ）。path=/state（既定）で版と画面の行、/cmd?do=… で DevKit に命令（操作も可のときだけ）"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in devkitIn) (*mcp.CallToolResult, any, error) {
+			if in.Path == "" {
+				in.Path = "/state"
+			}
+			need := ModeView
+			if strings.HasPrefix(in.Path, "/cmd") {
+				need = ModeOperate
+			}
+			if r := a.gate(need); r != nil {
+				return r, nil, nil
+			}
+			if err := a.phone.Ensure(ctx); err != nil {
+				return fail("%v", err), nil, nil
+			}
+			code, body, err := a.phone.DevKitCall(ctx, in.Path)
+			if err != nil {
+				return fail("%v", err), nil, nil
+			}
+			return text(fmt.Sprintf("%d %s", code, body)), nil, nil
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "iphone_clipboard", Description: "iPhone のクリップボードを読む（get）・文字を入れる（set。長い文を打つ代わりに入れて貼る）。中にパスワードなどが入っていることがあるので、読むのは要るときだけ。操作も可のときだけ"},
