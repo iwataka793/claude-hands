@@ -7,7 +7,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ## 入れ方（カオル・初回だけ）
 
-1. Releases の最新の `mcp-N` から `iphone-dev-kit.mcpb` と `iphone-switch.zip` を PC に落とす
+1. Releases の `mcp-N` のうち番号がいちばん大きいもの（一覧の並びは名前順のことがあるので、`mcp-11` が `mcp-7` より下に出ることがある）から `iphone-dev-kit.mcpb` と `iphone-switch.zip` を PC に落とす
 2. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」の画面に `iphone-dev-kit.mcpb` をドラッグする（.mcpb のダブルクリックは Windows の「開くアプリ」選びになるだけ。Claude は自分で Claude デスクトップを操作できないので、ここはカオルの作業）
 3. `iphone-switch.zip` を開いて、3 つの .bat をデスクトップに置く（スイッチ）
 - 更新するときは、新しい `mcp-N` の .mcpb で同じように入れ直す
@@ -109,6 +109,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | 何回か続けて操作 | `iphone_steps`。途中で失敗したらそこで止まり、その時の画面が付く |
 | 文字が出るまで待つ | `iphone_wait` |
 | ポップアップ | `iphone_alert` read で文とボタンを見てから、accept / dismiss（`button` で文字を選ぶ） |
+| ショートカットを動かす | `iphone_app` action=url、url=`shortcuts://run-shortcut?name=名前`（名前は英数字にしておくと楽）。ショートカットのアプリが前に出て動く |
+| SideStore の入れ直し（7 日ごと） | 上のやり方で `DevKitRefresh`（LiveContainer の「Refresh All Apps」だけのショートカット。2026-11-25 に作った） |
 | 例：マップで目的地へ案内 | app activate「マップ」→ type field「Apple マップ」に目的地・enter → 経路のボタン（「○分」）→ 緑の「出発」を座標で押す |
 
 ### ロック
@@ -133,6 +135,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | 「iPhone が見つかりません」 | USB・ロック・「このコンピュータを信頼」をカオルに確かめてもらう |
 | 画面が真っ黒 | ロック中か画面が消えている。ログで確かめる |
 | WDA のエラー | `iphone_status` の `WDA の最後のエラー`。7 日ごとの SideStore の更新が切れていないか |
+| 道具が急に「つなげません」「トンネル」のエラーを返す | ロックや USB の抜き差しで切れた。0.1.8 からは次に呼んだとき自分でつなぎ直す。それでもだめならスイッチをオフ → 操作も可 |
 | 道具そのものがおかしい | `%USERPROFILE%\devkit\iphone-mcp\server.log` を読む（device_list_dir / device_stage_files で。このフォルダが会話につながっていなければ、カオルに許可をもらう。`AppData` の中は許可が出ない） |
 
 ## 道具の一覧
@@ -160,12 +163,21 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_files（write / push） | 操作も可 | アプリの中にファイルを書く・置く（テストのデータ・設定） |
 | iphone_clipboard | 操作も可 | クリップボードを読む・入れる（パスワードが入っていることがあるので、読むのは要るときだけ） |
 | iphone_location | 操作も可 | 仮の位置（いまは使えない。上の「仮の位置」） |
+| iphone_devkit | 見るだけ〜（/cmd は操作も可） | DevKit ののぞき窓に聞く（下の「DevKit の開発の 1 周」） |
 | iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
 
 
 ## DevKit の開発の 1 周
 
-`iphone_lc_install` → `iphone_app` activate → `iphone_tap_text`「実行」→ `iphone_screenshot`（下の「build:」で版を確かめる）→ 操作 → `iphone_logs` match=DEVKIT。全部で 30 秒ほど。
+`iphone_lc_install` → `iphone_app` launch（LiveContainer）→ `iphone_tap_text`「実行」→ `iphone_devkit`（版と中の様子）→ 操作 → `iphone_logs` match=DEVKIT。全部で 30 秒ほど。
+
+### のぞき窓（iphone_devkit）
+
+- DevKit は iPhone の中の 127.0.0.1:8765 で待つ（Wi-Fi など外からは届かない）。道具は USB の経路で直接つなぐ
+- `/state`：版（commit）・画面に出ている行・行の数・呼ばれた回数
+- `/cmd?do=clear`（行を消す）・`/cmd?do=add&text=…`（行を足す）：画面を触らずに DevKit を動かす
+- DevKit が前で動いているときだけ答える（裏に回ると iOS が止める。前に戻ると待ち受けを始め直す）
+- 新しい画面・機能を作ったら、ここに道を足す（App/Sources/Probe.swift の route）
 
 ## 写すときの注意
 

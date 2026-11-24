@@ -3,7 +3,7 @@ import Network
 import OSLog
 
 /// のぞき窓：PC（Claude の iPhone の道具 iphone_devkit）から USB 経由でアプリの中の様子を聞く口。
-/// iPhone の中の 127.0.0.1:8765 だけで待つ（Wi-Fi など外からは届かない）。
+/// iPhone の中のループバックの 8765 番だけで待つ（Wi-Fi など外からは届かない）。
 ///   GET /state                 … 版・画面に出ている行・行の数
 ///   GET /cmd?do=clear          … 行を全部消す
 ///   GET /cmd?do=add&text=…     … 行を 1 つ足す（画面を触らずに試すとき）
@@ -39,10 +39,12 @@ final class Probe {
         queue.async { [self] in
             guard listener == nil else { return }
             do {
+                // iPhone の中のループバック（127.0.0.1 と ::1）だけで待つ。
+                // 127.0.0.1 だけに縛ると USB からの接続が届かなかった（2026-11-25。USB の口は ::1 から来るらしい）
                 let params = NWParameters.tcp
                 params.allowLocalEndpointReuse = true
-                params.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: NWEndpoint.Port(rawValue: Probe.port)!)
-                let l = try NWListener(using: params)
+                params.requiredInterfaceType = .loopback
+                let l = try NWListener(using: params, on: NWEndpoint.Port(rawValue: Probe.port)!)
                 l.newConnectionHandler = { [weak self] c in self?.handle(c) }
                 l.stateUpdateHandler = { [weak self] state in
                     guard let self else { return }
@@ -67,6 +69,7 @@ final class Probe {
     }
 
     private func handle(_ c: NWConnection) {
+        logger.notice("DEVKIT probe accept from=\(String(describing: c.endpoint), privacy: .public)")
         c.start(queue: queue)
         c.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, _, _ in
             guard let self else { c.cancel(); return }
