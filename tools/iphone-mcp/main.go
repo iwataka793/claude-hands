@@ -250,7 +250,7 @@ type filesIn struct {
 }
 
 type devkitIn struct {
-	Path string `json:"path,omitempty" jsonschema:"のぞき窓の道：/state（既定。版・画面の行）／/cmd?do=clear／/cmd?do=add&text=…（/cmd は操作も可のときだけ）"`
+	Path string `json:"path,omitempty" jsonschema:"のぞき窓の道。/state（既定。版と画面の行）か、/cmd に do と text を付けたもの（行を消す clear・行を足す add。/cmd は操作も可のときだけ）"`
 }
 
 type clipboardIn struct {
