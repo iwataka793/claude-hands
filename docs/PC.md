@@ -102,9 +102,13 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 試験：`tools/pc-mcp/test/scenario.py`（GitHub の Windows で毎回。手元では Linux＋pwsh でも動く）
 - ビルド：`.github/workflows/pc-mcp.yml`（Linux でビルド → Windows で通しの試験 → Releases `pc-N`）
 
-## カオルの PC でまだ確かめていないこと
+## カオルの PC で確かめたこと（2026-11-25）
 
-- ストア版の Claude の中の拡張機能から、常駐役（127.0.0.1）と token.txt に届くか（未確認）
-- PC-ALLOW.bat の UAC と、%ProgramData%\pc-agent の書き込みの制限（未確認）
-- .bat の日本語の表示（CP932）（未確認）
-- 画面の拡大率（DPI）が 100% でないときの座標（未確認）
+- ストア版の Claude の中の拡張機能から、常駐役（127.0.0.1）と token.txt に届く：OK
+- PC-ALLOW.bat：UAC の「はい」→ 許可 10 分 → 鍵の場所（selfIdentity.plist）をごみ箱へ送れた：OK
+- 容量・不具合の記録・PowerShell・ごみ箱（73 個）：OK。1 回 1〜2 秒
+- まだ：.bat の日本語の表示（CP932）、画面の拡大率（DPI）が 100% でないときの座標、画面・部品の操作
+
+## 守りの細かいところ
+
+- 文字で見る守りは、レジストリの HKLM: という文字があると、読むだけ（Get-ItemProperty）でも許可が要る。読むだけで要るなら、powercfg などの別の命令で代わりに調べる
