@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-24（実機で初めて動いた）
+
+- iloader v2.4.2 で LiveContainer + SideStore（Stable）を署名用 ID で入れた。iOS 27.2.1 でペアリングのエラーは出なかった
+- LiveContainer の「SideStore から証明書をインポート」は、内蔵の SideStore にサインインする前だと「証明書が見つかりません」になる → 先に SideStore にサインインする
+- SideStore のサインインで「Apple didn't give valid end provisioning data」→ Anisette サーバーを「SideStore (.zip)」から「SideStore (New)」（new.ani.sidestore.io）に替えたら通った
+- 証明書のインポートは成功（表示が「証明書を削除」「SideStore から証明書をリフレッシュ」に変わる）
+- SideStore の「Refresh All」は「You do not appear to be connected to VPN」で失敗。LocalDevVPN は Connected の表示。期限（7日、12月1日ごろ）までに要対応
+- DevKit.ipa（build: 3dd056a）を Safari でダウンロードし、LiveContainer に入れて起動できた。上下左右のスワイプがすべて記録された（実機のスクリーンショットで確認）
+
 ## 2026-11-24（PC の準備）
 
 - Windows の「スマート アプリ コントロール」が署名のない iloader を止めた → オフにした（2026年4月の更新以降はオンに戻せる）
