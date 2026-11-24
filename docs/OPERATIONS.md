@@ -246,4 +246,5 @@ iPhone の道具（[MCP.md](MCP.md)）の残り：
 iPhone の中身を調べる道具（PC の道具の iPhone 版。2026-11-25 カオルの頼み）：
 
 13. 今の iPhone の道具は画面の操作が中心。PC の道具のように、iPhone の中身を見る道具にする。先に、各窓口が iOS 27 で答えるかを見るだけで 1 つずつ試す（go-ios v1.3.2 に部品あり）：端末の情報と空き容量（lockdown・disk_usage）、アプリごとの大きさ（installationproxy）、クラッシュの記録（crashreport。ほかのアプリの分も）、プログラムごとの CPU・メモリ（instruments の sysmontap）、電池の状態（diagnostics の IORegistry）、構成プロファイル（mcinstall）。答えたものだけを道具にする（5〜7 個に抑える。見るだけで使える）。アプリの一覧・クラッシュの記録は個人の情報なので repo に写さない
+    さらに、画面を毎回操作するのではなく、中から動かす分も同じ形で試す（カオルの頼み：PC の道具のように効率よく内部で動く）：アプリの起動・終了（instruments の processcontrol。WDA なし）、自分のアプリ・LiveContainer のファイルの読み書き（house_arrest。テストのデータ・設定）、写真などのフォルダ（afc）、クリップボードへの書き込み（pasteboard。打つ代わりに貼る）、URL・ショートカットの直接実行、開発用の仮の位置（simlocation）、言語・時刻の形式・タイムゾーンなどの一部の設定（lockdown。変える前にカオルに確かめる）、WDA なしの画面（instruments の screenshot）、Safari の中のページ（webinspector。設定でオンが要る）。ほかのアプリの細かい操作だけは画面（WDA。部品の名前で押す）が残る。自分のアプリには PC から呼べる受け口（のぞき窓）を入れる
 
