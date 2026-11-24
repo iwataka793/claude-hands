@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-24（SideStore で WebDriverAgent が動かない原因調べ：署名は白）
+
+- `tools/sign-compare`（Actions の Mac）で、同じ WDA を 3 通りに署名して比べた（Releases の diag-1）
+  - A：CodeSignKit（SideStore と同じ署名部品・同じ振り分け）／B：rcodesign／C：Apple の codesign
+  - 3 つとも `codesign --verify --deep --strict` で合格。ファイルの並び（_CodeSignature の場所）も同じ。テスト本体（.xctest）は 3 つとも署名済みで、本体の CodeResources にも封じられている
+  - A だけの違い：本体を universal 形式で包む／ページ 16KB でハッシュ／テスト本体にも本体の entitlements を付ける。どれも「バンドルを作れない」とは別の種類の失敗になるはずのもの
+- 見立て：Error 104（Failed to create a bundle instance）は、署名を調べる前の「その場所にフォルダが無い・読めない」で出る失敗。署名の中身ではなく、SideStore が実際に iPhone へ送る中身（フォルダ名 App.app への改名、ファイルの権限、並び）を疑う
+- 次：SideStore が保存している署名済みの WDA を PC 経由で取り出して（読むだけ）、Mac で中身と権限を調べる。残っていなければ SideStore で入れ直す必要があり、その時は iloader の WDA が上書きされる（同じ ID）ので先に確認する
+
 ## 2026-11-24（WebDriverAgent の 7 日更新を PC で自動にした）
 
 - SideStore で入れた WebDriverAgent は、何をしても `runwda` が「WebDriverAgentRunner.xctest を作れない（Error 104）」で失敗
