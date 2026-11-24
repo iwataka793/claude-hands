@@ -95,7 +95,23 @@ async fn main() {
     let mut usbmuxd = UsbmuxdConnection::default()
         .await
         .unwrap_or_else(|e| fail(8, &format!("usbmuxd: {e:?}")));
-    let devs = usbmuxd.get_devices().await.unwrap_or_else(|e| fail(8, &format!("get_devices: {e:?}")));
+    // スリープ中などで見えないことがあるので、最大 60 秒待つ
+    let mut devs = Vec::new();
+    for attempt in 0..12 {
+        devs = usbmuxd.get_devices().await.unwrap_or_else(|e| fail(8, &format!("get_devices: {e:?}")));
+        println!("devices (try {}): {}", attempt + 1, devs.len());
+        for d in &devs {
+            println!("device seen {} {:?}", d.udid, d.connection_type);
+        }
+        let found = match &want_udid {
+            Some(u) => devs.iter().any(|d| &d.udid == u),
+            None => !devs.is_empty(),
+        };
+        if found {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    }
     let dev = match &want_udid {
         Some(u) => devs.iter().find(|d| &d.udid == u),
         None => devs.first(),
