@@ -37,7 +37,10 @@ func env(k, def string) string {
 }
 
 func main() {
-	stateDir := env("IPHONE_MCP_STATE_DIR", filepath.Join(os.Getenv("LOCALAPPDATA"), "iphone-mcp"))
+	// 置き場所は %USERPROFILE%\devkit\iphone-mcp。
+	// %LOCALAPPDATA% にすると、ストア版の Claude から動いたときに書き込みが
+	// AppData\Local\Packages\Claude_…\LocalCache に振り分けられ、スイッチの .bat と別のファイルを見てしまう（2026-11-24 に実物で確認）。
+	stateDir := env("IPHONE_MCP_STATE_DIR", filepath.Join(os.Getenv("USERPROFILE"), "devkit", "iphone-mcp"))
 	_ = os.MkdirAll(stateDir, 0o755)
 	logf, _ := os.OpenFile(filepath.Join(stateDir, "server.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if logf != nil {

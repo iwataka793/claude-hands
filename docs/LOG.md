@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-24 MCP 拡張機能を入れた・スイッチが効かない原因
+
+- 拡張機能「iPhone（iphone-dev-kit）」を Claude の 設定 → デスクトップアプリ → 拡張機能 から入れた（.mcpb のダブルクリックは Windows の「開くアプリ」選びになるだけ）。この会話から 10 個の道具が見え、iphone_status は返事をした
+- iPhone-OPERATE.bat を押してもスイッチが「オフ」のまま。中身は正しかった
+- 原因：Claude がストア版（MSIX）のため、そこから動く道具の AppData への書き込みは `AppData\Local\Packages\Claude_…\LocalCache\Local\iphone-mcp` に振り分けられていた。.bat は本物の `AppData\Local\iphone-mcp` に書くので、別のファイルを見ていた（両方のフォルダが実在するのを確認）
+- 直し：置き場所（mode.txt・server.log・backup）を `%USERPROFILE%\devkit\iphone-mcp` に変えた（0.1.3）。.bat も同じ場所に書く
+
 ## 2026-11-24（MCP サーバーの試作：tools/iphone-mcp）
 
 - 速くするため、PC の画面をクリックして台本を動かすやり方から、Claude デスクトップの拡張機能（MCP サーバー）に移る（カオルの了承済み）

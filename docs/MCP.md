@@ -18,7 +18,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・LiveContainer の中の一覧 |
 | iPhone-OPERATE | 操作も可 | 上に加えて、タップ・スワイプ・文字で押す・アプリの前出し/終了・LiveContainer への入れ替え |
 
-- 状態は `%LOCALAPPDATA%\iphone-mcp\mode.txt`。MCP サーバーには切り替える道具を作っていない
+- 状態は `%USERPROFILE%\devkit\iphone-mcp\mode.txt`。MCP サーバーには切り替える道具を作っていない
+- 置き場所を `%LOCALAPPDATA%` にしないこと：ストア版の Claude から動くと、AppData への書き込みが `AppData\Local\Packages\Claude_…\LocalCache\Local\` に振り分けられ、.bat が書いたファイルとずれる（0.1.2 で実際に起きた）
 - PC（Claude デスクトップ）を起動したときはオフ。使わない時間が 30 分（拡張機能の設定で変えられる）続くとオフに戻り、iPhone から切る
 - Claude 側の決まり：スイッチの .bat を押さない・mode.txt を書き換えない。オフなら「オンにしてください」と頼む
 
@@ -34,12 +35,12 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_tap / iphone_swipe | 操作も可 | WDA の単位（390x844） |
 | iphone_tap_text | 操作も可 | 文字で部品を探して押す（例「実行」） |
 | iphone_app | 操作も可 | activate / terminate（省略時 LiveContainer） |
-| iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%LOCALAPPDATA%\iphone-mcp\backup\` に控え |
+| iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
 
 ## 中の作り
 
 - Go。go-ios v1.3.2 をライブラリとして組み込み（トンネルは userspace、鍵は `%USERPROFILE%\devkit\go-ios` の selfIdentity.plist を使い回す）
 - WDA への HTTP は USB の経路を直接つなぐ（PC にポートを開けない。`ios forward` は 0.0.0.0 で開くので使わない）
 - ログは USB の経路で取り続け、3 万行まで覚える
-- 記録：`%LOCALAPPDATA%\iphone-mcp\server.log`
+- 記録：`%USERPROFILE%\devkit\iphone-mcp\server.log`
 - ビルド：`.github/workflows/iphone-mcp.yml`（Linux で MCP の受け答えとスイッチの試験 → Windows exe → .mcpb → Releases `mcp-N`）
