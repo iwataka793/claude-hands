@@ -113,7 +113,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ### ロック
 
-- ロック中かどうかは `iphone_info` の「ロック」（iOS の lockdown の PasswordProtected）。外れているときに「外れている」と出ることは確かめた。かかっているときの値は（未確認）
+- ロック中かどうかは `iphone_info` の「ロック」（iOS の lockdown の PasswordProtected）。かかっているとき「かかっている」、外れているとき「外れている」と出ることを確かめた（2026-11-25。サイドボタンでかけて 10 秒後）
 - `iphone_button` lock：使えない。iOS 27 では WDA の lock がサイドボタンの長押しになり、Siri の案内が出るだけ（2026-11-25）。道具は断る。かけるならカオルにサイドボタンを押してもらう
 - `iphone_button` unlock：外れない（パスコード・顔認証の端末）。ロックがかかっていれば「外すのはカオル」と返す
 - ロック中は画面が真っ黒に写り、`iphone_button` home は「ロックが外れていない」と断られる
