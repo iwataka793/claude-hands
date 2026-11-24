@@ -51,6 +51,8 @@ jobs:
           test -n "$APP"
           mkdir -p ipa/Payload
           cp -R "$APP" ipa/Payload/
+          # デバッグ情報（dSYM）は不要。SideStore が PlugIns の中身を拡張機能として扱って失敗しないように外す
+          find ipa/Payload -name '*.dSYM' -prune -exec rm -rf {} +
           (cd ipa && zip -qry ../WebDriverAgentRunner.ipa Payload)
           ls -la WebDriverAgentRunner.ipa
           # 中身の一覧（Claude が確認する用）
