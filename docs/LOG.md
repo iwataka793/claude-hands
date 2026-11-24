@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-25 SideStore の「Refresh All」で日数が 7 日に戻らない理由
+
+- カオルが My Apps の Refresh All を押した（08:41）。日数は WebDriverAgent 6 日・LiveContainer 7 日のまま
+- SideStore の記録（ConsoleLogs。PC に取って必要な行だけ読み、取った写しはごみ箱へ）：ログイン → チームと証明書の確認 → App ID の一覧を取って終わり。プロファイルの取り直し・入れ直しはしていない（installd にも入れ直しの記録なし）
+- 無料の Apple ID の App ID には期限がある：WebDriverAgent 2026-12-01 18:25・LiveContainer 2026-12-02 06:54（日本時間）。画面の日数はこれまでの日数。App ID の期限より先には延ばせないので、期限前の Refresh は何もしない
+- つまり今は正常。入れ直しが効くのは App ID の期限が来てから。12 月 1 日の夕方以降に SideStore で Refresh All（か、ショートカット DevKitRefresh）をして、日数が 7 日に戻るかを見る。LiveContainer が切れると中の SideStore も開けなくなるので、LiveContainer の期限（12 月 2 日 06:54）より前に試す
+
 ## 2026-11-25 仮の位置・Safari のページ（mcp-12〜14）
 
 - 仮の位置：go-ios の simlocation（com.apple.dt.simulatelocation）は iOS 27 では「InvalidService」。instruments の LocationSimulation（DTX）を使えば動いた。つないでいる間だけ効くので、道具がつないだまま持ち、reset か切るときに止める。東京駅にしてマップで確かめ、reset で家の近くに戻った
