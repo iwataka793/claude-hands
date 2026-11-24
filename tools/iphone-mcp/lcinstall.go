@@ -180,32 +180,3 @@ func (p *Phone) LCInstall(ctx context.Context, tag, asset, backupRoot string) (s
 	return fmt.Sprintf("%s（%s）を LiveContainer に入れた：ファイル %d 個、LCPatchRevision %v → 削除。控え：%s\n次に LiveContainer を前に出して「実行」を押すと、LiveContainer がパッチと署名をしてから起動する。",
 		bid, url, n, oldRev, backup), nil
 }
-
-// LCList は LiveContainer の中のフォルダの一覧（1 段だけ）。
-func (p *Phone) LCList(dir string) ([]string, error) {
-	lc := p.LiveContainer()
-	if lc == "" {
-		return nil, fmt.Errorf("LiveContainer が見つかりません")
-	}
-	c, err := house_arrest.New(p.device, lc)
-	if err != nil {
-		return nil, err
-	}
-	defer c.Close()
-	names, err := c.List(dir)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, n := range names {
-		if n == "." || n == ".." {
-			continue
-		}
-		fi, err := c.Stat(path.Join(dir, n))
-		if err == nil && fi.IsDir() {
-			n += "/"
-		}
-		out = append(out, n)
-	}
-	return out, nil
-}

@@ -65,12 +65,23 @@ type Phone struct {
 
 	lcBundle string
 	appNames map[string]string // bundle id → 名前（つないだあと最初に要ったとき読む）
+	appExec  map[string]string // bundle id → 実行ファイルの名前（動いているものの一覧と合わせる）
+
+	logDir string // ログを PC にも残す場所
+	logF   *logFile
 
 	hold net.Listener // holdPort の札
 }
 
-func NewPhone(pairDir, wdaTest string) *Phone {
-	return &Phone{pairDir: pairDir, wdaTest: wdaTest}
+func NewPhone(pairDir, wdaTest, logDir string) *Phone {
+	return &Phone{pairDir: pairDir, wdaTest: wdaTest, logDir: logDir}
+}
+
+// WDAReady は WebDriverAgent が動いていてセッションがあるか（起こさずに見るだけ）。
+func (p *Phone) WDAReady() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.wdaRunning && p.session != ""
 }
 
 // Connected はつながっているか（トンネルまで）。
@@ -96,7 +107,10 @@ func (p *Phone) Disconnect() {
 	p.cancel, p.wdaCancel, p.tm = nil, nil, nil
 	p.hasRSD, p.wdaRunning, p.session, p.wdaBundle = false, false, "", ""
 	p.http = nil
-	p.appNames = nil
+	p.appNames, p.appExec = nil, nil
+	p.logMu.Lock()
+	p.logF.flush()
+	p.logMu.Unlock()
 	if p.hold != nil {
 		_ = p.hold.Close()
 		p.hold = nil
@@ -235,8 +249,13 @@ func (p *Phone) readLogs(ctx context.Context, dev ios.DeviceEntry) {
 			if msg == "" {
 				continue
 			}
+			now := time.Now()
 			p.logMu.Lock()
-			p.logs = append(p.logs, logLine{at: time.Now(), text: msg})
+			if p.logF == nil && p.logDir != "" {
+				p.logF = newLogFile(p.logDir)
+			}
+			p.logF.write(now, msg)
+			p.logs = append(p.logs, logLine{at: now, text: msg})
 			if len(p.logs) > logKeep {
 				p.logs = append([]logLine(nil), p.logs[len(p.logs)-logKeep*2/3:]...)
 			}
@@ -254,8 +273,20 @@ func (p *Phone) Logs(ctx context.Context, pattern string, sinceSec, waitSec, max
 	}
 	from := time.Now().Add(-time.Duration(sinceSec) * time.Second)
 	until := time.Now().Add(time.Duration(waitSec) * time.Second)
+	// 覚えている分より前を見たいときは、PC に残したファイルから探す
+	var older []string
+	p.logMu.Lock()
+	oldest := time.Now()
+	if len(p.logs) > 0 {
+		oldest = p.logs[0].at
+	}
+	p.logF.flush()
+	p.logMu.Unlock()
+	if from.Before(oldest) && p.logDir != "" {
+		older = searchLogFiles(p.logDir, re, from, oldest, max)
+	}
 	for {
-		var out []string
+		out := append([]string(nil), older...)
 		p.logMu.Lock()
 		for _, l := range p.logs {
 			if l.at.Before(from) || !re.MatchString(l.text) {

@@ -23,15 +23,18 @@ import (
 
 // ---- 画面 ----
 
-// shotPNG は画面を PNG で撮る（WDA、だめなら instruments）。
+// shotPNG は画面を PNG で撮る。WDA が動いていれば WDA、動いていなければ instruments
+// （画面を撮るためだけに WDA を起こさない。instruments は 1 秒かからない）。
 func (a *app) shotPNG(ctx context.Context) ([]byte, error) {
-	if b, err := a.phone.WDA(ctx, "GET", "/screenshot", nil); err == nil {
-		var v struct {
-			Value string `json:"value"`
-		}
-		if json.Unmarshal(b, &v) == nil {
-			if png, err := base64.StdEncoding.DecodeString(v.Value); err == nil && len(png) > 0 {
-				return png, nil
+	if a.phone.WDAReady() {
+		if b, err := a.phone.WDA(ctx, "GET", "/screenshot", nil); err == nil {
+			var v struct {
+				Value string `json:"value"`
+			}
+			if json.Unmarshal(b, &v) == nil {
+				if png, err := base64.StdEncoding.DecodeString(v.Value); err == nil && len(png) > 0 {
+					return png, nil
+				}
 			}
 		}
 	}
@@ -206,6 +209,9 @@ func (a *app) after(ctx context.Context, o afterOpts, start time.Time, before []
 
 // frontApp は前に出ているアプリ（名前と bundle id）。
 func (a *app) frontApp(ctx context.Context) string {
+	if !a.phone.WDAReady() {
+		return "" // 前のアプリを知るためだけに WDA を起こさない
+	}
 	b, err := a.phone.WDA(ctx, "GET", "/wda/activeAppInfo", nil)
 	if err != nil {
 		return ""
@@ -314,9 +320,15 @@ func (a *app) opSwipe(ctx context.Context, fx, fy, tx, ty, dur float64) (string,
 }
 
 func (a *app) opTapText(ctx context.Context, text string, index int, partial bool, count int, hold float64) (string, error) {
-	ids, err := a.findIDs(ctx, textPred(text, partial))
+	// 見えている部品を先に探す（同じ文字の隠れた部品を押さないように。2026-11-24 マップの「出発」で外れた）
+	ids, err := a.findIDs(ctx, textPred(text, partial)+" AND visible == 1")
 	if err != nil {
 		return "", err
+	}
+	if len(ids) == 0 {
+		if ids, err = a.findIDs(ctx, textPred(text, partial)); err != nil {
+			return "", err
+		}
 	}
 	if len(ids) <= index {
 		return "", fmt.Errorf("「%s」が見つかりません（%d 個）。iphone_elements で画面の部品を確かめてください", text, len(ids))
@@ -390,11 +402,15 @@ func (a *app) opButton(ctx context.Context, name string) (string, error) {
 	case "volumeup", "volumedown":
 		_, err = a.phone.WDA(ctx, "POST", "/session/{s}/wda/pressButton", map[string]any{"name": strings.ToLower(name)})
 	case "lock":
-		_, err = a.phone.WDA(ctx, "POST", "/session/{s}/wda/lock", map[string]any{})
+		// iOS 27 では WDA の lock はサイドボタンの長押しになり、Siri の画面が出るだけ（2026-11-25 に実機で確認）
+		return "", fmt.Errorf("この iPhone（iOS 27）では道具から鍵をかけられません（Siri が出る）。かけるならカオルにサイドボタンを押してもらう")
 	case "unlock":
+		if locked, e := a.phone.Locked(); e == nil && locked {
+			return "", fmt.Errorf("パスコードのロックがかかっています。外すのはカオル（Face ID かパスコード）")
+		}
 		_, err = a.phone.WDA(ctx, "POST", "/session/{s}/wda/unlock", map[string]any{})
 		if err == nil {
-			if b, e := a.phone.WDA(ctx, "GET", "/session/{s}/wda/locked", nil); e == nil && strings.Contains(string(b), "true") {
+			if locked, e := a.phone.Locked(); e == nil && locked {
 				return "", fmt.Errorf("ロックが外れません（パスコードが要る。外すのはカオル）")
 			}
 		}
@@ -612,6 +628,40 @@ func (a *app) opApp(ctx context.Context, action, name, url string) (string, erro
 	if err != nil {
 		return "", err
 	}
+	// まず中から（WDA を使わない）。だめなら下の WDA で
+	switch action {
+	case "launch":
+		if pid, err := a.phone.Launch(b, true); err == nil {
+			return fmt.Sprintf("launch %s（pid %d。中から起動し直した）", b, pid), nil
+		}
+	case "terminate":
+		if ok, err := a.phone.Kill(b); err == nil {
+			if !ok {
+				return fmt.Sprintf("terminate %s → 動いていなかった", b), nil
+			}
+			return fmt.Sprintf("terminate %s → 終わらせた（中から）", b), nil
+		}
+	case "activate":
+		if !a.phone.WDAReady() {
+			// WDA が動いていなければ、中から起動をたのむ（動いているアプリは前に出る）
+			if pid, err := a.phone.Launch(b, false); err == nil {
+				return fmt.Sprintf("activate %s（pid %d。中から）", b, pid), nil
+			}
+		}
+	case "state":
+		if pid, err := a.phone.pidOf(b); err == nil {
+			if pid == 0 {
+				return fmt.Sprintf("%s：動いていない", b), nil
+			}
+			s := fmt.Sprintf("%s：動いている（pid %d）", b, pid)
+			if a.phone.WDAReady() {
+				if r, err := a.phone.WDA(ctx, "POST", "/session/{s}/wda/apps/state", map[string]any{"bundleId": b}); err == nil && strings.TrimSpace(gjsonValue(r)) == "4" {
+					s += "・前に出ている"
+				}
+			}
+			return s, nil
+		}
+	}
 	switch action {
 	case "activate", "terminate", "launch":
 		r, err := a.phone.WDA(ctx, "POST", "/session/{s}/wda/apps/"+action, map[string]any{"bundleId": b})
@@ -665,8 +715,12 @@ func (p *Phone) loadAppsLocked() {
 		return
 	}
 	p.appNames = map[string]string{}
+	p.appExec = map[string]string{}
 	for _, x := range apps {
 		id := x.CFBundleIdentifier()
+		if e := x.CFBundleExecutable(); id != "" && e != "" {
+			p.appExec[id] = e
+		}
 		name, _ := x["CFBundleDisplayName"].(string)
 		if name == "" {
 			name = x.CFBundleName()

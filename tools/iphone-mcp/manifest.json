@@ -71,8 +71,20 @@
       "description": "LiveContainer の中のアプリを入れ替える"
     },
     {
-      "name": "iphone_lc_list",
-      "description": "LiveContainer の中の一覧"
+      "name": "iphone_info",
+      "description": "中の様子（機種・ロック・容量・電池・動いているアプリ・アプリの大きさ・落ちた記録）"
+    },
+    {
+      "name": "iphone_files",
+      "description": "アプリの中のファイルを見る・読む・取る・書く"
+    },
+    {
+      "name": "iphone_clipboard",
+      "description": "クリップボードを読む・入れる"
+    },
+    {
+      "name": "iphone_location",
+      "description": "開発用の仮の位置"
     }
   ],
   "compatibility": {

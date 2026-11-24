@@ -61,7 +61,7 @@ func main() {
 	}
 	a := &app{
 		sw:        NewSwitch(stateDir, time.Duration(idleMin)*time.Minute),
-		phone:     NewPhone(pairDir, env("IPHONE_MCP_WDA_TEST", "WebDriverAgentRunner")),
+		phone:     NewPhone(pairDir, env("IPHONE_MCP_WDA_TEST", "WebDriverAgentRunner"), filepath.Join(stateDir, "logs")),
 		stateDir:  stateDir,
 		idleLimit: time.Duration(idleMin) * time.Minute,
 	}
@@ -229,8 +229,35 @@ type lcInstallIn struct {
 	Asset string `json:"asset,omitempty" jsonschema:"Releases の中のファイル名（既定 DevKit.ipa）"`
 }
 
-type lcListIn struct {
-	Path string `json:"path" jsonschema:"LiveContainer の中のフォルダ。例 /Documents/Applications"`
+type infoIn struct {
+	What     string `json:"what,omitempty" jsonschema:"summary（機種・iOS・ロック・容量・電池・言語など。既定）／processes（動いているアプリ）／apps（入れたアプリと大きさ）／crashes（落ちた記録）"`
+	Match    string `json:"match,omitempty" jsonschema:"名前を絞る正規表現（processes・apps・crashes）"`
+	All      bool   `json:"all,omitempty" jsonschema:"processes で、アプリ以外のプログラムも出す"`
+	File     string `json:"file,omitempty" jsonschema:"crashes で、この名前の記録の中身を読む"`
+	Max      int    `json:"max,omitempty" jsonschema:"行数の上限（既定 50）"`
+	MaxChars int    `json:"max_chars,omitempty" jsonschema:"記録の中身を何文字まで返すか（既定 12000）"`
+}
+
+type filesIn struct {
+	Action    string `json:"action,omitempty" jsonschema:"list（一覧・既定）／read（文字のファイルを読む）／pull（PC に取る）／write（文字を書く）／push（PC のファイルを置く）。write・push は操作も可のときだけ"`
+	App       string `json:"app,omitempty" jsonschema:"どのアプリの中か：名前か bundle id（省くと LiveContainer。開けるのは開発者の署名のアプリだけ）。media なら写真などのフォルダ"`
+	Path      string `json:"path,omitempty" jsonschema:"iPhone の中の場所。例 /Documents"`
+	Recursive bool   `json:"recursive,omitempty" jsonschema:"list で、下のフォルダも（5 段まで）"`
+	Text      string `json:"text,omitempty" jsonschema:"write で書く文字"`
+	Local     string `json:"local,omitempty" jsonschema:"pull・push の PC の場所（ユーザーフォルダの中）。pull で省くと %USERPROFILE%\\devkit\\iphone-mcp\\files"`
+	Max       int    `json:"max,omitempty" jsonschema:"list の行数の上限（既定 300）"`
+	MaxChars  int    `json:"max_chars,omitempty" jsonschema:"read で何文字まで返すか（既定 20000）"`
+}
+
+type clipboardIn struct {
+	Action string `json:"action" jsonschema:"get（読む）／set（文字を入れる）"`
+	Text   string `json:"text,omitempty" jsonschema:"set で入れる文字"`
+}
+
+type locationIn struct {
+	Action string  `json:"action" jsonschema:"set（仮の位置にする）／reset（元に戻す）"`
+	Lat    float64 `json:"lat,omitempty" jsonschema:"緯度（set のとき）"`
+	Lon    float64 `json:"lon,omitempty" jsonschema:"経度（set のとき）"`
 }
 
 func (a *app) register(s *mcp.Server) {
@@ -448,18 +475,176 @@ func (a *app) register(s *mcp.Server) {
 			return text(msg), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_lc_list", Description: "LiveContainer の中のフォルダの一覧（1 段）。見るだけで使える"},
-		func(ctx context.Context, req *mcp.CallToolRequest, in lcListIn) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_info", Description: "iPhone の中の様子を、画面を使わずに見る：summary（機種・iOS・ロック・容量・電池・言語など。既定）／processes（動いているアプリ）／apps（入れたアプリと大きさ）／crashes（落ちた記録の一覧。file で中身）。見るだけで使える"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in infoIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeView); r != nil {
 				return r, nil, nil
 			}
 			if err := a.phone.Ensure(ctx); err != nil {
 				return fail("%v", err), nil, nil
 			}
-			names, err := a.phone.LCList(in.Path)
+			if in.Max <= 0 {
+				in.Max = 50
+			}
+			if in.MaxChars <= 0 {
+				in.MaxChars = 12000
+			}
+			var m string
+			var err error
+			switch in.What {
+			case "", "summary":
+				m = a.phone.InfoSummary()
+			case "processes":
+				m, err = a.phone.Processes(in.Match, in.All, in.Max)
+			case "apps":
+				m, err = a.phone.AppSizes(in.Match, in.Max)
+			case "crashes":
+				m, err = a.phone.Crashes(in.Match, in.File, in.Max, in.MaxChars)
+			default:
+				return fail("what は summary / processes / apps / crashes"), nil, nil
+			}
 			if err != nil {
 				return fail("%v", err), nil, nil
 			}
-			return text(strings.Join(names, "\n")), nil, nil
+			return text(m), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_files", Description: "アプリの中のファイルを、画面を使わずに見る・読む・PC に取る（list / read / pull）、書く・置く（write / push・操作も可のときだけ）。開けるのは開発者の署名のアプリ（LiveContainer など。省くと LiveContainer）と、app=media の写真などのフォルダ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in filesIn) (*mcp.CallToolResult, any, error) {
+			need := ModeView
+			if in.Action == "write" || in.Action == "push" {
+				need = ModeOperate
+			}
+			if r := a.gate(need); r != nil {
+				return r, nil, nil
+			}
+			if err := a.phone.Ensure(ctx); err != nil {
+				return fail("%v", err), nil, nil
+			}
+			bundle := "media"
+			if !strings.EqualFold(in.App, "media") {
+				b, err := a.resolveApp(ctx, in.App)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				bundle = b
+			}
+			if in.Path == "" && in.Action != "" && in.Action != "list" {
+				return fail("path（iPhone の中の場所）を指定してください"), nil, nil
+			}
+			switch in.Action {
+			case "", "list":
+				if in.Max <= 0 {
+					in.Max = 300
+				}
+				m, err := a.phone.FilesList(bundle, in.Path, in.Recursive, in.Max)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text(m), nil, nil
+			case "read":
+				if in.MaxChars <= 0 {
+					in.MaxChars = 20000
+				}
+				m, err := a.phone.FilesRead(bundle, in.Path, in.MaxChars)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text(m), nil, nil
+			case "pull":
+				dst, err := pcPath(a.stateDir, in.Local, in.Path)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				c, _, err := a.phone.filesClient(bundle)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				defer c.Close()
+				b, err := afcRead(c, in.Path)
+				if err != nil {
+					return fail("%s を読めません：%v", in.Path, err), nil, nil
+				}
+				_ = os.MkdirAll(filepath.Dir(dst), 0o755)
+				if err := os.WriteFile(dst, b, 0o644); err != nil {
+					return fail("PC に書けません：%v", err), nil, nil
+				}
+				return text(fmt.Sprintf("PC に取った：%s（%s）", dst, size(int64(len(b))))), nil, nil
+			case "write":
+				if err := a.phone.FilesWrite(bundle, in.Path, []byte(in.Text)); err != nil {
+					return fail("書けません：%v", err), nil, nil
+				}
+				return text(fmt.Sprintf("%s に書いた（%d 文字）", in.Path, len([]rune(in.Text)))), nil, nil
+			case "push":
+				if in.Local == "" {
+					return fail("local（PC のファイル）を指定してください"), nil, nil
+				}
+				src, err := pcPath(a.stateDir, in.Local, in.Path)
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				b, err := os.ReadFile(src)
+				if err != nil {
+					return fail("PC のファイルを読めません：%v", err), nil, nil
+				}
+				if err := a.phone.FilesWrite(bundle, in.Path, b); err != nil {
+					return fail("置けません：%v", err), nil, nil
+				}
+				return text(fmt.Sprintf("%s を %s に置いた（%s）", src, in.Path, size(int64(len(b))))), nil, nil
+			}
+			return fail("action は list / read / pull / write / push"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_clipboard", Description: "iPhone のクリップボードを読む（get）・文字を入れる（set。長い文を打つ代わりに入れて貼る）。中にパスワードなどが入っていることがあるので、読むのは要るときだけ。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in clipboardIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			if err := a.phone.Ensure(ctx); err != nil {
+				return fail("%v", err), nil, nil
+			}
+			switch in.Action {
+			case "get":
+				t, ok, err := a.phone.ClipboardGet()
+				if err != nil {
+					return fail("クリップボードを読めません：%v", err), nil, nil
+				}
+				if !ok {
+					return text("クリップボードに文字はありません"), nil, nil
+				}
+				return text(t), nil, nil
+			case "set":
+				if err := a.phone.ClipboardSet(in.Text); err != nil {
+					return fail("クリップボードに入れられません：%v", err), nil, nil
+				}
+				return text(fmt.Sprintf("クリップボードに入れた（%d 文字）", len([]rune(in.Text)))), nil, nil
+			}
+			return fail("action は get / set"), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_location", Description: "開発用に iPhone の位置を仮の場所にする（set・緯度経度）／元に戻す（reset）。地図や位置を使うアプリを試すとき用。使い終わったら必ず reset。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in locationIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			if err := a.phone.Ensure(ctx); err != nil {
+				return fail("%v", err), nil, nil
+			}
+			switch in.Action {
+			case "set":
+				if in.Lat == 0 && in.Lon == 0 {
+					return fail("lat と lon を指定してください"), nil, nil
+				}
+				if err := a.phone.Location(false, in.Lat, in.Lon); err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text(fmt.Sprintf("仮の位置にした（%.5f, %.5f）。戻すときは action=reset", in.Lat, in.Lon)), nil, nil
+			case "reset":
+				if err := a.phone.Location(true, 0, 0); err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text("本当の位置に戻した"), nil, nil
+			}
+			return fail("action は set / reset"), nil, nil
 		})
 }
