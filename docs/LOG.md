@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-24（SideStore で入れた WebDriverAgent が動いた）
+
+- tools/wda-sidestore/make_ss_ipa.py で作った WebDriverAgentRunner-ss.ipa（PlugIns/WebDriverAgentRunner.xctest → PlugIns/WebDriverAgentRunner、テスト本体の ID を本体と同じに）を SideStore で入れた
+- PC（17-ss）から `ios runwda --xctestconfig=WebDriverAgentRunner` で起動 → 5 秒で /status OK
+  - セッション作成 → LiveContainer を前に → 下・上・右・左のスワイプ → DevKit の記録に 4 行とも出た（18:27:13〜23）
+- 分かったこと：テスト実行係は「.xctest」で終わらない名前のテスト本体でも受け付ける。SideStore の署名（AltSign + ldid）でも中身はちゃんと動く
+- これで WebDriverAgent も SideStore の 7 日更新に乗せられる（PC の iloader 方式の自動更新と同じ ID なので、両方動かすと上書きし合う）
+
 ## 2026-11-24（根本原因：SideStore が「デバッグ用の掃除」を本番でも実行して xctest を消している）
 
 - SideStore の詳しい記録（Verbose Ops Logging）をオンにして入れ直し、記録を PC に取り出した（16-log）
