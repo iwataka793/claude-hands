@@ -239,3 +239,7 @@ iPhone の道具（[MCP.md](MCP.md)）の残り：
 
 11. PC の作業フォルダ（ダウンロードの devkit-setup の runs など）に、SideStore のログ（認証の情報が入っている）の写しが残っていないか確かめる。あれば、消すかどうかをカオルに聞く（消すならごみ箱へ）
 
+遠隔で PC の電源を入れる（Wake-on-LAN）の下調べ（2026-11-25 カオルの頼み）：
+
+12. PC の道具で、見るだけで調べる（何も変えない）：スリープの方式（`powercfg /a`。モダン スタンバイか S3 か）、LAN アダプター（USB-C の変換）の種類と起こす機能（`Get-NetAdapter`・`Get-NetAdapterPowerManagement`・`Get-NetAdapterAdvancedProperty` のマジックパケット）、起こせる機器（`powercfg /devicequery wake_armed`）、最近の起きた理由（イベントログの Power-Troubleshooter）。見込み：USB の LAN アダプターは電源を切った状態からは起こせない。スリープからなら見込みあり。結果と、変えるなら要る設定をまとめてカオルに出し、変えるのは決めてから
+
