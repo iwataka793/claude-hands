@@ -55,8 +55,15 @@ switch ($act) {
   'right' { Click-At $cx $cy 'right'; "右クリックした ({0},{1})：{2}" -f [int]$cx, [int]$cy, $desc }
   'set_value' {
     $vp = Pat ([System.Windows.Automation.ValuePattern]::Pattern)
-    if (-not $vp) { "ERROR: 文字を入れられない部品です：$desc"; break }
-    $vp.SetValue([string]$A.value); "入れた「{0}」：{1}" -f $A.value, $desc
+    if ($vp -and -not $vp.Current.IsReadOnly) { $vp.SetValue([string]$A.value); "入れた「{0}」：{1}" -f $A.value, $desc; break }
+    # 文書の欄など：選んで、全部選んで、貼る（前のクリップボードは戻す）
+    if (-not $w -or [PcNative]::GetForegroundWindow() -ne [IntPtr]$w.Handle) { "ERROR: 窓が前に無いので入れられません：$desc"; break }
+    try { $e.SetFocus() } catch {}
+    $old = $null; try { $old = Get-Clipboard -Raw -ErrorAction Stop } catch {}
+    Set-Clipboard -Value ([string]$A.value); Start-Sleep -Milliseconds 100
+    [System.Windows.Forms.SendKeys]::SendWait('^a'); [System.Windows.Forms.SendKeys]::SendWait('^v'); Start-Sleep -Milliseconds 200
+    if ($null -ne $old) { Set-Clipboard -Value $old }
+    "全部選んで貼った「{0}」：{1}" -f $A.value, $desc
   }
   'focus' { $e.SetFocus(); "選んだ（フォーカス）：$desc" }
   'toggle' { $tp = Pat ([System.Windows.Automation.TogglePattern]::Pattern); if ($tp) { $tp.Toggle(); "切り替えた：$desc → " + $tp.Current.ToggleState } else { "ERROR: 切り替えられない部品：$desc" } }

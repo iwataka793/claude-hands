@@ -148,7 +148,10 @@ if WIN:
     look("Notepad（大文字）で探す", "pc_ui", {"window": "Notepad", "max": 5})
     look("診断：窓を素で数える", "pc_powershell", {"script": "Add-Type -AssemblyName UIAutomationClient; $r=[System.Windows.Automation.AutomationElement]::RootElement; $c=$r.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition); foreach($w in $c){ '{0} | {1} | {2}' -f $w.Current.Name,$w.Current.ProcessId,$w.Current.ClassName }; Get-Process notepad -ErrorAction SilentlyContinue | ForEach-Object { 'proc {0} {1} [{2}]' -f $_.Id,$_.MainWindowHandle,$_.MainWindowTitle }"})
     look("文字を入れる（set_value）", "pc_ui_do", {"window": "Notepad", "target": "Text Editor", "action": "set_value", "value": "set_value で入れた"})
-    look("メモ帳の中身", "pc_ui", {"window": "notepad", "filter": "入れた"})
+    look("メモ帳の中身（打った文字）", "pc_ui", {"window": "notepad", "max": 3})
+    err, text = look("メモ帳の中身（set_value のあと）", "pc_ui", {"window": "notepad", "filter": "入れた"})
+    if "set_value で入れた" not in text:
+        fails.append("メモ帳に入れた文字が読めない")
     look("メモ帳の窓", "pc_screenshot", {"window": "notepad"})
     look("メモ帳を閉じる（保存しない）", "pc_powershell", {"script": "Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force; 'closed'"})
 

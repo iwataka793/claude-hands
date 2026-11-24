@@ -15,6 +15,7 @@ function Walk($el, $d) {
       $t = $cur.ControlType.ProgrammaticName -replace '^ControlType\.', ''
       $val = ''
       try { $vp = $c.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern); $val = $vp.Current.Value } catch {}
+      if (-not $val) { try { $tx = $c.GetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern); $val = $tx.DocumentRange.GetText(300) } catch {} }
       $tog = ''
       try { $tp = $c.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern); $tog = ' [' + $tp.Current.ToggleState + ']' } catch {}
       $show = ($cur.Name -or $cur.AutomationId -or $val) -and (-not $cur.IsOffscreen -or $A.all)
