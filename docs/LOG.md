@@ -2,6 +2,18 @@
 
 新しいものが上。
 
+## 2026-11-24（根本原因：SideStore が「デバッグ用の掃除」を本番でも実行して xctest を消している）
+
+- SideStore の詳しい記録（Verbose Ops Logging）をオンにして入れ直し、記録を PC に取り出した（16-log）
+  - 18:15:22 IPA を開いた時点では PlugIns/WebDriverAgentRunner.xctest（中身・WebDriverAgentLib 1,364,480 バイト含む）はちゃんと展開されている
+  - 18:15:25 署名する時点の App.app では PlugIns が空。署名（ldid）が問い合わせた場所も本体だけ
+  - → 消えたのは「署名の準備（ResignAppOperation の prepare）」の中
+- この SideStore は LiveContainer 同梱版：0.6.4-20260714.406+ddf08f58（LiveContainer/SideStore の LiveContainerSupport 系、commit ddf08f58）
+  - AltStore/Operations/ResignAppOperation.swift：PlugIns の中で名前に「.xctest」を含むものを削除する処理が `#if DEBUG` の中にある（元は AltStore が自分のデバッグ版のテストを消すためのもの）
+  - AltStore.xcodeproj のプロジェクト全体の Release 設定に SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG BETA" が入っていて、SideStore 本体はそれを引き継ぐ → 本番ビルドでも DEBUG が有効になり、入れるアプリ全部から .xctest が消される
+- 回避の案（未検証）：テスト本体のフォルダ名を「.xctest」を含まない名前にした WDA を作る（go-ios は --xctestconfig=名前 で指定できる）
+- 直す先：LiveContainer/SideStore（DEBUG の付け方か、削除を SideStore 自身のビルドに限る）
+
 ## 2026-11-24（実物で確認：SideStore が署名し直した WDA は PlugIns が空）
 
 - SideStore の「Export Resigned Apps」をオンにして WDA（wda-4）を入れ直し、PC から LiveContainer の書類フォルダ（/Documents/SideStore/Documents/ResignedApps）を取り出した（15-pull）
