@@ -381,13 +381,12 @@ func (a *app) opType(ctx context.Context, text, field string, partial, clear, en
 	}
 	if clear {
 		// 押すと欄が作り直されることがある（設定の検索欄）。そのときは探し直す
+		// 押すと欄が作り直されることがある（設定の検索欄は、押すと中身が消えた新しい欄になる。2026-11-25）。
+		// そのときは、いま文字を打てる欄を相手にする
 		_, err := a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
 		if err != nil && strings.Contains(err.Error(), "stale element") {
 			time.Sleep(300 * time.Millisecond)
-			if again, e := a.findIDs(ctx, textPred(field, partial)); e == nil && len(again) > 0 {
-				id = again[0]
-				_, err = a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
-			} else if fid, e := a.focusedID(ctx); e == nil {
+			if fid, e := a.focusedID(ctx); e == nil {
 				id = fid
 				_, err = a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
 			}
