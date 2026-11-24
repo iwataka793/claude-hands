@@ -2,6 +2,19 @@
 
 新しいものが上。
 
+## 2026-11-24（PC の新しい台本で 1 周＋DevKit を人の手なしで LiveContainer に入れた）
+
+- scripts/pc の go.bat ＋ plan.json を PC に置いて実行（設定 config.ps1 は devkit-setup に置く）
+  - 19:09 スワイプ 4 回とも DEVKIT のログに出た（commit=3dd056a の旧 DevKit）
+  - 直したこと：WDA の失敗の理由を記録に出す／WDA に送る本文を UTF-8 にする（PowerShell 5.1 だと日本語が化けて「実行」を探せなかった）／go-ios をいつもの場所で動かす（鍵 selfIdentity.plist が devkit-setup にできてしまったため）
+  - 足した操作：terminate、tapText（文字で押す）、tree / pull / push / pushdir（アプリの中のファイル）
+- DevKit を PC から LiveContainer に直接入れた（Safari の手作業なし）
+  - 控え：LiveContainer の /Documents/Applications/io.github.iwataka793.devkit.app を取り出した（中身は DevKit・Info.plist・PkgInfo・LCAppIconLight.png・LCAppInfo.plist。署名は実行ファイルの中だけ）
+  - build-3（commit e1e0f66）の中身 ＋ LCPatchRevision を消した LCAppInfo.plist を pushdir で上書き → LiveContainer を起動し直して「実行」を tapText
+  - 19:19 画面下が build: e1e0f66、スワイプが DEVKIT swipe=right/left commit=e1e0f66 で記録に出た → LiveContainer が自分でパッチと署名をし直して動いた
+  - 道具：tools/lc-install/prepare.py、手順は OPERATIONS.md 3-5
+  - 失敗した点：一度、一覧の並びが変わって config.ps1 をダブルクリックした（開くだけで実行はされない）。押す前の確認を別の呼び出しに分けるよう手順に書いた
+
 ## 2026-11-24（引き継ぎの準備：手順書・CLAUDE.md・PC の台本を repo に）
 
 - docs/OPERATIONS.md：Claude 向けの手順書（開発の 1 周、PC の使い方、go-ios のコツ、WDA、SideStore の注意、調べ方の決まり、未検証のこと）

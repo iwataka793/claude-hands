@@ -18,8 +18,7 @@
 
 [Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）
    ├─ %USERPROFILE%\devkit\go-ios\ios.exe   … iPhone とやりとりする道具（go-ios v1.3.2）
-   ├─ %USERPROFILE%\devkit\config.ps1       … ID などの設定（公開 repo に入れない）
-   └─ Downloads\devkit-setup\               … 台本（go.bat / go.ps1 / plan.json）と記録（runs\）
+   └─ Downloads\devkit-setup\               … 台本（go.bat / go.ps1 / plan.json）、ID などの設定 config.ps1（公開 repo に入れない）、記録（runs\）
 
 [iPhone 16e / iOS 27.2.1]（USB で PC につなぐ）
    ├─ LiveContainer … 自作アプリ（DevKit など）はこの中で動かす。SideStore も中に同梱
@@ -43,10 +42,9 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
    - Releases の `build-N` に DevKit.ipa・simulator-check.zip（シミュレーターの画面）・simulator-test.log が置かれる
    - このセッションからは Releases を作れない（403）。作るのは Actions に任せる
 3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/build-N/simulator-check.zip` などで取って見る
-4. **iPhone に入れる**：今はカオルの手作業
-   - Safari で `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa` → LiveContainer で開く
-   - 画面下の `build:` がコミット番号と同じなら最新版
-   - PC から LiveContainer に直接置く方法は「8. 未検証」
+4. **iPhone に入れる**（人の手なし。2026-11-24 確認済み）：3-5 の手順で PC から LiveContainer に直接置く
+   - 予備：カオルに Safari で `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa` を開いて LiveContainer で入れてもらう
+   - 入ったかどうかは DEVKIT のログの `commit=` か、画面下の `build:` がコミット番号と同じかで確かめる
 5. **実機で動かして見る**：PC の go.bat（3 章）。ログ・画面・操作が一度にできる
 6. **記録**：分かったことは LOG.md の一番上に書く
 
@@ -66,8 +64,8 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 
 1. `SendUserFile` で go.ps1 / go.bat を送る（file_uuid が返る）
 2. `device_commit_files` で `<ユーザーフォルダ>\Downloads\devkit-setup\go.ps1`（get_device_info の connectedFolders の下） などに書く（既にあるなら `force: true`）
-3. 初回だけ：`config.example.ps1` を元に `%USERPROFILE%\devkit\config.ps1` を作ってもらう
-   - 値（LiveContainer の bundle id）は PC の中だけに置く。公開 repo・チャットに書かない
+3. 初回だけ：`config.example.ps1` を元に `devkit-setup\config.ps1` を作って置く（Claude が作れる。LiveContainer の bundle id は `ios apps --list` の LiveContainer の行だけを絞って調べる）
+   - 値は PC の中だけに置く。公開 repo に書かない
 
 .ps1 は「UTF-8（BOM 付き）＋ CRLF」でないと、Windows PowerShell 5.1 で日本語が壊れる。repo では `.gitattributes` で CRLF にし、BOM はファイルに入れてある。新しく作るときも同じにする。
 
@@ -77,7 +75,7 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 2. computer use でエクスプローラーを開き、`devkit-setup` の `go.bat` をダブルクリックする
    - 初回は `computer_resolve_access(["File Explorer"])` → `computer_request_access`
    - エクスプローラーは click 権限だけ（打鍵・右クリック不可）。ダブルクリックで .bat を動かすのは可
-   - 一覧の並びはファイルが増えると変わる。**押す前に必ず `computer_zoom` で名前を確かめる**（違う .bat を押した失敗あり）
+   - 一覧の並びはファイルを置くたびに変わる（新しい順）。**ファイルを置いたら 2 秒待ち、押す直前に `computer_zoom` で名前を確かめてから、別の呼び出しで押す**（zoom と押すのを同じ batch に入れると確かめた意味がない。2026-11-24 に config.ps1 を開いてしまった）
    - 待ちは 1 回 50 秒まで。長いときは分けて待つ
 3. 結果を読む：`device_stage_files` で `devkit-setup\last-result.txt` を取る。画面は `runs\<日時>-<name>\*.png`
 4. 終わったら `computer_release_lock`
@@ -107,8 +105,38 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 - 座標は WebDriverAgent の単位（iPhone 16e は 390×844）。結果の「画面の大きさ」に出る
 - `source`：画面の部品一覧（XML）。ボタンの位置や文字を調べるのに使う
 - `target`：`livecontainer` は config.ps1 の LiveContainer。ほかのアプリは bundle id を書く
+- ほかの操作：`terminate`（アプリを終わらせる）、`tapText`（`"text":"実行"` のように文字で部品を探して押す。`index` で何番目か）、`tree` / `pull` / `push` / `pushdir`（開発者署名のアプリの中のファイル。書き方は go.ps1 の先頭）
+- WDA の失敗は理由（返ってきた本文）も結果に出る
 
-### 3-5. 守ること（PC）
+### 3-5. DevKit を LiveContainer に直接入れる（確認済み）
+
+LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て、古ければ実行ファイルにパッチを当てて自分の証明書で署名し直す。これを使う。
+
+1. 今の `LCAppInfo.plist` を取る（plan）：
+   `{"name":"lc-pull","wda":false,"actions":[{"do":"pull","app":"livecontainer","path":"/Documents/Applications/io.github.iwataka793.devkit.app"}]}`
+   → `device_stage_files` で `runs\<日時>-lc-pull\pulled\io.github.iwataka793.devkit.app\LCAppInfo.plist` を取る（これが控えにもなる）
+2. クラウドで作る：Releases `build-N` の DevKit.ipa を取り、
+   `python3 -I tools/lc-install/prepare.py DevKit.ipa LCAppInfo.plist out/`
+   （.app の中身 ＋ `LCPatchRevision` を消した LCAppInfo.plist ができる）
+3. `out/` の各ファイルを `SendUserFile` → `device_commit_files` で `devkit-setup\files\` に置く（`force: true`）
+4. plan で入れて起動：
+   ```json
+   {"name":"lc-install","match":"DEVKIT","wda":true,"target":"livecontainer","actions":[
+     {"do":"terminate"},
+     {"do":"pushdir","app":"livecontainer","local":"files","remote":"/Documents/Applications/io.github.iwataka793.devkit.app"},
+     {"do":"activate"},{"do":"wait","sec":2},
+     {"do":"tapText","text":"実行"},{"do":"wait","sec":8},
+     {"do":"screenshot","name":"after-run"}
+   ]}
+   ```
+   - 先に `terminate` で LiveContainer を止める（動いている実行ファイルを上書きしない）
+   - LiveContainer の画面は日本語（ボタンは「実行」）。`tapText` で押せる
+   - LiveContainer を起動し直したとき、前に動かしていたアプリがそのまま立ち上がることがある（`tapText` が 0 個でも、DEVKIT のログが出ていれば起動している）
+5. 確かめる：DEVKIT のログの `commit=` が新しい番号か、`after-run.png` の画面下 `build:`
+- 注意：`pushdir` は上書きだけで、新しい版で無くなったファイルは消えずに残る
+- うまくいかないときは、1 の控え（pulled の中身）を `files` にして `pushdir` すれば元に戻せる
+
+### 3-6. 守ること（PC）
 
 - iPhone の出力は**必要な行だけに絞ってから読む**。`ios apps --list` などはアプリ一覧が全部出る（個人情報）
 - SideStore の記録（ConsoleLogs）には Apple ID のメールアドレスやログイン用の一時データが入る。チャットに出さない・repo に入れない
@@ -171,8 +199,4 @@ repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
 
 ## 8. 未検証・これから
 
-- **DevKit を PC から LiveContainer に直接入れる**（カオルの手作業を無くす）
-  - 考え：`ios fsync --app=<LiveContainer> push` で `/Documents/Applications/<bundle id>.app` を差し替える
-  - LiveContainer は起動前に「パッチの版（LCAppInfo.plist の LCPatchRevision）」と署名を確かめ、必要なら自分で署名する（LCAppInfo.m `patchExecAndSignIfNeed`）。差し替えた実行ファイルはパッチが要るので、LCPatchRevision を下げる必要がありそう
-  - 起動は WDA で LiveContainer を前に出し、DevKit を押す
 - **新しいセッションでの試験**：この文書と repo だけで 1 周回せるか

@@ -1,5 +1,5 @@
 ﻿# PC だけに置く設定（公開 repo には入れない）。
-# このファイルを %USERPROFILE%\devkit\config.ps1 にコピーして、値を自分のものにする。
+# このファイルを go.ps1 と同じフォルダ（または %USERPROFILE%\devkit\）に config.ps1 として置き、値を自分のものにする。
 $DevkitConfig = @{
     # go-ios の場所
     IosExe        = Join-Path $env:USERPROFILE "devkit\go-ios\ios.exe"
