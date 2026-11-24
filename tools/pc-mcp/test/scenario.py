@@ -143,7 +143,12 @@ if WIN:
     look("メモ帳の部品", "pc_ui", {"window": "notepad", "max": 30})
     look("メモ帳に貼る", "pc_keys", {"window": "notepad", "text": "こんにちは PC の道具", "paste": True})
     look("メモ帳に打つ", "pc_keys", {"window": "notepad", "text": " abc 123", "enter": True})
-    look("メモ帳の中身", "pc_ui", {"window": "notepad", "filter": "こんにちは"})
+    look("打ったあとの窓の一覧", "pc_windows", {"all": True})
+    look("打ったあとの前の窓の部品（window なし）", "pc_ui", {"max": 8})
+    look("Notepad（大文字）で探す", "pc_ui", {"window": "Notepad", "max": 5})
+    look("診断：窓を素で数える", "pc_powershell", {"script": "Add-Type -AssemblyName UIAutomationClient; $r=[System.Windows.Automation.AutomationElement]::RootElement; $c=$r.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition); foreach($w in $c){ '{0} | {1} | {2}' -f $w.Current.Name,$w.Current.ProcessId,$w.Current.ClassName }; Get-Process notepad -ErrorAction SilentlyContinue | ForEach-Object { 'proc {0} {1} [{2}]' -f $_.Id,$_.MainWindowHandle,$_.MainWindowTitle }"})
+    look("文字を入れる（set_value）", "pc_ui_do", {"window": "Notepad", "target": "Text Editor", "action": "set_value", "value": "set_value で入れた"})
+    look("メモ帳の中身", "pc_ui", {"window": "notepad", "filter": "入れた"})
     look("メモ帳の窓", "pc_screenshot", {"window": "notepad"})
     look("メモ帳を閉じる（保存しない）", "pc_powershell", {"script": "Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force; 'closed'"})
 
