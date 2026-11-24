@@ -53,6 +53,10 @@ jobs:
           cp -R "$APP" ipa/Payload/
           # デバッグ情報（dSYM）は不要。SideStore が PlugIns の中身を拡張機能として扱って失敗しないように外す
           find ipa/Payload -name '*.dSYM' -prune -exec rm -rf {} +
+          # 同梱の XCTest 一式は外して、iPhone 側（開発者イメージ）のものを使わせる（Appium の「preinstalled WDA」の手順。iOS 17+ で必要）
+          A="ipa/Payload/WebDriverAgentRunner-Runner.app"
+          rm -rf "$A"/Frameworks/XC*.framework "$A"/Frameworks/Testing.framework "$A"/Frameworks/libXCTestSwiftSupport.dylib
+          ls -la "$A/Frameworks" || true
           (cd ipa && zip -qry ../WebDriverAgentRunner.ipa Payload)
           ls -la WebDriverAgentRunner.ipa
           # 中身の一覧（Claude が確認する用）
