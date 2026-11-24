@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-24（PC から実機のログと画面を取れた）
+
+- `ios syslog`（go-ios v1.3.2）はトンネルなしで動く。40秒で約4MB。DevKit のスワイプ11回がすべて `LiveContainer(DevKit)[pid] <Notice>: DEVKIT swipe=… commit=3dd056a` として取れた（`privacy: .public` が効いている）
+- `ios screenshot` はトンネルなしだと失敗（iOS 27.2.1 はトンネルが必要）
+- `ios tunnel start --userspace` は**管理者なし**で立つ（wintun 不要の userspace）。立てたまま `ios screenshot --output=…` で実機の画面（1170×2532、約100KB）が取れた。開発者イメージ（DDI）は `image list` で none のままでも撮れた
+- PC 側のスクリプト：`Downloads\devkit-setup\6-see.*`（syslog）、`7-tunnel.*`（トンネル＋画面）。終わったらトンネルは止める
+
 ## 2026-11-24（実機で初めて動いた）
 
 - iloader v2.4.2 で LiveContainer + SideStore（Stable）を署名用 ID で入れた。iOS 27.2.1 でペアリングのエラーは出なかった
