@@ -1,0 +1,24 @@
+# ロジック（Core）のテスト。Linux で動くので速くて無料。
+name: Core tests (Linux)
+
+on:
+  push:
+    paths:
+      - "Core/**"
+      - ".github/workflows/core-tests.yml"
+  pull_request:
+    paths:
+      - "Core/**"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift のバージョン
+        run: swift --version
+      - name: テスト
+        working-directory: Core
+        run: swift test

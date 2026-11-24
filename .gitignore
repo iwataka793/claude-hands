@@ -1,0 +1,13 @@
+# ビルドの生成物
+build/
+.build/
+*.ipa
+DerivedData/
+
+# XcodeGen が作るプロジェクト（project.yml から毎回作る）
+App/*.xcodeproj
+
+# エディタ・OS
+.DS_Store
+.vscode/
+.idea/

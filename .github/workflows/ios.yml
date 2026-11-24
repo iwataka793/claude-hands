@@ -1,0 +1,116 @@
+# iPhone アプリのビルドと確認（クラウドの Mac）。
+# 1. シミュレーターで UI テスト（実際にスワイプ）してスクリーンショットを残す
+# 2. 署名なしの IPA を作る（iPhone では SideStore / LiveContainer が署名して入れる）
+# 3. main への push なら Releases に置く（iPhone から最新版をダウンロードできる）
+name: iOS build and simulator check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "App/**"
+      - "Core/**"
+      - "scripts/**"
+      - ".github/workflows/ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode のバージョン
+        run: xcodebuild -version
+
+      - name: XcodeGen を入れる
+        run: brew install xcodegen
+
+      - name: コミット番号をアプリに埋め込む
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          printf 'enum BuildInfo {\n    static let commit = "%s"\n}\n' "$SHORT_SHA" > App/Sources/BuildInfo.swift
+          cat App/Sources/BuildInfo.swift
+
+      - name: Xcode のプロジェクトを作る
+        working-directory: App
+        run: xcodegen generate
+
+      - name: シミュレーターを選ぶ
+        id: sim
+        run: |
+          chmod +x scripts/pick-simulator.sh
+          echo "udid=$(scripts/pick-simulator.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: シミュレーターで UI テスト（スワイプ）
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project App/DevKit.xcodeproj \
+            -scheme DevKit \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath build/UITests.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build-test.log | tail -n 80
+
+      - name: スクリーンショットを取り出す
+        if: always()
+        run: |
+          mkdir -p build/screenshots
+          if [ -d build/UITests.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path build/UITests.xcresult \
+              --output-path build/screenshots || echo "スクリーンショットの取り出しに失敗"
+          fi
+          ls -la build/screenshots || true
+
+      - name: テスト結果を保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-check
+          path: |
+            build/screenshots
+            build-test.log
+          if-no-files-found: warn
+
+      - name: 署名なしの IPA を作る
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project App/DevKit.xcodeproj \
+            -scheme DevKit \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tail -n 40
+          mkdir -p build/ipa/Payload
+          cp -R build/dd/Build/Products/Release-iphoneos/DevKit.app build/ipa/Payload/
+          (cd build/ipa && zip -qr ../../DevKit.ipa Payload)
+          ls -la DevKit.ipa
+
+      - name: IPA を保存
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevKit-ipa
+          path: DevKit.ipa
+
+      - name: Releases に置く（main のみ）
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" DevKit.ipa \
+            --title "DevKit $TAG" \
+            --notes "commit ${GITHUB_SHA::7} の自動ビルド（署名なし）。iPhone では SideStore か LiveContainer で入れる。" \
+            --latest
