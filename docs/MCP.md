@@ -1,0 +1,45 @@
+# iPhone の MCP サーバー（tools/iphone-mcp）
+
+Claude が iPhone を「その場で」見て・動かすための道具。Claude デスクトップの拡張機能（.mcpb）として PC に入れる。
+go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ログ・WebDriverAgent をつないだまま持ち、1 回の操作が数秒で返る。
+
+## 入れ方（カオル・初回だけ）
+
+1. Releases の最新の `mcp-N` から `iphone-dev-kit.mcpb` と `iphone-switch.zip` を PC に落とす
+2. Claude デスクトップの「設定 → 拡張機能 → 詳細設定 → Extension Developer → Install Extension…」で `iphone-dev-kit.mcpb` を選ぶ
+3. `iphone-switch.zip` を開いて、3 つの .bat をデスクトップに置く（スイッチ）
+- 更新するときは、新しい `mcp-N` の .mcpb で同じように入れ直す
+
+## スイッチ（カオルだけが切り替える）
+
+| .bat | 状態 | Claude ができること |
+| --- | --- | --- |
+| iPhone-OFF | オフ | 何もできない（iPhone につながない） |
+| iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・LiveContainer の中の一覧 |
+| iPhone-OPERATE | 操作も可 | 上に加えて、タップ・スワイプ・文字で押す・アプリの前出し/終了・LiveContainer への入れ替え |
+
+- 状態は `%LOCALAPPDATA%\iphone-mcp\mode.txt`。MCP サーバーには切り替える道具を作っていない
+- PC（Claude デスクトップ）を起動したときはオフ。使わない時間が 30 分（拡張機能の設定で変えられる）続くとオフに戻り、iPhone から切る
+- Claude 側の決まり：スイッチの .bat を押さない・mode.txt を書き換えない。オフなら「オンにしてください」と頼む
+
+## 道具
+
+| 道具 | スイッチ | 中身 |
+| --- | --- | --- |
+| iphone_status | いつでも | スイッチ・つながり・WDA の状態 |
+| iphone_logs | 見るだけ〜 | つないだ時から覚えているログを正規表現で絞る。`wait_seconds` で出るまで待つ |
+| iphone_screenshot | 見るだけ〜 | 画面（既定は 1/3 の JPEG、`full` で元の PNG） |
+| iphone_elements | 見るだけ〜 | 画面の部品を「種類 「文字」 中心(x,y)」で |
+| iphone_lc_list | 見るだけ〜 | LiveContainer の中のフォルダ（1 段） |
+| iphone_tap / iphone_swipe | 操作も可 | WDA の単位（390x844） |
+| iphone_tap_text | 操作も可 | 文字で部品を探して押す（例「実行」） |
+| iphone_app | 操作も可 | activate / terminate（省略時 LiveContainer） |
+| iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%LOCALAPPDATA%\iphone-mcp\backup\` に控え |
+
+## 中の作り
+
+- Go。go-ios v1.3.2 をライブラリとして組み込み（トンネルは userspace、鍵は `%USERPROFILE%\devkit\go-ios` の selfIdentity.plist を使い回す）
+- WDA への HTTP は USB の経路を直接つなぐ（PC にポートを開けない。`ios forward` は 0.0.0.0 で開くので使わない）
+- ログは USB の経路で取り続け、3 万行まで覚える
+- 記録：`%LOCALAPPDATA%\iphone-mcp\server.log`
+- ビルド：`.github/workflows/iphone-mcp.yml`（Linux で MCP の受け答えとスイッチの試験 → Windows exe → .mcpb → Releases `mcp-N`）

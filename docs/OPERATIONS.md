@@ -57,6 +57,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 ## 3. PC の使い方
 
+**まず MCP（[MCP.md](MCP.md)）が使えるか確かめる**：道具に `iphone_status` があれば、iPhone の確認・操作・DevKit の入れ替えはそれで行う（速い）。スイッチがオフなら、カオルに「見るだけ」か「操作も可」にしてもらう。MCP が無いときだけ、以下の go.bat のやり方を使う。
+
 ### 3-1. つながっているか
 
 - `get_device_info` → `connectedFolders` に `%USERPROFILE%\Downloads`（ユーザーフォルダの Downloads） があれば OK
