@@ -57,6 +57,13 @@ jobs:
           A="ipa/Payload/WebDriverAgentRunner-Runner.app"
           rm -rf "$A"/Frameworks/XC*.framework "$A"/Frameworks/Testing.framework "$A"/Frameworks/libXCTestSwiftSupport.dylib
           ls -la "$A/Frameworks" || true
+          # 署名ツール（iloader / SideStore）は PlugIns の中身を「拡張」とみなし、ID が本体の ID で始まることを求める。
+          # 本体 com.facebook.WebDriverAgentRunner.xctrunner に合わせて、テスト本体の ID をその下にする
+          MAIN_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/Info.plist")
+          X="$A/PlugIns/WebDriverAgentRunner.xctest/Info.plist"
+          echo "before: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$X")"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${MAIN_ID}.WebDriverAgentRunner" "$X"
+          echo "after:  $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$X")"
           (cd ipa && zip -qry ../WebDriverAgentRunner.ipa Payload)
           ls -la WebDriverAgentRunner.ipa
           # 中身の一覧（Claude が確認する用）
