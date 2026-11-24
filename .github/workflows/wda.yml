@@ -1,0 +1,71 @@
+# WebDriverAgent（PC から iPhone を操作するための部品）を、署名なしで作る（クラウドの Mac）。
+# 元：https://github.com/appium/WebDriverAgent （BSD ライセンス）
+# iPhone では SideStore が無料アカウントで署名して入れる（LiveContainer の中ではなく本体に入れる）。
+# Releases には wda-N として置く。DevKit の「最新版」は変えない（--latest=false）。
+name: WebDriverAgent build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wda.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wda-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: Xcode のバージョン
+        run: xcodebuild -version
+
+      - name: WebDriverAgent を取ってくる
+        run: |
+          git clone --depth 1 https://github.com/appium/WebDriverAgent.git wda
+          cd wda
+          git log -1 --format='%H %cd' | tee ../wda-commit.txt
+          git describe --tags --always 2>/dev/null | tee -a ../wda-commit.txt || true
+
+      - name: 署名なしでビルド（実機用）
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project wda/WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee wda-build.log | tail -n 60
+
+      - name: IPA にまとめる
+        run: |
+          APP=$(find dd/Build/Products -maxdepth 2 -name 'WebDriverAgentRunner-Runner.app' | head -1)
+          echo "app: $APP"
+          test -n "$APP"
+          mkdir -p ipa/Payload
+          cp -R "$APP" ipa/Payload/
+          (cd ipa && zip -qry ../WebDriverAgentRunner.ipa Payload)
+          ls -la WebDriverAgentRunner.ipa
+          # 中身の一覧（Claude が確認する用）
+          (cd ipa && find Payload -maxdepth 4 | sort) > wda-contents.txt
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | tee -a wda-contents.txt
+          head -n 60 wda-contents.txt
+
+      - name: Releases に置く（main のみ・最新版にはしない）
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG="wda-${{ github.run_number }}"
+          gh release create "$TAG" WebDriverAgentRunner.ipa wda-contents.txt wda-commit.txt wda-build.log \
+            --title "WebDriverAgent $TAG" \
+            --notes "appium/WebDriverAgent を署名なしでビルドしたもの。iPhone では SideStore で入れる。" \
+            --latest=false
