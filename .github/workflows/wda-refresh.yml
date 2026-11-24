@@ -36,7 +36,7 @@ jobs:
           cp tools/wda-refresh/main.rs isl/examples/minimal/src/main.rs
           cd isl/examples/minimal
           # iloader と同じ keyring（Windows の資格情報マネージャー）
-          printf '%s\n' 'keyring = { version = "3.6.3", features = ["windows-native"] }' >> Cargo.toml
+          printf '\n%s\n' 'keyring = { version = "3.6.3", features = ["windows-native"] }' >> Cargo.toml
           cat Cargo.toml
 
       - name: ビルド
