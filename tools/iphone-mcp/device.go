@@ -32,7 +32,7 @@ const (
 	// holdPort は「いま iPhone を使っているのは自分」という札。Claude デスクトップがこのサーバーを
 	// 2 つ同時に動かすことがあるので、つなぐのは札を取れた 1 つだけにする（PC の中だけで開く）。
 	holdPort = 60204
-	logKeep        = 30000 // ログを何行まで覚えておくか
+	logKeep  = 30000 // ログを何行まで覚えておくか
 )
 
 type logLine struct {
@@ -64,6 +64,7 @@ type Phone struct {
 	http       *http.Client
 
 	lcBundle string
+	appNames map[string]string // bundle id → 名前（つないだあと最初に要ったとき読む）
 
 	hold net.Listener // holdPort の札
 }
@@ -95,6 +96,7 @@ func (p *Phone) Disconnect() {
 	p.cancel, p.wdaCancel, p.tm = nil, nil, nil
 	p.hasRSD, p.wdaRunning, p.session, p.wdaBundle = false, false, "", ""
 	p.http = nil
+	p.appNames = nil
 	if p.hold != nil {
 		_ = p.hold.Close()
 		p.hold = nil

@@ -6,7 +6,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -16,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danielpaulus/go-ios/ios/instruments"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -134,9 +132,16 @@ type elementsIn struct {
 	Max int  `json:"max,omitempty" jsonschema:"行数の上限（既定 200）"`
 }
 
+// 操作の道具に共通：操作のあとの様子の返し方
+// （jsonschema の都合で埋め込みにせず、それぞれの型に同じ 2 つを書く）
+
 type tapIn struct {
-	X float64 `json:"x" jsonschema:"横の位置（WDA の単位。iPhone 16e は幅 390）"`
-	Y float64 `json:"y" jsonschema:"縦の位置（高さ 844）"`
+	X     float64 `json:"x" jsonschema:"横の位置（WDA の単位。iPhone 16e は幅 390）"`
+	Y     float64 `json:"y" jsonschema:"縦の位置（高さ 844）"`
+	Count int     `json:"count,omitempty" jsonschema:"2 ならダブルタップ"`
+	Hold  float64 `json:"hold,omitempty" jsonschema:"長押しの秒数（0 なら普通のタップ）"`
+	Show  string  `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（変わったときだけ・既定）／always／never"`
+	Log   string  `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す（例 DEVKIT）"`
 }
 
 type swipeIn struct {
@@ -145,16 +150,78 @@ type swipeIn struct {
 	ToX      float64 `json:"to_x"`
 	ToY      float64 `json:"to_y"`
 	Duration float64 `json:"duration,omitempty" jsonschema:"秒（既定 0.2）"`
+	Show     string  `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+	Log      string  `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
 }
 
 type tapTextIn struct {
-	Text  string `json:"text" jsonschema:"押したい部品の文字（label / name / value のどれかと一致）"`
-	Index int    `json:"index,omitempty" jsonschema:"同じ文字が複数あるときの番号（0 から）"`
+	Text    string  `json:"text" jsonschema:"押したい部品の文字（label / name / value / placeholderValue のどれかと一致）"`
+	Index   int     `json:"index,omitempty" jsonschema:"同じ文字が複数あるときの番号（0 から）"`
+	Partial bool    `json:"partial,omitempty" jsonschema:"true なら文字の一部が合えばよい"`
+	Count   int     `json:"count,omitempty" jsonschema:"2 ならダブルタップ"`
+	Hold    float64 `json:"hold,omitempty" jsonschema:"長押しの秒数"`
+	Show    string  `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+	Log     string  `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
+}
+
+type typeIn struct {
+	Text    string `json:"text" jsonschema:"打つ文字"`
+	Field   string `json:"field,omitempty" jsonschema:"入力欄の文字（ラベルや薄く出ている案内文）。指定するとその欄を押してから打つ。省略すると今選ばれている欄に打つ"`
+	Partial bool   `json:"partial,omitempty" jsonschema:"true なら field の一部が合えばよい"`
+	Clear   bool   `json:"clear,omitempty" jsonschema:"true なら欄の中身を消してから打つ（field が要る）"`
+	Enter   bool   `json:"enter,omitempty" jsonschema:"true なら最後に改行（決定・検索）を押す"`
+	Show    string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+	Log     string `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
+}
+
+type buttonIn struct {
+	Name string `json:"name" jsonschema:"home / volumeup / volumedown / lock / unlock / hide_keyboard（キーボードを閉じる）/ notifications（通知センター）/ control_center / back（画面の左端から戻る）"`
+	Show string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+	Log  string `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
+}
+
+type pinchIn struct {
+	Scale    float64 `json:"scale" jsonschema:"2 なら 2 倍に拡大、0.5 なら縮小"`
+	Velocity float64 `json:"velocity,omitempty" jsonschema:"速さ（省略で拡大 1・縮小 -1）"`
+	Show     string  `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+}
+
+type alertIn struct {
+	Action string `json:"action,omitempty" jsonschema:"read（文とボタンを読む・既定）／accept（許可・OK 側）／dismiss（キャンセル側）"`
+	Button string `json:"button,omitempty" jsonschema:"accept / dismiss のとき、押すボタンの文字（例「Appの使用中は許可」）"`
+	Show   string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+}
+
+type waitIn struct {
+	Text    string  `json:"text" jsonschema:"待つ文字（画面の部品の label / name / value）"`
+	Partial bool    `json:"partial,omitempty" jsonschema:"true なら一部が合えばよい"`
+	Gone    bool    `json:"gone,omitempty" jsonschema:"true なら消えるまで待つ（「読み込み中」など）"`
+	Seconds float64 `json:"seconds,omitempty" jsonschema:"最大何秒待つか（既定 10）"`
+	Show    string  `json:"show,omitempty" jsonschema:"待ったあとの画面を付けるか：changed（既定）／always／never"`
+}
+
+type scrollToIn struct {
+	Text      string `json:"text" jsonschema:"出したい部品の文字"`
+	Partial   bool   `json:"partial,omitempty" jsonschema:"true なら一部が合えばよい"`
+	Direction string `json:"direction,omitempty" jsonschema:"どちらの中身を見に行くか：down（既定。下の方）／up／left／right"`
+	Max       int    `json:"max,omitempty" jsonschema:"最大何回スクロールするか（既定 10）"`
+	Tap       bool   `json:"tap,omitempty" jsonschema:"true なら見つけたら押す"`
+	Show      string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
 }
 
 type appIn struct {
-	Action string `json:"action" jsonschema:"activate（前に出す）か terminate（終わらせる）"`
-	Bundle string `json:"bundle,omitempty" jsonschema:"bundle id。省略か livecontainer なら LiveContainer"`
+	Action string `json:"action" jsonschema:"activate（前に出す）／launch（起動し直す）／terminate（終わらせる）／state（動いているか）／url（URL を開く）"`
+	Bundle string `json:"bundle,omitempty" jsonschema:"アプリの名前（ホーム画面の名前。標準アプリは「設定」など日本語でよい）か bundle id。省略か livecontainer なら LiveContainer"`
+	URL    string `json:"url,omitempty" jsonschema:"action=url のときの URL（https:// や アプリの URL スキーム）"`
+	Show   string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
+	Log    string `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
+}
+
+type stepsIn struct {
+	Steps []map[string]any `json:"steps" jsonschema:"上から順に行う操作。1 つは {\"do\": 種類, ...引数}。種類と引数は同じ名前の道具と同じ：tap{x,y,count,hold} / swipe{from_x,from_y,to_x,to_y,duration} / tap_text{text,index,partial,count,hold} / type{text,field,partial,clear,enter} / button{name} / pinch{scale} / alert{action,button} / wait{text,partial,gone,seconds} / scroll_to{text,partial,direction,max,tap} / app{action,bundle,url} / sleep{seconds}"`
+	Pause float64          `json:"pause,omitempty" jsonschema:"操作と操作のあいだに待つ秒数（既定 0.3）"`
+	Show  string           `json:"show,omitempty" jsonschema:"最後の画面を付けるか：always（既定）／changed／never"`
+	Log   string           `json:"log,omitempty" jsonschema:"始めてから出たログのうち、この正規表現に合う行も返す"`
 }
 
 type lcInstallIn struct {
@@ -206,28 +273,9 @@ func (a *app) register(s *mcp.Server) {
 			if r := a.gate(ModeView); r != nil {
 				return r, nil, nil
 			}
-			var png []byte
-			if b, err := a.phone.WDA(ctx, "GET", "/screenshot", nil); err == nil {
-				var v struct {
-					Value string `json:"value"`
-				}
-				if json.Unmarshal(b, &v) == nil {
-					png, _ = base64.StdEncoding.DecodeString(v.Value)
-				}
-			}
-			if len(png) == 0 {
-				if err := a.phone.Ensure(ctx); err != nil {
-					return fail("%v", err), nil, nil
-				}
-				svc, err := instruments.NewScreenshotService(a.phone.rsd)
-				if err != nil {
-					return fail("画面を撮れません：%v", err), nil, nil
-				}
-				png, err = svc.TakeScreenshot()
-				svc.Close()
-				if err != nil {
-					return fail("画面を撮れません：%v", err), nil, nil
-				}
+			png, err := a.shotPNG(ctx)
+			if err != nil {
+				return fail("%v", err), nil, nil
 			}
 			if in.Full {
 				return &mcp.CallToolResult{Content: []mcp.Content{&mcp.ImageContent{Data: png, MIMEType: "image/png"}}}, nil, nil
@@ -262,86 +310,120 @@ func (a *app) register(s *mcp.Server) {
 			return text(fmt.Sprintf("部品 %d 個のうち：\n%s", total, out)), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_tap", Description: "画面の (x, y) をタップする（操作も可のときだけ）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_tap", Description: "画面の (x, y) をタップする。count=2 でダブルタップ、hold で長押し。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in tapIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil
 			}
-			if _, err := a.phone.WDA(ctx, "POST", "/session/{s}/wda/tap", map[string]any{"x": in.X, "y": in.Y}); err != nil {
-				return fail("%v", err), nil, nil
-			}
-			return text(fmt.Sprintf("タップ (%v,%v) %s", in.X, in.Y, time.Now().Format("15:04:05.000"))), nil, nil
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) { return a.opTap(ctx, in.X, in.Y, in.Count, in.Hold) }), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_swipe", Description: "画面をスワイプ（ドラッグ）する（操作も可のときだけ）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_swipe", Description: "画面をスワイプ（ドラッグ）する。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in swipeIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil
 			}
-			if in.Duration <= 0 {
-				in.Duration = 0.2
-			}
-			if _, err := a.phone.WDA(ctx, "POST", "/session/{s}/wda/dragfromtoforduration",
-				map[string]any{"fromX": in.FromX, "fromY": in.FromY, "toX": in.ToX, "toY": in.ToY, "duration": in.Duration}); err != nil {
-				return fail("%v", err), nil, nil
-			}
-			return text(fmt.Sprintf("スワイプ (%v,%v)→(%v,%v) %s", in.FromX, in.FromY, in.ToX, in.ToY, time.Now().Format("15:04:05.000"))), nil, nil
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) { return a.opSwipe(ctx, in.FromX, in.FromY, in.ToX, in.ToY, in.Duration) }), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_tap_text", Description: "画面の部品を文字で探して押す（例：LiveContainer の「実行」）。操作も可のときだけ"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_tap_text", Description: "画面の部品を文字で探して押す（例：LiveContainer の「実行」）。count=2 でダブルタップ、hold で長押し。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in tapTextIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil
 			}
-			q := strings.ReplaceAll(in.Text, "'", "\\'")
-			b, err := a.phone.WDA(ctx, "POST", "/session/{s}/elements",
-				map[string]any{"using": "predicate string", "value": fmt.Sprintf("label == '%s' OR name == '%s' OR value == '%s'", q, q, q)})
-			if err != nil {
-				return fail("%v", err), nil, nil
-			}
-			var v struct {
-				Value []map[string]string `json:"value"`
-			}
-			_ = json.Unmarshal(b, &v)
-			var ids []string
-			for _, e := range v.Value {
-				id := e["ELEMENT"]
-				if id == "" {
-					id = e["element-6066-11e4-a52e-4f735466cecf"]
-				}
-				ids = append(ids, id)
-			}
-			if len(ids) <= in.Index {
-				return fail("「%s」が見つかりません（%d 個）。iphone_elements で画面の部品を確かめてください", in.Text, len(ids)), nil, nil
-			}
-			if _, err := a.phone.WDA(ctx, "POST", "/session/{s}/element/"+ids[in.Index]+"/click", map[string]any{}); err != nil {
-				return fail("%v", err), nil, nil
-			}
-			return text(fmt.Sprintf("「%s」を押した（%d 個中 %d 番）%s", in.Text, len(ids), in.Index, time.Now().Format("15:04:05.000"))), nil, nil
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) {
+				return a.opTapText(ctx, in.Text, in.Index, in.Partial, in.Count, in.Hold)
+			}), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_app", Description: "アプリを前に出す（activate）か終わらせる（terminate）。bundle を省くと LiveContainer。操作も可のときだけ"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_type", Description: "文字を打つ。field で入力欄を指定するとその欄を押してから打つ（clear で消してから、enter で最後に改行）。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in typeIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) {
+				return a.opType(ctx, in.Text, in.Field, in.Partial, in.Clear, in.Enter)
+			}), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_button", Description: "ボタンや決まった動き：home（ホームに戻る）/ volumeup / volumedown / lock / unlock（パスコードが要るときは外せない）/ hide_keyboard / notifications / control_center / back。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in buttonIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) { return a.opButton(ctx, in.Name) }), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_pinch", Description: "前のアプリの画面をピンチで拡大・縮小する。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in pinchIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			return a.act(ctx, afterOpts{Show: in.Show}, func() (string, error) { return a.opPinch(ctx, in.Scale, in.Velocity) }), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_alert", Description: "ポップアップ（「許可しますか？」など）を読む（read・見るだけで使える）か、ボタンを押す（accept / dismiss・操作も可のときだけ。button で押す文字を選べる）"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in alertIn) (*mcp.CallToolResult, any, error) {
+			if in.Action == "" || in.Action == "read" {
+				if r := a.gate(ModeView); r != nil {
+					return r, nil, nil
+				}
+				m, err := a.opAlert(ctx, "read", "")
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text(m), nil, nil
+			}
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			return a.act(ctx, afterOpts{Show: in.Show}, func() (string, error) { return a.opAlert(ctx, in.Action, in.Button) }), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_wait", Description: "画面に文字が出るまで（gone なら消えるまで）待つ。読み込みの終わりを待つのに使う。見るだけで使える"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in waitIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeView); r != nil {
+				return r, nil, nil
+			}
+			start := time.Now()
+			m, err := a.opWait(ctx, in.Text, in.Partial, in.Gone, in.Seconds)
+			if err != nil {
+				return a.after(ctx, afterOpts{Show: "always", Settle: 0.5}, start, nil, err.Error(), true), nil, nil
+			}
+			return a.after(ctx, afterOpts{Show: in.Show, Settle: 1}, start, nil, m, false), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_scroll_to", Description: "文字が画面に出るまでスクロールする（tap なら見つけて押す）。端まで来たら止まる。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in scrollToIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
+			}
+			return a.act(ctx, afterOpts{Show: in.Show}, func() (string, error) {
+				return a.opScrollTo(ctx, in.Text, in.Partial, in.Direction, in.Max, in.Tap)
+			}), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_app", Description: "アプリを前に出す（activate）・起動し直す（launch）・終わらせる（terminate）・様子を見る（state）・URL を開く（url）。bundle はホーム画面の名前か bundle id（省くと LiveContainer）。操作のあと、画面が落ち着くまで待ち、変わったか・前のアプリ・（log を指定すれば）合うログを返す。画面が変わったら縮めた画面も付く（show で変えられる）。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in appIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil
 			}
-			if err := a.phone.Ensure(ctx); err != nil {
-				return fail("%v", err), nil, nil
+			if in.Action == "state" {
+				m, err := a.opApp(ctx, "state", in.Bundle, "")
+				if err != nil {
+					return fail("%v", err), nil, nil
+				}
+				return text(m), nil, nil
 			}
-			b := a.lc(in.Bundle)
-			if b == "" {
-				return fail("LiveContainer が見つかりません"), nil, nil
+			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) { return a.opApp(ctx, in.Action, in.Bundle, in.URL) }), nil, nil
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_steps", Description: "いくつかの操作を上から順に 1 回で行う（例：アプリを開く → 欄に打つ → ボタンを押す → 文字が出るまで待つ）。途中で失敗したらそこで止め、何番目で何が起きたかと、その時の画面を返す。最後に画面（既定）と、log を指定すれば合うログを返す。操作も可のときだけ"},
+		func(ctx context.Context, req *mcp.CallToolRequest, in stepsIn) (*mcp.CallToolResult, any, error) {
+			if r := a.gate(ModeOperate); r != nil {
+				return r, nil, nil
 			}
-			switch in.Action {
-			case "activate", "terminate":
-			default:
-				return fail("action は activate か terminate"), nil, nil
-			}
-			r, err := a.phone.WDA(ctx, "POST", "/session/{s}/wda/apps/"+in.Action, map[string]any{"bundleId": b})
-			if err != nil {
-				return fail("%v", err), nil, nil
-			}
-			return text(fmt.Sprintf("%s %s → %s", in.Action, b, strings.TrimSpace(string(r)))), nil, nil
+			return a.runSteps(ctx, in), nil, nil
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "iphone_lc_install", Description: "GitHub の iphone-dev-kit の Releases から IPA を取り、LiveContainer の中のアプリを上書きする（前の中身は PC に控え）。LiveContainer を終わらせてから入れる。入れた後は iphone_app activate → iphone_tap_text「実行」で起動。操作も可のときだけ"},

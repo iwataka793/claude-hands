@@ -15,8 +15,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | .bat | 状態 | Claude ができること |
 | --- | --- | --- |
 | iPhone-OFF | オフ | 何もできない（iPhone につながない） |
-| iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・LiveContainer の中の一覧 |
-| iPhone-OPERATE | 操作も可 | 上に加えて、タップ・スワイプ・文字で押す・アプリの前出し/終了・LiveContainer への入れ替え |
+| iPhone-VIEW | 見るだけ | 状態・ログ・画面・部品の一覧・ポップアップを読む・文字が出るまで待つ・LiveContainer の中の一覧 |
+| iPhone-OPERATE | 操作も可 | 上に加えて、タップ・長押し・スワイプ・ピンチ・文字で押す・文字入力・ボタン・ポップアップを押す・スクロールして探す・アプリの操作・まとめて実行・LiveContainer への入れ替え |
 
 - 状態は `%USERPROFILE%\devkit\iphone-mcp\mode.txt`。MCP サーバーには切り替える道具を作っていない
 - 置き場所を `%LOCALAPPDATA%` にしないこと：ストア版の Claude から動くと、AppData への書き込みが `AppData\Local\Packages\Claude_…\LocalCache\Local\` に振り分けられ、.bat が書いたファイルとずれる（0.1.2 で実際に起きた）
@@ -34,10 +34,28 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_screenshot | 見るだけ〜 | 画面（既定は 1/3 の JPEG、`full` で元の PNG） |
 | iphone_elements | 見るだけ〜 | 画面の部品を「種類 「文字」 中心(x,y)」で |
 | iphone_lc_list | 見るだけ〜 | LiveContainer の中のフォルダ（1 段） |
-| iphone_tap / iphone_swipe | 操作も可 | WDA の単位（390x844） |
-| iphone_tap_text | 操作も可 | 文字で部品を探して押す（例「実行」） |
-| iphone_app | 操作も可 | activate / terminate（省略時 LiveContainer） |
+| iphone_alert（read） | 見るだけ〜 | ポップアップの文とボタンを読む |
+| iphone_wait | 見るだけ〜 | 文字が出るまで（`gone` なら消えるまで）待つ |
+| iphone_tap | 操作も可 | (x, y) をタップ。`count=2` でダブルタップ、`hold` で長押し。WDA の単位（390x844） |
+| iphone_swipe | 操作も可 | スワイプ |
+| iphone_tap_text | 操作も可 | 文字で部品を探して押す（例「実行」）。`partial` で一部一致 |
+| iphone_type | 操作も可 | 文字を打つ。`field` で欄を指定、`clear` で消してから、`enter` で改行 |
+| iphone_button | 操作も可 | home / volumeup / volumedown / lock / unlock / hide_keyboard / notifications / control_center / back |
+| iphone_pinch | 操作も可 | 拡大・縮小（`scale`） |
+| iphone_alert（accept / dismiss） | 操作も可 | ポップアップのボタンを押す（`button` で文字を選ぶ） |
+| iphone_scroll_to | 操作も可 | 文字が出るまでスクロール。端で止まる。`tap` で押す |
+| iphone_app | 操作も可 | activate / launch / terminate / state / url。`bundle` はホーム画面の名前（標準アプリは日本語名）か bundle id。省略時 LiveContainer |
+| iphone_steps | 操作も可 | 上の操作を並べて 1 回で行う。失敗したらそこで止めてその時の画面を返す |
 | iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
+
+## 操作のあとに返ってくるもの
+
+タップ・スワイプ・文字で押す・文字入力・ボタン・ピンチ・ポップアップ・スクロール・アプリの道具は、操作のあと次を返す。
+
+- 画面が落ち着くまで待つ（最大 3 秒）。「変わった／変わらない」と、何秒で落ち着いたか
+- 前に出ているアプリ（名前と bundle id）
+- `log` を指定すれば、操作のあとに出た合うログ（例 `log: "DEVKIT"`）
+- `show`：changed（画面が変わったときだけ縮めた画面を付ける・既定）／always／never
 
 ## 使い方のこつ（2026-11-24 に実機で確認）
 

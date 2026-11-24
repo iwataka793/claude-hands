@@ -62,7 +62,7 @@ jobs:
                   if "id" in m: rs[m["id"]] = m
           tools = [t["name"] for t in rs[2]["result"]["tools"]]
           print("道具:", tools)
-          assert len(tools) == 10, tools
+          assert len(tools) == 17, tools
           st = rs[3]["result"]["content"][0]["text"]
           print(st)
           assert "オフ" in st
