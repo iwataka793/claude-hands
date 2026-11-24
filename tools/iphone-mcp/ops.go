@@ -385,11 +385,12 @@ func (a *app) opType(ctx context.Context, text, field string, partial, clear, en
 		// そのときは、いま文字を打てる欄を相手にする
 		_, err := a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
 		if err != nil && strings.Contains(err.Error(), "stale element") {
-			time.Sleep(300 * time.Millisecond)
-			if fid, e := a.focusedID(ctx); e == nil {
-				id = fid
-				_, err = a.phone.WDA(ctx, "POST", "/session/{s}/element/"+id+"/clear", map[string]any{})
+			// 部品の番号では届かないので、キーボードで消して（削除キー 100 回）から打つ（未確認：0.1.15 で確かめる）
+			keys := strings.Repeat("\b", 100) + text
+			if _, e := a.phone.WDA(ctx, "POST", "/session/{s}/wda/keys", map[string]any{"value": []string{keys}}); e != nil {
+				return "", fmt.Errorf("消せません：%v", e)
 			}
+			return fmt.Sprintf("「%s」をキーボードで消してから打った「%s」", field, strings.TrimSuffix(text, "\n")), nil
 		}
 		if err != nil {
 			return "", fmt.Errorf("消せません：%v", err)

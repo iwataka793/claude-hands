@@ -86,6 +86,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 ### 押す場所の決め方
 
 - 画面の画像の座標は、そのまま `iphone_tap` の座標に使える（縮めた画像 390x844 = WDA の単位）。画像を見て押すのがいちばん早い
+- 設定の検索欄は、押すと中身が消えた新しい欄に作り直される。`clear` は要らない（欄を押してそのまま打つ）。0.1.15 からは作り直されたらキーボードで消して打つ（未確認）
 - 文字がはっきりしているボタンは `iphone_tap_text`。見えている部品から先に探す（0.1.7 から。前はマップの「出発」で隠れた方を押した）。それでも画面が変わらなかったら、`index` を変えるか、画像の座標で `iphone_tap` する
 - `iphone_elements` は確実だが遅い（ホーム画面で 10 秒ほど）。押す場所が画像で分からないときに使う
 
@@ -128,7 +129,15 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ### 仮の位置
 
-- `iphone_location` は、いまは使えない。iPhone の窓口（com.apple.dt.simulatelocation）に開発者のディスクイメージが要り、入っていない（2026-11-25）。入れるには go-ios の `image auto`（ネットから取る）が要る。使うときはカオルに相談
+- `iphone_location` set で仮の位置、reset で本当の位置に戻る（2026-11-25 に東京駅にして、マップで確かめた）
+- iOS 17 からは instruments の LocationSimulation の窓口を使う（古い com.apple.dt.simulatelocation は iOS 27 では答えない）。道具がつないでいる間だけ効き、切れると本当の位置に戻る
+
+### Safari などの中のページ（iphone_web）
+
+- iPhone の設定 → アプリ → Safari → 詳細 →「ウェブインスペクタ」がオンのときだけ（2026-11-25 にオンにした）
+- `list`：開いているページ（page の値・アプリ・題名・URL）。Safari の機能拡張の裏のページも出る
+- `eval`：ページで JavaScript を動かして結果を返す（例 `document.title`）。page を省くと Safari のふつうのページ（http / https）
+- 自分のアプリの WKWebView を見るには、アプリ側で `isInspectable = true` が要る（未確認）
 
 ## うまくいかないとき
 
@@ -167,7 +176,9 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_steps | 操作も可 | 上の操作を並べて 1 回で行う。失敗したらそこで止めてその時の画面を返す |
 | iphone_files（write / push） | 操作も可 | アプリの中にファイルを書く・置く（テストのデータ・設定） |
 | iphone_clipboard | 操作も可 | クリップボードを読む・入れる（パスワードが入っていることがあるので、読むのは要るときだけ） |
-| iphone_location | 操作も可 | 仮の位置（いまは使えない。上の「仮の位置」） |
+| iphone_location | 操作も可 | 仮の位置（set / reset） |
+| iphone_web（list） | 見るだけ〜 | Safari などの中のページの一覧 |
+| iphone_web（eval） | 操作も可 | ページで JavaScript を動かす |
 | iphone_devkit | 見るだけ〜（/cmd は操作も可） | DevKit ののぞき窓に聞く（下の「DevKit の開発の 1 周」） |
 | iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
 
