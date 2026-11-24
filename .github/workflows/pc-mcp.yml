@@ -1,0 +1,133 @@
+# PC を見て・動かす道具（pc-mcp.exe ＝ 拡張機能、pc-agent.exe ＝ 常駐役）をビルドし、
+# GitHub の Windows で通しの試験をしてから、Releases に pc-N として置く。
+name: pc-mcp build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/pc-mcp/**"
+      - ".github/workflows/pc-mcp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pc-mcp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/pc-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: false
+      - name: 依存を揃える
+        run: go mod tidy
+      - name: 確かめる（vet）
+        run: GOOS=windows GOARCH=amd64 go vet ./...
+      - name: 起動の試験（Linux。常駐役なし＝オフ）
+        run: |
+          go build -o /tmp/pc-linux .
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"pc_status","arguments":{}}}' \
+            > /tmp/in.jsonl
+          (cat /tmp/in.jsonl; sleep 2) | PC_AGENT_DIR=/tmp/pcstate timeout 15 /tmp/pc-linux > /tmp/out.jsonl || true
+          python3 - <<'PY'
+          import json
+          rs = {}
+          for l in open("/tmp/out.jsonl"):
+              if l.strip():
+                  m = json.loads(l)
+                  if "id" in m: rs[m["id"]] = m
+          tools = [t["name"] for t in rs[2]["result"]["tools"]]
+          print("道具:", tools)
+          assert len(tools) == 14, tools
+          st = rs[3]["result"]["content"][0]["text"]
+          print(st)
+          assert "動いていない" in st
+          PY
+      - name: Windows 用にビルド
+        run: |
+          V="0.1.${{ github.run_number }}+${GITHUB_SHA::7}"
+          mkdir -p pkg/server sw
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$V" -o pkg/server/pc-mcp.exe .
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$V" -o sw/pc-agent.exe .
+          cp switch/*.bat sw/
+          ls -la pkg/server sw
+      - name: 拡張機能（.mcpb）とスイッチにまとめる
+        run: |
+          python3 - <<'PY'
+          import json
+          m = json.load(open("manifest.json", encoding="utf-8"))
+          m["version"] = "0.1.${{ github.run_number }}"
+          json.dump(m, open("pkg/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+          PY
+          npx -y @anthropic-ai/mcpb validate pkg/manifest.json
+          npx -y @anthropic-ai/mcpb pack pkg pc-dev-kit.mcpb
+          (cd sw && zip -q ../pc-switch.zip *)
+          ls -la pc-dev-kit.mcpb pc-switch.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pc-mcp
+          path: |
+            tools/pc-mcp/pc-dev-kit.mcpb
+            tools/pc-mcp/pc-switch.zip
+            tools/pc-mcp/pkg/server/pc-mcp.exe
+            tools/pc-mcp/sw/pc-agent.exe
+
+  wintest:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pc-mcp
+          path: art
+      - name: 通しの試験（本物の Windows）
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse art | Select-Object FullName, Length | Format-Table -AutoSize
+          $env:PCMCP = (Resolve-Path art/pkg/server/pc-mcp.exe).Path
+          $env:PCAGENT = (Resolve-Path art/sw/pc-agent.exe).Path
+          $env:PC_AGENT_DIR = Join-Path $env:RUNNER_TEMP 'pcstate'
+          $env:PC_AGENT_ALLOW_DIR = Join-Path $env:RUNNER_TEMP 'pcallow'
+          $env:PYTHONIOENCODING = 'utf-8'
+          python tools/pc-mcp/test/scenario.py
+      - name: 常駐役の記録
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Content (Join-Path $env:RUNNER_TEMP 'pcstate/audit.log') -Encoding utf8 -ErrorAction SilentlyContinue | Select-Object -Last 60
+          Get-Content (Join-Path $env:RUNNER_TEMP 'pcstate/agent.log') -ErrorAction SilentlyContinue | Select-Object -Last 20
+
+  release:
+    needs: [build, wintest]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pc-mcp
+          path: art
+      - name: Releases に置く（最新版にはしない）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="pc-${{ github.run_number }}"
+          gh release create "$TAG" art/pc-dev-kit.mcpb art/pc-switch.zip -R "${{ github.repository }}" \
+            --title "PC の道具 $TAG" \
+            --notes "pc-dev-kit.mcpb：Claude デスクトップの拡張機能（設定 → デスクトップアプリ → 拡張機能 にドラッグ）。pc-switch.zip：常駐役（pc-agent.exe）とスイッチ。開いて pc-setup.bat を実行。commit ${GITHUB_SHA::7}" \
+            --latest=false
