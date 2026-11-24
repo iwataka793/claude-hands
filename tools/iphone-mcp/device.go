@@ -70,7 +70,8 @@ type Phone struct {
 	logDir string // ログを PC にも残す場所
 	logF   *logFile
 
-	hold net.Listener // holdPort の札
+	hold    net.Listener // holdPort の札
+	checked time.Time    // 最後につながりを確かめた時刻
 }
 
 func NewPhone(pairDir, wdaTest, logDir string) *Phone {
@@ -95,6 +96,16 @@ func (p *Phone) Connected() bool {
 func (p *Phone) Disconnect() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.dropLocked()
+	if p.hold != nil {
+		_ = p.hold.Close()
+		p.hold = nil
+	}
+	slog.Info("disconnected")
+}
+
+// dropLocked はつながり（トンネル・ログ・WDA）を捨てる。札（hold）は持ったまま。
+func (p *Phone) dropLocked() {
 	if p.wdaCancel != nil {
 		p.wdaCancel()
 	}
@@ -111,11 +122,36 @@ func (p *Phone) Disconnect() {
 	p.logMu.Lock()
 	p.logF.flush()
 	p.logMu.Unlock()
-	if p.hold != nil {
-		_ = p.hold.Close()
-		p.hold = nil
+}
+
+// aliveLocked は、つながりがまだ生きているか（USB に端末がいるか・トンネルの口が開いているか）。
+// ロックや USB の抜き差しで切れたまま使い続けないように、道具を呼ぶたびに（3 秒おきに）見る。
+func (p *Phone) aliveLocked() bool {
+	if time.Since(p.checked) < 3*time.Second {
+		return true
 	}
-	slog.Info("disconnected")
+	p.checked = time.Now()
+	list, err := ios.ListDevices()
+	if err != nil {
+		return false
+	}
+	found := false
+	for _, d := range list.DeviceList {
+		if d.Properties.SerialNumber == p.device.Properties.SerialNumber {
+			found = true
+		}
+	}
+	if !found {
+		return false
+	}
+	if p.rsd.UserspaceTUN && p.rsd.UserspaceTUNPort > 0 {
+		c, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", p.rsd.UserspaceTUNPort), time.Second)
+		if err != nil {
+			return false
+		}
+		c.Close()
+	}
+	return true
 }
 
 // Ensure はつながっていなければつなぐ（USB の端末 → ログ → トンネル）。
@@ -140,7 +176,11 @@ func (p *Phone) Ensure(ctx context.Context) (err error) {
 		}
 	}()
 	if p.hasRSD {
-		return nil
+		if p.aliveLocked() {
+			return nil
+		}
+		slog.Warn("connection lost, reconnecting")
+		p.dropLocked()
 	}
 	if p.hold == nil {
 		l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", holdPort))
