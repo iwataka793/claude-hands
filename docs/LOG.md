@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-24（SideStore の更新が通るようになった）
+
+- 症状：「Refresh All」で「You do not appear to be connected to VPN」。LocalDevVPN（1.3.0）のログでは接続済み（状態3）でエラーなし
+- SideStore の Settings → Health Check で原因が分かった：VPN トンネル○、**Ping ×**。SideStore はトンネルの住所（Tunnel Iface IP 10.7.1.1）の次の番号 **10.7.1.2** を iPhone 本体とみなして話しかけていたが、LocalDevVPN の Device IP は **10.7.0.1** だった
+- 対処：LocalDevVPN の Tunnel IP を `10.7.1.1` → **`10.7.0.0`** に変更（Device IP は `10.7.0.1` のまま）。SideStore が期待する住所が 10.7.0.1 になり一致
+- 結果：Health Check がすべて○（System Healthy。Ping Reachable、Pairing file Verified、DDI Mounted）。LiveContainer の更新が VPN のエラーなしで始まった
+- 元に戻すとき：Tunnel IP を 10.7.1.1 に戻す
+
 ## 2026-11-24（PC から実機のログと画面を取れた）
 
 - `ios syslog`（go-ios v1.3.2）はトンネルなしで動く。40秒で約4MB。DevKit のスワイプ11回がすべて `LiveContainer(DevKit)[pid] <Notice>: DEVKIT swipe=… commit=3dd056a` として取れた（`privacy: .public` が効いている）
