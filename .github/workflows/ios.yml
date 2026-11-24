@@ -110,7 +110,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="build-${{ github.run_number }}"
-          gh release create "$TAG" DevKit.ipa \
+          # Claude が確認できるように、シミュレーターのスクリーンショットとテストの記録も一緒に置く
+          (cd build && zip -qr ../simulator-check.zip screenshots) || true
+          cp build-test.log simulator-test.log || true
+          gh release create "$TAG" DevKit.ipa simulator-check.zip simulator-test.log \
             --title "DevKit $TAG" \
             --notes "commit ${GITHUB_SHA::7} の自動ビルド（署名なし）。iPhone では SideStore か LiveContainer で入れる。" \
             --latest
