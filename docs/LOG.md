@@ -2,6 +2,21 @@
 
 新しいものが上。
 
+## 2026-11-24（WebDriverAgent の 7 日更新を PC で自動にした）
+
+- SideStore で入れた WebDriverAgent は、何をしても `runwda` が「WebDriverAgentRunner.xctest を作れない（Error 104）」で失敗
+  - SideStore のソース（SideSign / CodeSignKit、2026-09 に書き直された署名部品）を読んだ：`.xctest` にも署名し、IPA にも入れている。拡張（`.appex`）以外の ID は書き換えない
+  - テスト本体の ID を SideStore の書き換え後に合わせても（…xctrunner.<チームID>.WebDriverAgentRunner）同じ失敗
+  - インストール中の syslog（約 2,900 行）にも、テスト本体を捨てた記録は無い。原因は特定できず。SideStore 側の不具合と見ている
+  - iloader で上書きすると、SideStore の一覧から消える（SideStore の管理表に載せたまま中身だけ替える作戦は不可）
+- 対処：iloader と同じ部品（nab138/isideload 0.5.2）で `tools/wda-refresh`（Windows 用 exe、Actions でビルド、Releases の tools-N）を作った
+  - iloader が保存したパスワード（資格情報マネージャー "iloader"）と、iloader の証明書・Anisette の状態（KeyringStorage "iloader"）を使い回す。Anisette は mac-ani.jkcoxson.com
+  - 証明書が上限なら取り消さずにエラーで止める（LiveContainer / SideStore の証明書を守る）。2 段階認証を求められたら止める
+  - 結果：サインインで 2 段階認証は聞かれず、iPhone（USB）に入った。PC から 4 方向のスワイプも DevKit のログで確認
+  - iPhone がスリープ中は usbmuxd に出てこないことがある → 最大 60 秒待つようにした
+- PC のタスクスケジューラに「iPhone WebDriverAgent 自動更新」を登録（3 時間ごと。最後の成功から 4 日未満なら何もしない）。記録は `Downloads\devkit-setup\wda-refresh-log.txt`
+- メールアドレスとチーム ID はリポジトリに置かない（PC のスクリプトにだけ書く）
+
 ## 2026-11-24（PC から実機を操作できた：WebDriverAgent）
 
 - `.github/workflows/wda.yml`：appium/WebDriverAgent（30aac06）を署名なしでビルドし、Releases に `wda-N` として置く（`--latest=false`。DevKit の最新版リンクは変えない）
