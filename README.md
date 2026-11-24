@@ -10,8 +10,9 @@ Windows と Claude で iPhone アプリを作るための道具箱です。Mac �
 | `Core/` | iPhone に依存しないロジック | `swift test`（Linux / Windows / Mac） |
 | `App/` | iPhone の画面と機能（SwiftUI） | クラウドのシミュレーター、実機 |
 | `App/UITests/` | シミュレーターで実際に操作するテスト | Actions で自動実行、スクリーンショットを保存 |
-| `scripts/` | Actions やPCで使う補助スクリプト | |
-| `docs/` | 記録（経過、分かった制限） | |
+| `scripts/` | Actions で使う補助スクリプト。`scripts/pc/` は PC で実機を見る・動かす台本（go.bat + plan.json） | |
+| `docs/` | 手順書（OPERATIONS.md）と記録（LOG.md） | |
+| `tools/` | WebDriverAgent を SideStore 向けにする道具など | |
 
 ## 試作1：スワイプ
 

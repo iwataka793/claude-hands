@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-24（引き継ぎの準備：手順書・CLAUDE.md・PC の台本を repo に）
+
+- docs/OPERATIONS.md：Claude 向けの手順書（開発の 1 周、PC の使い方、go-ios のコツ、WDA、SideStore の注意、調べ方の決まり、未検証のこと）
+- CLAUDE.md：動き方の決まりだけ。手順書と LOG を指す（カオルの了承済み）
+- scripts/pc/：PC の台本を一本化。go.bat + plan.json（計画ファイル）で「ログ・画面・WDA 操作」を一度に。ID は PC の %USERPROFILE%\devkit\config.ps1（config.example.ps1 が見本）
+  - 未検証：PC にはまだ置いていない（PC がつながっていない）。次に PC がつながったら置いて試す
+- wda.yml：SideStore 向けの WebDriverAgentRunner-ss.ipa も Releases に置くようにした
+
 ## 2026-11-24（片付け：PC 方式の自動更新をやめて SideStore に一本化）
 
 - 確認：SideStore の My Apps に WebDriverAgentRunner-Runner が載っている（残り 7 日）。18:31 にもう一度 PC から起動して、DevKit の上下左右スワイプ 4 回とも記録に出た

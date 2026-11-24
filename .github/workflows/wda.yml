@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/wda.yml"
+      - "tools/wda-sidestore/**"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +24,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
+      - name: この repo を取ってくる（SideStore 向けに作り替える道具を使う）
+        uses: actions/checkout@v4
+        with:
+          path: kit
+
       - name: Xcode のバージョン
         run: xcodebuild -version
 
@@ -71,6 +77,11 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | tee -a wda-contents.txt
           head -n 60 wda-contents.txt
 
+      - name: SideStore 向けの IPA も作る（.xctest の名前を外す。docs/OPERATIONS.md 参照）
+        run: |
+          python3 -I kit/tools/wda-sidestore/make_ss_ipa.py WebDriverAgentRunner.ipa WebDriverAgentRunner-ss.ipa
+          ls -la WebDriverAgentRunner-ss.ipa
+
       - name: Releases に置く（main のみ・最新版にはしない）
         if: github.ref == 'refs/heads/main'
         env:
@@ -78,7 +89,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           TAG="wda-${{ github.run_number }}"
-          gh release create "$TAG" WebDriverAgentRunner.ipa wda-contents.txt wda-commit.txt wda-build.log \
+          gh release create "$TAG" WebDriverAgentRunner-ss.ipa WebDriverAgentRunner.ipa wda-contents.txt wda-commit.txt wda-build.log \
             --title "WebDriverAgent $TAG" \
-            --notes "appium/WebDriverAgent を署名なしでビルドしたもの。iPhone では SideStore で入れる。" \
+            --notes "appium/WebDriverAgent を署名なしでビルドしたもの。iPhone の SideStore には WebDriverAgentRunner-ss.ipa を入れる（WebDriverAgentRunner.ipa は iloader 用の旧形式）。" \
             --latest=false

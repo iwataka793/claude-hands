@@ -1,0 +1,178 @@
+# 運用の手順書（Claude 向け）
+
+この repo で iPhone アプリを作るときに、Claude が道具を使いこなすための手順書です。
+新しいセッションでは、まずこれを全部読んでから作業します。経過・分かったことの記録は [LOG.md](LOG.md)（新しいものが上）。
+
+- 「未検証」と書いてある所は、まだ実機で確かめていない。使う前に記録を取って確かめる
+- 手順が変わったら、この文書も同じコミットで直す
+
+---
+
+## 1. 全体の形
+
+```
+[GitHub]  iwataka793/iphone-dev-kit（公開）
+   ├─ Actions ios.yml   … main への push で DevKit をビルド → シミュレーターで UI テスト → Releases に build-N（最新版）
+   ├─ Actions wda.yml   … WebDriverAgent をビルド → Releases に wda-N（最新版にはしない）
+   └─ Actions core-tests.yml … Core/ のテスト（Linux）
+
+[Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）
+   ├─ %USERPROFILE%\devkit\go-ios\ios.exe   … iPhone とやりとりする道具（go-ios v1.3.2）
+   ├─ %USERPROFILE%\devkit\config.ps1       … ID などの設定（公開 repo に入れない）
+   └─ Downloads\devkit-setup\               … 台本（go.bat / go.ps1 / plan.json）と記録（runs\）
+
+[iPhone 16e / iOS 27.2.1]（USB で PC につなぐ）
+   ├─ LiveContainer … 自作アプリ（DevKit など）はこの中で動かす。SideStore も中に同梱
+   ├─ SideStore     … 無料 Apple ID で署名・7 日ごとの更新（LiveContainer と WebDriverAgent）
+   ├─ LocalDevVPN   … SideStore が iPhone 自身にインストールするための VPN
+   └─ WebDriverAgent（WebDriverAgentRunner-Runner）… PC から画面を操作するための部品
+```
+
+Claude の手元のシェル（Bash）はクラウドの Linux で、PC ではない。PC では次の 2 つしかできない。
+
+- ファイルを置く・読む（デスクトップアプリの橋渡し）
+- 画面を見てクリックする（computer use）
+
+---
+
+## 2. 開発の 1 周
+
+1. **書く**：`App/`（画面）と `Core/`（iPhone に依存しないロジック）を直す。動きを確かめたい所には、iPhone のログに出る印を入れる（例：`logger.notice("DEVKIT ...")`、`privacy: .public` を付ける）
+2. **ビルド**：main に push → ios.yml が動く
+   - 結果は `gh run list` / `gh run view <id> --log` で見る
+   - Releases の `build-N` に DevKit.ipa・simulator-check.zip（シミュレーターの画面）・simulator-test.log が置かれる
+   - このセッションからは Releases を作れない（403）。作るのは Actions に任せる
+3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/build-N/simulator-check.zip` などで取って見る
+4. **iPhone に入れる**：今はカオルの手作業
+   - Safari で `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa` → LiveContainer で開く
+   - 画面下の `build:` がコミット番号と同じなら最新版
+   - PC から LiveContainer に直接置く方法は「8. 未検証」
+5. **実機で動かして見る**：PC の go.bat（3 章）。ログ・画面・操作が一度にできる
+6. **記録**：分かったことは LOG.md の一番上に書く
+
+---
+
+## 3. PC の使い方
+
+### 3-1. つながっているか
+
+- `get_device_info` → `connectedFolders` に `%USERPROFILE%\Downloads`（ユーザーフォルダの Downloads） があれば OK
+- つながらないとき：PC が寝ている／Claude デスクトップアプリが閉じている。カオルに頼む
+- iPhone は USB でつなぎ、ロックを外してもらう（ロック中はつながらないことがある）
+
+### 3-2. 台本を置く（初回・更新時）
+
+repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
+
+1. `SendUserFile` で go.ps1 / go.bat を送る（file_uuid が返る）
+2. `device_commit_files` で `<ユーザーフォルダ>\Downloads\devkit-setup\go.ps1`（get_device_info の connectedFolders の下） などに書く（既にあるなら `force: true`）
+3. 初回だけ：`config.example.ps1` を元に `%USERPROFILE%\devkit\config.ps1` を作ってもらう
+   - 値（LiveContainer の bundle id）は PC の中だけに置く。公開 repo・チャットに書かない
+
+.ps1 は「UTF-8（BOM 付き）＋ CRLF」でないと、Windows PowerShell 5.1 で日本語が壊れる。repo では `.gitattributes` で CRLF にし、BOM はファイルに入れてある。新しく作るときも同じにする。
+
+### 3-3. 実行する（go.bat）
+
+1. `plan.json`（3-4）を作り、`SendUserFile` → `device_commit_files` で `devkit-setup\plan.json` に置く
+2. computer use でエクスプローラーを開き、`devkit-setup` の `go.bat` をダブルクリックする
+   - 初回は `computer_resolve_access(["File Explorer"])` → `computer_request_access`
+   - エクスプローラーは click 権限だけ（打鍵・右クリック不可）。ダブルクリックで .bat を動かすのは可
+   - 一覧の並びはファイルが増えると変わる。**押す前に必ず `computer_zoom` で名前を確かめる**（違う .bat を押した失敗あり）
+   - 待ちは 1 回 50 秒まで。長いときは分けて待つ
+3. 結果を読む：`device_stage_files` で `devkit-setup\last-result.txt` を取る。画面は `runs\<日時>-<name>\*.png`
+4. 終わったら `computer_release_lock`
+
+### 3-4. plan.json の書き方
+
+```json
+{
+  "name": "swipe",
+  "match": "DEVKIT",
+  "wda": true,
+  "target": "livecontainer",
+  "actions": [
+    {"do": "activate"},
+    {"do": "screenshot", "name": "before"},
+    {"do": "drag", "from": [195, 250], "to": [195, 550], "duration": 0.2},
+    {"do": "tap", "at": [195, 400]},
+    {"do": "wait", "sec": 2},
+    {"do": "source"},
+    {"do": "screenshot", "name": "after"}
+  ]
+}
+```
+
+- `match`：iPhone のログから抜き出す文字（正規表現）。結果に最後の 60 行が出る。全部は `runs\...\syslog-match.txt`
+- `wda: false`：操作せず、`seconds` 秒ログを取って前後の画面を撮るだけ
+- 座標は WebDriverAgent の単位（iPhone 16e は 390×844）。結果の「画面の大きさ」に出る
+- `source`：画面の部品一覧（XML）。ボタンの位置や文字を調べるのに使う
+- `target`：`livecontainer` は config.ps1 の LiveContainer。ほかのアプリは bundle id を書く
+
+### 3-5. 守ること（PC）
+
+- iPhone の出力は**必要な行だけに絞ってから読む**。`ios apps --list` などはアプリ一覧が全部出る（個人情報）
+- SideStore の記録（ConsoleLogs）には Apple ID のメールアドレスやログイン用の一時データが入る。チャットに出さない・repo に入れない
+- PC のファイルを消すときは、先にカオルに確認する。消すときは完全削除ではなく「ごみ箱へ」（`Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(..., 'SendToRecycleBin')`）
+- iloader のパスワード（資格情報マネージャー "iloader"）には触らない
+
+---
+
+## 4. go-ios のコツ
+
+| やること | コマンド | 注意 |
+| --- | --- | --- |
+| ログ | `ios syslog` | **トンネルより先に始める**（後だと失敗する）。トンネル無しで動く |
+| トンネル | `ios tunnel start --userspace` | 管理者権限いらない。15 秒ほど待つ |
+| 画面 | `ios screenshot --output=x.png` | トンネルが要る |
+| アプリ一覧 | `ios apps --list` | 全部出るので必ず絞る |
+| WDA 起動 | `ios runwda --bundleid=B --testrunnerbundleid=B --xctestconfig=WebDriverAgentRunner` | テスト本体名は `.xctest` なし（7 章） |
+| 転送 | `ios forward 8100 8100` | PC の 8100 番 → iPhone の WDA |
+| 落ちた記録 | `ios crash ls` | 名前だけ絞って見る |
+| アプリの中のファイル | `ios fsync --app=<bundle id> tree --path=/` / `pull --srcPath= --dstPath=` | 開発者署名のアプリ（LiveContainer など）の中が読める。Windows では tree の字下げが出ない（全部平ら） |
+| 受け渡し場所 | `ios fsync tree --path=/PublicStaging` | インストール後は空になる |
+
+- 詳しいやりとりを全部見るとき：`-t`（trace）。エラーの中身（NSError）は go-ios が説明文しか出さないことがある
+- `runwda` は `--log-output=<file>` でテスト側のログが取れる
+- LiveContainer の中の場所：`/Documents/Applications/<bundle id>.app`（入れたアプリ）、`/Documents/Data/Application/<UUID>/`（アプリのデータ）、`/Documents/SideStore/Documents/`（同梱 SideStore の書類。ConsoleLogs・ResignedApps）
+
+---
+
+## 5. WebDriverAgent（PC から実機を操作する部品）
+
+- ビルド：wda.yml。Releases `wda-N` の **WebDriverAgentRunner-ss.ipa** を使う（`WebDriverAgentRunner.ipa` は旧形式）
+- 入れ方：iPhone の Safari で ss.ipa を落とす → LocalDevVPN をオン → SideStore の My Apps「＋」→ 選ぶ
+  - LiveContainer の中ではなく iPhone 本体に入る（LiveContainer の中では動かない）
+- 更新：SideStore の 7 日更新（Refresh）に任せる。PC 側の自動更新はやめた
+- 使う API（go.ps1 の中）：`/status`、`POST /session`、`/session/{id}/wda/apps/activate`、`/session/{id}/window/size`、`/session/{id}/wda/dragfromtoforduration`、`/session/{id}/wda/tap`、`/session/{id}/source`
+
+---
+
+## 6. SideStore / LiveContainer の注意
+
+- SideStore は LiveContainer 同梱版（0.6.4-20260714、LiveContainer/SideStore の ddf08f58）
+- **本番ビルドでも DEBUG が有効**で、署名の準備のときに PlugIns の中の「.xctest」を含む名前のものを黙って消す（2026-11-24 の LOG）。テスト部品を含むアプリは名前から `.xctest` を外す（`tools/wda-sidestore/make_ss_ipa.py`）
+- LocalDevVPN の Tunnel IP は `10.7.0.0`（SideStore は Tunnel IP + 1 に話しかける）。SideStore の Health Check がすべて緑なら OK
+- Anisette サーバーは「SideStore (New)」
+- 無料 Apple ID の制限：有効なアプリ 3 つまで、App ID は 7 日で 10 個まで（My Apps の下に残り数）、証明書は 1 年
+- 同じ ID のアプリを別の道具（iloader など）で入れると上書きし合い、SideStore の一覧から消える
+- 隠しメニュー（DIAGNOSTICS）：Settings で 3 本指で下から上へ素早く 3 回スワイプ。詳しい記録は「Enable Verbose Ops Logging」
+- 記録の場所：LiveContainer の中 `/Documents/SideStore/Documents/ConsoleLogs/console-*.log`（ログイン用データを含む）
+- 「Export Resigned Apps」をオンにすると、送る直前の署名済みアプリが `ResignedApps/` に残る（調べるとき用）
+
+---
+
+## 7. 調べ方の決まり
+
+- **とにかくログ**：推測やソースを読むより先に、実物（送られたファイル・実機のログ・書き出したもの）を見る。2026-11-24 は、ソースを読んで「入っているはず」と決めて遠回りした
+- 原因が分からないときは、わざと同じ失敗を起こして形を比べる（例：無い名前を指定して同じエラーになるか）
+- 実際に動いている版のソースを見る（SideStore は LiveContainer 版、AltSign + ldid。upstream とは別物）
+
+---
+
+## 8. 未検証・これから
+
+- **DevKit を PC から LiveContainer に直接入れる**（カオルの手作業を無くす）
+  - 考え：`ios fsync --app=<LiveContainer> push` で `/Documents/Applications/<bundle id>.app` を差し替える
+  - LiveContainer は起動前に「パッチの版（LCAppInfo.plist の LCPatchRevision）」と署名を確かめ、必要なら自分で署名する（LCAppInfo.m `patchExecAndSignIfNeed`）。差し替えた実行ファイルはパッチが要るので、LCPatchRevision を下げる必要がありそう
+  - 起動は WDA で LiveContainer を前に出し、DevKit を押す
+- **新しいセッションでの試験**：この文書と repo だけで 1 周回せるか
