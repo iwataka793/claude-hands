@@ -38,7 +38,10 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 1. **書く**：`App/`（画面）と `Core/`（iPhone に依存しないロジック）を直す。動きを確かめたい所には、iPhone のログに出る印を入れる（例：`logger.notice("DEVKIT ...")`、`privacy: .public` を付ける）
 2. **ビルド**：main に push → ios.yml が動く
-   - 結果は `gh run list` / `gh run view <id> --log` で見る
+   - 結果は REST で見る（このセッションの gh は GraphQL を使うコマンドが通らないことがある）：
+     `gh api 'repos/iwataka793/iphone-dev-kit/actions/runs?per_page=5' --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) \(.conclusion) \(.head_sha[0:7])"'`
+     失敗したら `gh api repos/iwataka793/iphone-dev-kit/actions/runs/<id>/jobs` で段階を見る
+   - ファイルは `curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/<タグ>/<ファイル>` で取れる。最新のタグは `gh api repos/iwataka793/iphone-dev-kit/releases/latest --jq .tag_name`
    - Releases の `build-N` に DevKit.ipa・simulator-check.zip（シミュレーターの画面）・simulator-test.log が置かれる
    - このセッションからは Releases を作れない（403）。作るのは Actions に任せる
 3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/build-N/simulator-check.zip` などで取って見る
