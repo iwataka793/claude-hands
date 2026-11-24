@@ -6,7 +6,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 ## 入れ方（カオル・初回だけ）
 
 1. Releases の最新の `mcp-N` から `iphone-dev-kit.mcpb` と `iphone-switch.zip` を PC に落とす
-2. Claude デスクトップの「設定 → 拡張機能 → 詳細設定 → Extension Developer → Install Extension…」で `iphone-dev-kit.mcpb` を選ぶ
+2. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」の画面に `iphone-dev-kit.mcpb` をドラッグする（.mcpb のダブルクリックは Windows の「開くアプリ」選びになるだけ。Claude は自分で Claude デスクトップを操作できないので、ここはカオルの作業）
 3. `iphone-switch.zip` を開いて、3 つの .bat をデスクトップに置く（スイッチ）
 - 更新するときは、新しい `mcp-N` の .mcpb で同じように入れ直す
 
@@ -38,6 +38,16 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | iphone_tap_text | 操作も可 | 文字で部品を探して押す（例「実行」） |
 | iphone_app | 操作も可 | activate / terminate（省略時 LiveContainer） |
 | iphone_lc_install | 操作も可 | Releases の IPA（既定 latest の DevKit.ipa）を LiveContainer に入れ替える。前の中身は `%USERPROFILE%\devkit\iphone-mcp\backup\` に控え |
+
+## 使い方のこつ（2026-11-24 に実機で確認）
+
+- 最初の呼び出しでつなぐ（トンネルは 1 秒かからない）。WDA は最初に画面・部品・操作が要ったときに起動する（数秒）
+- WDA の起動直後に撮った画面は、切り替えの途中でアイコンが大きく写ることがある。おかしければもう一度撮る
+- 画面の部品（iphone_elements）はホーム画面だと 10 秒ほどかかる。押す場所を決めるだけなら、画面を撮るか iphone_tap_text の方が早い
+- DevKit の 1 周：iphone_lc_install → iphone_app activate → iphone_tap_text「実行」→ iphone_screenshot（下の「build:」で版を確かめる）→ iphone_swipe → iphone_logs match=DEVKIT。全部で 30 秒ほど
+- ログの行の頭は「PC が受け取った時刻」、その後ろが iPhone の時刻。iPhone の時計は 2〜3 秒遅れている
+- 道具の返事には、LiveContainer の bundle id（チーム ID 入り）や iPhone の名前が出る。repo に写すときは伏せる
+- 道具がおかしいときは server.log を読む。この会話から読むには、`~/devkit/iphone-mcp` の許可をカオルに 1 回もらう（device_request_folder_access。会話ごとに要る）。`AppData` の中は許可が出ない
 
 ## 中の作り
 
