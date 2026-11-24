@@ -6,11 +6,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
-	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
