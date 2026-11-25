@@ -10,7 +10,14 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, Sys
 
 $created = $false
 $mutex = New-Object System.Threading.Mutex($true, 'Local\DevKitSwitchApp', [ref]$created)
-if (-not $created) { exit }   # もう動いている
+$showSignal = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\DevKitSwitchShow')
+if (-not $created) {
+    # もう動いている：ダブルクリックで開いたときは、動いている方に「窓を出して」と知らせて終わる
+    if ($args -notcontains '/tray') { [void]$showSignal.Set() }
+    exit
+}
+$Here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$IconFile = Join-Path $Here 'devkit-switch.ico'
 
 $U        = $env:USERPROFILE
 $Phone    = Join-Path $U 'devkit\iphone-mcp'
@@ -281,7 +288,7 @@ $win.Add_Closing({ param($s, $e) if (-not $script:quit) { $e.Cancel = $true; $wi
 
 # ---------------- 通知領域 ----------------
 $tray = New-Object System.Windows.Forms.NotifyIcon
-$tray.Icon = [System.Drawing.SystemIcons]::Shield
+if (Test-Path $IconFile) { $tray.Icon = New-Object System.Drawing.Icon($IconFile) } else { $tray.Icon = [System.Drawing.SystemIcons]::Shield }
 $tray.Visible = $true
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $menu.Items.Add('開く', $null, { $win.Show(); $win.Activate() }) | Out-Null
@@ -375,6 +382,14 @@ function Check-Requests {
     $script:asking = $false
     Update-View
 }
+
+if (Test-Path $IconFile) { $win.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create([Uri]$IconFile) }
+
+# 2 つ目を開こうとしたら（ショートカットのダブルクリックなど）、この窓を前に出す
+$showTimer = New-Object System.Windows.Threading.DispatcherTimer
+$showTimer.Interval = [TimeSpan]::FromMilliseconds(400)
+$showTimer.Add_Tick({ if ($showSignal.WaitOne(0)) { $win.Show(); if ($win.WindowState -eq 'Minimized') { $win.WindowState = 'Normal' }; $win.Activate(); $win.Topmost = $true; $win.Topmost = $false } })
+$showTimer.Start()
 
 $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(2)

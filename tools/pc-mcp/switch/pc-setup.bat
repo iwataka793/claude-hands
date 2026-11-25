@@ -12,6 +12,7 @@ set S=%USERPROFILE%\devkit\switch-app
 if not exist "%S%" mkdir "%S%"
 copy /y "%~dp0devkit-switch.ps1" "%S%\devkit-switch.ps1" >nul
 copy /y "%~dp0devkit-switch.vbs" "%S%\devkit-switch.vbs" >nul
+copy /y "%~dp0devkit-switch.ico" "%S%\devkit-switch.ico" >nul
 for %%f in (PC-OFF.bat PC-VIEW.bat PC-OPERATE.bat PC-ALLOW.bat) do copy /y "%~dp0%%f" "%USERPROFILE%\Desktop\%%f" >nul
 echo ’u‚«‚Ü‚µ‚½F
 echo   í’“–ğ %D%\pc-agent.exe

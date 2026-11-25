@@ -66,7 +66,7 @@ jobs:
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$V" -o pkg/server/pc-mcp.exe .
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$V" -o sw/pc-agent.exe .
           cp switch/*.bat sw/
-          cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs sw/
+          cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs ../switch-app/devkit-switch.ico sw/
           ls -la pkg/server sw
       - name: 拡張機能（.mcpb）とスイッチにまとめる
         run: |
