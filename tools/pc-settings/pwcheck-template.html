@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ログイン確認</title>
+<style>
+  :root { --bg:#f6f6f3; --card:#fff; --line:#e2e2dc; --ink:#222; --sub:#777; --o:#1f8a4c; --d:#c98a00; --x:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Yu Gothic UI","Meiryo",sans-serif; background:var(--bg); color:var(--ink); font-size:15px; }
+  header { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--line); padding:12px 20px; z-index:5; }
+  h1 { font-size:18px; margin:0 0 6px; }
+  .how { color:var(--sub); font-size:13px; line-height:1.6; margin:0 0 10px; }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .count { font-size:14px; margin-right:auto; }
+  .count b { font-size:16px; }
+  button { font:inherit; border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; }
+  button.main { background:#2d6cdf; color:#fff; border-color:#2d6cdf; }
+  label.f { font-size:14px; color:var(--sub); }
+  main { padding:12px 20px 60px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  td, th { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
+  th { background:#fafaf7; font-size:13px; color:var(--sub); font-weight:normal; }
+  td.no { color:var(--sub); width:48px; }
+  td.site a { color:#2d6cdf; text-decoration:none; }
+  td.site .t { font-size:12px; color:var(--sub); }
+  td.user { color:#444; font-size:14px; word-break:break-all; }
+  td.st { width:300px; white-space:nowrap; }
+  .st button { padding:4px 10px; margin-right:4px; }
+  .st button.on.o { background:var(--o); color:#fff; border-color:var(--o); }
+  .st button.on.d { background:var(--d); color:#fff; border-color:var(--d); }
+  .st button.on.x { background:var(--x); color:#fff; border-color:var(--x); }
+  .opened { font-size:12px; color:var(--sub); }
+  tr.done td { background:#fbfbf8; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ログイン確認（iCloud パスワード <span id="total"></span> 件）</h1>
+  <p class="how">「次の 30 件を開く」でタブが開きます（初回は Chrome のアドレス欄の右に出る「ポップアップがブロックされました」から、このページを許可してください）。<br>
+  タブで自動入力を使ってログインし、ここに戻って <b style="color:var(--o)">○ 使う</b>・<b style="color:var(--d)">△ ログインできない</b>・<b style="color:var(--x)">× 要らない</b> を押します。押した結果はこのページに残ります。最後に「記録を書き出す」を押してください。</p>
+  <div class="bar">
+    <span class="count">済み <b id="nDone">0</b> / ○ <b id="nO">0</b>・△ <b id="nD">0</b>・× <b id="nX">0</b></span>
+    <label class="f"><input type="checkbox" id="onlyTodo" checked> まだのものだけ表示</label>
+    <button class="main" id="open30">次の 30 件を開く</button>
+    <button id="export">記録を書き出す</button>
+  </div>
+</header>
+<main>
+  <table>
+    <thead><tr><th>#</th><th>サイト</th><th>ユーザー名</th><th>結果</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+<script>
+const DATA = __DATA__;
+const KEY = 'pwcheck-v1';
+let st = {};
+try { st = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { st = {}; }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} }
+
+const seen = {};
+DATA.forEach(d => { const k = d.title + '|' + d.user + '|' + d.site; seen[k] = (seen[k] || 0) + 1; d.key = k + '#' + seen[k]; });
+
+function urlOf(d) {
+  if (!d.site || d.site === 'ウェブサイトなし') return 'https://www.google.com/search?q=' + encodeURIComponent(d.title + ' ログイン');
+  return /^https?:\/\//.test(d.site) ? d.site : 'https://' + d.site + '/';
+}
+function now() { const t = new Date(); const p = n => String(n).padStart(2, '0'); return `${t.getFullYear()}-${p(t.getMonth()+1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`; }
+
+const tbody = document.getElementById('rows');
+DATA.forEach((d, i) => {
+  const tr = document.createElement('tr'); tr.dataset.key = d.key;
+  tr.innerHTML = `<td class="no">${i + 1}</td>
+    <td class="site"><a target="_blank" rel="noopener"></a><div class="t"></div></td>
+    <td class="user"></td>
+    <td class="st"><button class="o">○ 使う</button><button class="d">△ できない</button><button class="x">× 要らない</button><div class="opened"></div></td>`;
+  tr.querySelector('a').href = urlOf(d);
+  tr.querySelector('a').textContent = d.site && d.site !== 'ウェブサイトなし' ? d.site : d.title + '（検索）';
+  tr.querySelector('.t').textContent = d.title !== d.site ? d.title : '';
+  tr.querySelector('.user').textContent = d.user || '（ユーザー名なし）';
+  tr.querySelector('a').addEventListener('click', () => mark(d.key, null, true));
+  ['o', 'd', 'x'].forEach(c => tr.querySelector('button.' + c).addEventListener('click', () => mark(d.key, c)));
+  tbody.appendChild(tr);
+});
+
+function mark(key, c, opened) {
+  const s = st[key] || {};
+  if (opened) { s.opened = now(); }
+  if (c) { if (s.s === c) { delete s.s; delete s.at; } else { s.s = c; s.at = now(); } }
+  st[key] = s; save(); render();
+}
+function render() {
+  const only = document.getElementById('onlyTodo').checked;
+  let nO = 0, nD = 0, nX = 0;
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const s = st[tr.dataset.key] || {};
+    ['o', 'd', 'x'].forEach(c => tr.querySelector('button.' + c).classList.toggle('on', s.s === c));
+    if (s.s === 'o') nO++; if (s.s === 'd') nD++; if (s.s === 'x') nX++;
+    tr.querySelector('.opened').textContent = s.at ? '記録 ' + s.at : (s.opened ? '開いた ' + s.opened : '');
+    tr.classList.toggle('done', !!s.s);
+    tr.classList.toggle('hide', only && !!s.s);
+  });
+  document.getElementById('total').textContent = DATA.length;
+  document.getElementById('nO').textContent = nO; document.getElementById('nD').textContent = nD; document.getElementById('nX').textContent = nX;
+  document.getElementById('nDone').textContent = nO + nD + nX;
+}
+document.getElementById('onlyTodo').addEventListener('change', render);
+document.getElementById('open30').addEventListener('click', () => {
+  const todo = DATA.filter(d => { const s = st[d.key] || {}; return !s.s && !s.opened; });
+  const pick = []; const urls = new Set();
+  for (const d of todo) { const u = urlOf(d); if (!urls.has(u)) { urls.add(u); pick.push(d); } if (pick.length >= 30) break; }
+  if (!pick.length) { alert('開いていないものはもうありません'); return; }
+  pick.forEach(d => { window.open(urlOf(d), '_blank', 'noopener'); });
+  todo.filter(d => urls.has(urlOf(d))).forEach(d => { const s = st[d.key] || {}; s.opened = now(); st[d.key] = s; });
+  save(); render();
+});
+document.getElementById('export').addEventListener('click', () => {
+  const q = v => '"' + String(v || '').replace(/"/g, '""') + '"';
+  const name = { o: '使う', d: 'ログインできない', x: '要らない' };
+  const lines = ['サイト,タイトル,ユーザー名,結果,記録した日時,開いた日時'];
+  DATA.forEach(d => { const s = st[d.key] || {}; lines.push([d.site, d.title, d.user, name[s.s] || '', s.at, s.opened].map(q).join(',')); });
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ログイン確認の記録.csv'; a.click();
+});
+render();
+</script>
+</body>
+</html>
