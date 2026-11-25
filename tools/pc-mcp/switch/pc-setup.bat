@@ -13,9 +13,9 @@ if not exist "%S%" mkdir "%S%"
 copy /y "%~dp0devkit-switch.ps1" "%S%\devkit-switch.ps1" >nul
 copy /y "%~dp0devkit-switch.vbs" "%S%\devkit-switch.vbs" >nul
 copy /y "%~dp0devkit-switch.ico" "%S%\devkit-switch.ico" >nul
-for %%f in (PC-OFF.bat PC-VIEW.bat PC-OPERATE.bat PC-ALLOW.bat) do copy /y "%~dp0%%f" "%USERPROFILE%\Desktop\%%f" >nul
+rem スイッチは窓で切り替える。デスクトップには窓のショートカットだけを置く（.bat は zip の中に予備として残す）
+wscript.exe "%S%\devkit-switch.vbs" /shortcut
 echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
-echo   スイッチ デスクトップの PC-OFF / PC-VIEW / PC-OPERATE / PC-ALLOW
-echo   スイッチの窓 %S%\devkit-switch.vbs（Claude が頼むと自動で出ます）
+echo   スイッチの窓 %S%\devkit-switch.vbs（デスクトップの「Claude 操作スイッチ」。Claude が頼むと自動で出ます）
 pause

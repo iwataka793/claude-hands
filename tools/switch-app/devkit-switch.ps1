@@ -8,6 +8,20 @@
 
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
 
+# /shortcut：デスクトップに「Claude 操作スイッチ」のショートカットを作って終わる（pc-setup.bat が使う）
+if ($args -contains '/shortcut') {
+    $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Claude 操作スイッチ.lnk'
+    $sc = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+    $sc.TargetPath = Join-Path $env:SystemRoot 'System32\wscript.exe'
+    $sc.Arguments = '"' + (Join-Path $here 'devkit-switch.vbs') + '"'
+    $sc.WorkingDirectory = $here
+    $sc.IconLocation = (Join-Path $here 'devkit-switch.ico') + ',0'
+    $sc.Description = 'iPhone と PC の Claude 操作スイッチ'
+    $sc.Save()
+    exit
+}
+
 $created = $false
 $mutex = New-Object System.Threading.Mutex($true, 'Local\DevKitSwitchApp', [ref]$created)
 $showSignal = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\DevKitSwitchShow')

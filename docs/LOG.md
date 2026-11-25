@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-25 PC の開発の物を整理した・.bat をやめて窓にした
+
+- カオル「全部必要な場所に移動させていい・消していいものは消していい・あとで質問してもわかるように（セッションを変えても）」
+- ごみ箱へ：ダウンロードの iphone-mcp・pc-mcp、デスクトップの スイッチの .bat 7 つ、`devkit\iphone-dev-kit`（11/24 の Windows の swift test の写し 174 MB）、installers の古い .mcpb 2 つ、作業の残り
+- installers に今の版の .mcpb（mcp-16・pc-5）を置いた
+- pc-setup.bat：デスクトップに .bat を置くのをやめ、窓のショートカットを作る（devkit-switch.ps1 /shortcut）
+- 置き場所と中身の表を OPERATIONS.md 1-1 に書いた。カオルに聞かれたらそこで答える
+- 残り：デスクトップの selfIdentity.plist（鍵の写し）はカオルが決める
+
 ## 2026-11-25 「許可しますか？」を道具から通しで試した（PC）：OK
 
 - 見るだけ → 操作も可：10:46:04 に pc_powershell（Set-Location）が「見るだけ」で断られる → 窓「PC を『操作も可』にしますか？」→ カオルが許可 → 10:46:08 にそのまま動いた

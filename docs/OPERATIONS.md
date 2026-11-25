@@ -16,7 +16,7 @@
    ├─ Actions wda.yml   … WebDriverAgent をビルド → Releases に wda-N（最新版にはしない）
    └─ Actions core-tests.yml … Core/ のテスト（Linux）
 
-[Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）
+[Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）。置き場所の全部と、それぞれ何かは 1-1
    ├─ %USERPROFILE%\devkit\go-ios\ios.exe   … iPhone とやりとりする道具（go-ios v1.3.2）
    ├─ %USERPROFILE%\devkit\switch-app\     … Claude 操作スイッチの窓（devkit-switch.vbs。Claude の「許可しますか？」もここから出る）
    ├─ %USERPROFILE%\devkit\installers\     … 入れ物（.mcpb・.msi・.ipa など）
@@ -35,6 +35,28 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 - 画面を見てクリックする（computer use）
 
 ---
+
+### 1-1. PC のどこに何があるか（2026-11-25 に整理した）
+
+カオルに「これは何？」と聞かれたら、この表で答える。ここに無いものは、開発とは関係のないカオルのもの（勝手に動かさない）。
+
+| 場所 | 中身 | 消してよいか |
+| --- | --- | --- |
+| デスクトップ「Claude 操作スイッチ」 | スイッチの窓を開くショートカット（アイコンは緑と灰色のスイッチ 2 つ） | 消してもよい（pc-setup.bat を動かすとまた作る） |
+| デスクトップ `selfIdentity.plist` | **鍵のファイル**（go-ios が iPhone とつながるときの PC 側の身分証明）。go-ios を別のフォルダで動かしたときにできた写しと見ている。本物は `devkit\go-ios` にある | カオルが決める（Claude は触らない。触るには許可が要る） |
+| `devkit\switch-app\` | スイッチの窓（devkit-switch.ps1 / .vbs / .ico）。右下の通知領域に常駐する | 消さない |
+| `devkit\requests\` | Claude の道具がスイッチ不足のときに置く「頼み」（ふだんは空） | 消さない |
+| `devkit\iphone-mcp\` | iPhone の道具の状態：mode.txt（スイッチ）・last-used.txt・server.log・logs\（iPhone のログ。200 MB ずつ回す）・backup\（LiveContainer に入れ替える前の DevKit の控え）・files\ | 消さない（backup の古いものは消してよい） |
+| `devkit\pc-agent\` | PC の道具の常駐役（pc-agent.exe）・スイッチ（mode.txt）・合言葉（token.txt）・記録（audit.log・agent.log） | 消さない |
+| `%ProgramData%\pc-agent\allow.txt` | 10 分の許可（管理者しか書けない場所） | 触らない |
+| `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
+| `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
+| `devkit\installers\` | 入れ直し用：iphone-dev-kit.mcpb・pc-dev-kit.mcpb（いま入れている版）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
+| Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる） | 触らない（入れ直しは設定の画面から） |
+| ダウンロード・デスクトップの .bat | もう無い。スイッチは窓に替えた（2026-11-25 にごみ箱へ）。.bat は Releases の zip の中に予備として残っている | — |
+
+- 2026-11-25 にごみ箱へ送ったもの：ダウンロードの iphone-mcp・pc-mcp（古い .bat と pc-agent.exe）、デスクトップの .bat 7 つ、`devkit\iphone-dev-kit`（11/24 に Windows で swift test を試したときの repo の写しとビルドの残り 174 MB。今は CI で試す。要るときは clone し直す）、古い .mcpb、作業の残り。ごみ箱から戻せる
+- 版の確かめ方：iPhone は iphone_status の「版」、PC の道具は拡張機能の server\pc-mcp.exe の日付、常駐役は pc_status の「版」
 
 ## 2. 開発の 1 周
 

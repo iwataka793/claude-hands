@@ -16,7 +16,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 ## 入れ方（カオル・最初と、新しい版にするとき）
 
 1. Releases の最新の `pc-N` から `pc-dev-kit.mcpb` と `pc-switch.zip` を落とす
-2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓を `devkit\switch-app` に、スイッチ 4 つをデスクトップに置く。動いている常駐役は止めてから入れ替える）
+2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓を `devkit\switch-app` に置き、デスクトップに窓のショートカット「Claude 操作スイッチ」を作る（.bat は zip の中の予備）。動いている常駐役は止めてから入れ替える）
 3. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」に `pc-dev-kit.mcpb` をドラッグする
 4. 道具ごとの「許可」の確認は、カオルが「常に許可」を選べば次から出ない
 
