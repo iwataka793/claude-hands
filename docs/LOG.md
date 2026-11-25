@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-25 Docker Desktop をアンインストールした
+
+- カオル「ドッカーや Git は Claude との開発で要る？」→ 調べた：iPhone・PC の道具は使っていない。CityRank の観測の箱は GitHub Actions で docker build → Google Cloud（observe.yml）。PC の Docker は使っていない
+- 中身（起動して確かめた）：イメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core。どれも 2026-02 の pwtest）、コンテナ・ボリュームは 0。ディスク 7.8 GB、Windows の起動のたびに自動で立ち上がる設定だった
+- pwtest のコードは PC にも GitHub にも無かったので、イメージから /app を取り出して `ドキュメント\pwtest-docker-code.zip`（0.4 MB）に残した
+- カオルの OK のあと、Docker Desktop Installer.exe uninstall --quiet（UAC）→ 終わりのコード 0。本体・docker コマンド・WSL の docker-desktop・自動起動が消えた。残りの設定と記録（.docker 110 MB など）はごみ箱へ。C の空き 345 GB
+- Git は残した（使っていないが軽い。PC で Claude Code を直接使うなら要ることがある）
+
 ## 2026-11-25 PC の開発の物を整理した・.bat をやめて窓にした
 
 - カオル「全部必要な場所に移動させていい・消していいものは消していい・あとで質問してもわかるように（セッションを変えても）」

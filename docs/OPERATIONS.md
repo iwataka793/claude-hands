@@ -53,6 +53,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
 | `devkit\installers\` | 入れ直し用：iphone-dev-kit.mcpb・pc-dev-kit.mcpb（いま入れている版）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
 | Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる） | 触らない（入れ直しは設定の画面から） |
+| `ドキュメント\pwtest-docker-code.zip` | Docker に残っていた pwtest（2026-02 の PC 版。CityRank の前身）のイメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core）から取り出した Python のコード。ほかに写しが無かったので残した | カオルが決める |
+| Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |
 | ダウンロード・デスクトップの .bat | もう無い。スイッチは窓に替えた（2026-11-25 にごみ箱へ）。.bat は Releases の zip の中に予備として残っている | — |
 
 - 2026-11-25 にごみ箱へ送ったもの：ダウンロードの iphone-mcp・pc-mcp（古い .bat と pc-agent.exe）、デスクトップの .bat 7 つ、`devkit\iphone-dev-kit`（11/24 に Windows で swift test を試したときの repo の写しとビルドの残り 174 MB。今は CI で試す。要るときは clone し直す）、古い .mcpb、作業の残り。ごみ箱から戻せる
