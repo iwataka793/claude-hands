@@ -112,7 +112,7 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 | 文字が出るまで待つ | `iphone_wait` |
 | ポップアップ | `iphone_alert` read で文とボタンを見てから、accept / dismiss（`button` で文字を選ぶ） |
 | ショートカットを動かす | `iphone_app` action=url、url=`shortcuts://run-shortcut?name=名前`（名前は英数字にしておくと楽）。ショートカットのアプリが前に出て動く |
-| SideStore の入れ直し（7 日ごと） | 上のやり方で `DevKitRefresh`（LiveContainer の「Refresh All Apps」だけのショートカット。2026-11-25 に作った） |
+| SideStore の入れ直し（7 日ごと） | 上のやり方で `DevKitRefresh`（LiveContainer の「Refresh All Apps」だけのショートカット。2026-11-25 に作った。オートメーションで毎週火曜 21:00 にも動く） |
 | 例：マップで目的地へ案内 | app activate「マップ」→ type field「Apple マップ」に目的地・enter → 経路のボタン（「○分」）→ 緑の「出発」を座標で押す |
 
 ### ロック
