@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-25 PC の要らないものを片付けた（Swift・VS Build Tools など）
+
+- カオル「ほかに要らないものある？」→ pc_apps・pc_disk で全体を見て案を出した。カオル「おすすめで Playwright 以外を消していい」
+- アンインストール（UAC 1 回で順に。記録は %TEMP%\devkit-uninstall-log.txt）：Swift Developer Toolkit（コード 0）→ VS Build Tools 2022（0・2 分）→ Windows SDK（Build Tools と一緒に消えていた）→ SDK AddOn（0）→ VS Installer（0）。C の空き 346 → 356 GB
+- つまずき：1 回目は台本の引数の名前 $args が PowerShell の決まった変数とぶつかり、何も動かなかった（UAC を 2 回押させた）。名前を変えてやり直した
+- ごみ箱へ：古いクラッシュの記録 6 つ（155 MB）、VS Code の残り（本体は無い）、起動時の AutoHotkey のショートカット（本体が無く動いていなかった。.ahk は OneDrive のデスクトップに残っている）、空の Swift フォルダ
+- 残したもの：Playwright のブラウザ（あとで使うかも）。カオルが決めるもの：codex-runtimes 2.4 GB・Logi Download Assistant・Copilot・ごみ箱を空にする
+
 ## 2026-11-25 Docker Desktop をアンインストールした
 
 - カオル「ドッカーや Git は Claude との開発で要る？」→ 調べた：iPhone・PC の道具は使っていない。CityRank の観測の箱は GitHub Actions で docker build → Google Cloud（observe.yml）。PC の Docker は使っていない
