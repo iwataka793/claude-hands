@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-25 Wake-on-LAN を実際に試した：起きない
+
+- iPhone に Wolow（無料）を入れ、PC の LAN（MAC・ブロードキャスト・ポート 9）を登録。「Same subnet」と出た。ローカルネットワークは許可、使い方のデータ収集は断った
+- カオルが 3 回スリープ（モダン スタンバイに入った記録 506 あり）→ Wolow で合図 → 起きない。起きた理由（507）は 3 回とも「Input Mouse」
+- わけ：LAN は UGREEN Revodok 107（USB-C ハブ）の中の ASIX。PC からの道は ASIX → ハブの中の Genesys ハブ → USB 3 の Root Hub → Intel の USB 3.2 コントローラー（USB4 の口は通っていない。前に「USB4 の口が起こせる」と書いたのは別の道）。`powercfg /devicequery wake_programmable` に ASIX が出てこない（起こす機器にできない）。Get-NetAdapterPowerManagement もこのアダプターでは「デバイスが動いていない」とエラー。アダプターの詳細設定の「Modern standby wake on Magic packet：有効」だけでは足りない
+- Wi-Fi（Intel AX211）は Wake on Magic Packet が有効だが、いまは Wi-Fi を切っていて LAN だけ。これも wake_programmable には出ない
+- 前にカオルが試してだめだったのも同じ理由とみる
+
 ## 2026-11-25 SideStore の「Refresh All」で日数が 7 日に戻らない理由
 
 - カオルが My Apps の Refresh All を押した（08:41）。日数は WebDriverAgent 6 日・LiveContainer 7 日のまま
