@@ -2,6 +2,14 @@
 
 新しいものが上。
 
+## 2026-11-25 パスワードの置き場所を Apple（iCloud パスワード）にまとめる設定
+
+- 調べた（見るだけ・中身は見ない）：iPhone は自動入力＝Apple の「パスワード」だけ、iCloud パスワード同期オン（100 件）、**「強力なパスワードを提案」がオフ**（カオルの「Apple に自動生成が無い」の原因）。PC は iCloud for Windows がサインイン済み・パスワードとキーチェーン オンなのに **動いていなかった**（Windows のスタートアップ アプリで「iCloud」「iCloud キーチェーン」がオフ）。Chrome に iCloud パスワードの拡張機能が無く、Chrome 自身が保存して Google に同期。Edge も保存オン・サインイン済み・保存データあり。置き場所が Apple・Google・Microsoft の 3 つに分かれていた
+- カオル「最適にして」で調整：iPhone の「強力なパスワードを提案」オン／Windows のスタートアップで「iCloud」「iCloud キーチェーン」オン／Chrome に Apple 公式の拡張機能「iCloud パスワード」（pejdijmoenmkgeppbflobdenhhabjlaj）を入れ、確認コードはカオルが入れてつないだ／Chrome の「パスワードを保存するか確認」は拡張機能が入ると自動でオフ（「iCloud パスワードにより制御」）／Edge の「パスワードとパスキーの保存するよう依頼する」をオフ
+- Chrome と Edge に保存済みのパスワードは消していない（そのまま残る）。Apple へ移すかは後で決める
+- 気づいたこと：iCloud の画面では「Microsoft Edge（デフォルト）」。ほかのアプリのリンクは Edge で開く。カオルが使うのは Chrome
+- つまずき：Chrome の Preferences を ConvertFrom-Json で読もうとして失敗し、エラーに中身の一部（よく開くサイトの一覧など）が出た。設定ファイルは正規表現で必要な値だけ抜く
+
 ## 2026-11-25 ショートカット DevKitRefresh をオートメーションにした
 
 - カオルが作った：毎週火曜 21:00 に DevKitRefresh（LiveContainer の Refresh All Apps）。通知 オン・実行前に確認 オフ。16:51 に手で試して「All apps have been refreshed.」（期限前なので日数は変わらないはず）
