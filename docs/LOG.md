@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-25 Wake-on-LAN（Wi-Fi）を記録で確かめた：合図は届くが Windows が起きない
+
+- 起きているとき：iPhone で ios pcap（--process=Wolow）・PC で pktmon（UDP 7 / 9・0x0842）を同時にとった。Wolow は 100.64.1.19:9 へ 102 バイトのマジックパケットを 1 回送り（中身は FF×6 ＋ MAC×16 で正しい）、PC の Wi-Fi に届いていた（受け手がいないので捨てられる。ふつう）
+- スリープ中：pktmon（4 分）を動かしたまま、iPhone のショートカット WakePCLater（77 秒待って Wolow の Wake Up Device）を動かし、PC は SC_MONITORPOWER で画面を消してスタンバイへ（09:45:23）。**09:47:37 にマジックパケットが PC の Wi-Fi に届いた記録がある**が、スタンバイから出た記録（507）は無い。起きたのは 09:47:53 のマウス
+- sleepstudy：この PC は ConnectedStandby（スタンバイ中も Wi-Fi はつながったまま、届いたものは中で処理する）。だから合図は「起こす合図」として扱われず、ふつうの受け取りとして捨てられている
+- 09:24 の一瞬の FullWake は、合図とは別のものだった見込み（再現しない）
+- わかったこと：届かないのではなく、Windows がこの形のスタンバイでは合図で起きない。Wi-Fi のまま「スタンバイ中はネットを切る」にすると、Wi-Fi も切れるので届かなくなる
+- 道具：ショートカット WakePCLater（iPhone）、DevKit-WakeStayAwake（PC のタスク。507 の理由 16777220 のときだけ 30 分起きたまま）、devkit\wake の capture-wol*.bat（pktmon）。go-ios の pcap は devkit\go-ios を使うので PC-ALLOW が要る
+
 ## 2026-11-25 Wake-on-LAN を Wi-Fi で試した：一瞬起きてすぐ戻る
 
 - LAN ケーブルを抜いて Wi-Fi だけにした（LAN があると Windows が Wi-Fi を休ませる）。Wolow に Wi-Fi の MAC を「Yoga Slim WiFi」として足した（LAN の分も残した）
