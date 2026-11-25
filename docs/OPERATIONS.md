@@ -61,7 +61,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |
 | 開発の道具でアンインストールしたもの（2026-11-25） | Swift Developer Toolkit 6.4.3・Visual Studio Build Tools 2022・Windows SDK・VS Installer（11/24 に Windows で swift test を試すために入れた。今は GitHub の CI で試す）。また要るときは winget で入れ直す | — |
 | `AppData\Local\ms-playwright` | Playwright のブラウザ（701 MB・2026-08）。今は使っていないが、カオルが「あとで使うかも」で残した | 消さない |
-| `.cache\codex-runtimes` | OpenAI Codex の部品（2.4 GB・最後は 11/12） | カオルが決める |
+| `.cache\codex-runtimes` | OpenAI の ChatGPT（Codex）アプリの部品（2.4 GB）。アプリはストア版で入っていて、いつも動いている（サービス「ChatGPT」） | 消さない（アプリを使うなら要る） |
 | ダウンロード・デスクトップの .bat | もう無い。スイッチは窓に替えた（2026-11-25 にごみ箱へ）。.bat は Releases の zip の中に予備として残っている | — |
 
 - 2026-11-25 にごみ箱へ送ったもの：ダウンロードの iphone-mcp・pc-mcp（古い .bat と pc-agent.exe）、デスクトップの .bat 7 つ、`devkit\iphone-dev-kit`（11/24 に Windows で swift test を試したときの repo の写しとビルドの残り 174 MB。今は CI で試す。要るときは clone し直す）、古い .mcpb、作業の残り。ごみ箱から戻せる
