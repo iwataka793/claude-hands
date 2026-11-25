@@ -18,7 +18,9 @@
 
 [Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）
    ├─ %USERPROFILE%\devkit\go-ios\ios.exe   … iPhone とやりとりする道具（go-ios v1.3.2）
-   └─ Downloads\devkit-setup\               … 台本（go.bat / go.ps1 / plan.json）、ID などの設定 config.ps1（公開 repo に入れない）、記録（runs\）
+   ├─ %USERPROFILE%\devkit\switch-app\     … Claude 操作スイッチの窓（devkit-switch.vbs。Claude の「許可しますか？」もここから出る）
+   ├─ %USERPROFILE%\devkit\installers\     … 入れ物（.mcpb・.msi・.ipa など）
+   └─ %USERPROFILE%\devkit\setup\          … 台本（go.bat / go.ps1 / plan.json）、ID などの設定 config.ps1（公開 repo に入れない）、記録（runs\）
 
 [iPhone 16e / iOS 27.2.1]（USB で PC につなぐ）
    ├─ LiveContainer … 自作アプリ（DevKit など）はこの中で動かす。SideStore も中に同梱
@@ -71,26 +73,26 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 最初に、PC の go.ps1 / go.bat が repo と同じかを確かめる（`device_stage_files` で取って `cmp`）。違えば置き直す。
 
-repo の `scripts/pc/` を PC の `Downloads\devkit-setup\` に置く。
+repo の `scripts/pc/` を PC の `%USERPROFILE%\devkit\setup\` に置く（2026-11-25 に Downloads\devkit-setup から移した）。このフォルダが get_device_info の connectedFolders に無ければ、先に `device_request_folder_access` で `~\devkit\setup` をつないでもらう。
 
 1. `SendUserFile` で go.ps1 / go.bat を送る（file_uuid が返る）
-2. `device_commit_files` で `<ユーザーフォルダ>\Downloads\devkit-setup\go.ps1`（get_device_info の connectedFolders の下） などに書く（既にあるなら `force: true`）
-3. 初回だけ：`config.example.ps1` を元に `devkit-setup\config.ps1` を作って置く（Claude が作れる。LiveContainer の bundle id は `ios apps --list` の LiveContainer の行だけを絞って調べる）
+2. `device_commit_files` で `<ユーザーフォルダ>\devkit\setup\go.ps1`（get_device_info の connectedFolders の下） などに書く（既にあるなら `force: true`）
+3. 初回だけ：`config.example.ps1` を元に `setup\config.ps1` を作って置く（Claude が作れる。LiveContainer の bundle id は `ios apps --list` の LiveContainer の行だけを絞って調べる）
    - 値は PC の中だけに置く。公開 repo に書かない
 
 .ps1 は「UTF-8（BOM 付き）＋ CRLF」でないと、Windows PowerShell 5.1 で日本語が壊れる。repo では `.gitattributes` で CRLF にし、BOM はファイルに入れてある。新しく作るときも同じにする。
 
 ### 3-3. 実行する（go.bat）
 
-1. `plan.json`（3-4）を作り、`SendUserFile` → `device_commit_files` で `devkit-setup\plan.json` に置く
-2. computer use でエクスプローラーを開き、`devkit-setup` の `go.bat` をダブルクリックする
-   - 開き方：`computer_open_application("エクスプローラー")`（またはタスクバーのフォルダのアイコン）→ ホームが開くので、左の一覧の「devkit-setup」を押す
+1. `plan.json`（3-4）を作り、`SendUserFile` → `device_commit_files` で `setup\plan.json` に置く
+2. computer use でエクスプローラーを開き、`devkit\setup` の `go.bat` をダブルクリックする
+   - 開き方：`computer_open_application("エクスプローラー")`（またはタスクバーのフォルダのアイコン）→ ホームが開くので、アドレス欄の上の一覧から「devkit」→「setup」と開く
    - 許可していないアプリ（通知の窓など）が一番前にあるとクリックが断られる。エクスプローラーの窓を一度押して前に出してからやり直す
    - 初回は `computer_resolve_access(["File Explorer"])` → `computer_request_access`
    - エクスプローラーは click 権限だけ（打鍵・右クリック不可）。ダブルクリックで .bat を動かすのは可
    - 一覧の並びはファイルを置くたびに変わる（新しい順）。**ファイルを置いたら 2 秒待ち、押す直前に `computer_zoom` で名前を確かめてから、別の呼び出しで押す**（zoom と押すのを同じ batch に入れると確かめた意味がない。2026-11-24 に config.ps1 を開いてしまった）
    - 待ちは 1 回 50 秒まで。長いときは分けて待つ
-3. 結果を読む：`device_stage_files` で `devkit-setup\last-result.txt` を取る。画面は `runs\<日時>-<name>\*.png`
+3. 結果を読む：`device_stage_files` で `setup\last-result.txt` を取る。画面は `runs\<日時>-<name>\*.png`
    - かかる時間：WDA ありで 40〜90 秒（トンネル 15 秒＋WDA の起動 5 秒＋操作）。最後の行が `== 完了` なら終わっている。1 行目の時刻が今回のものかも確かめる（前の結果を読まない）
    - iPhone のログの時刻は PC の記録より 2 秒ほど早く出ることがある（時計のずれ）
 4. 終わったら `computer_release_lock`
@@ -135,7 +137,7 @@ LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て�
 2. クラウドで作る：Releases `build-N` の DevKit.ipa を取り、
    `python3 -I tools/lc-install/prepare.py DevKit.ipa LCAppInfo.plist out/`
    （.app の中身 ＋ `LCPatchRevision` を消した LCAppInfo.plist ができる）
-3. `out/` の各ファイルを `SendUserFile` → `device_commit_files` で `devkit-setup\files\` に置く（`force: true`）
+3. `out/` の各ファイルを `SendUserFile` → `device_commit_files` で `setup\files\` に置く（`force: true`）
 4. plan で入れて起動：
    ```json
    {"name":"lc-install","match":"DEVKIT","wda":true,"target":"livecontainer","actions":[

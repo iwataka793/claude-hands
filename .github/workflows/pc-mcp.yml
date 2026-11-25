@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - "tools/pc-mcp/**"
+      - "tools/switch-app/**"
       - ".github/workflows/pc-mcp.yml"
   workflow_dispatch:
 
@@ -65,6 +66,7 @@ jobs:
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$V" -o pkg/server/pc-mcp.exe .
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$V" -o sw/pc-agent.exe .
           cp switch/*.bat sw/
+          cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs sw/
           ls -la pkg/server sw
       - name: 拡張機能（.mcpb）とスイッチにまとめる
         run: |
@@ -105,6 +107,7 @@ jobs:
           $env:PC_AGENT_DIR = Join-Path $env:RUNNER_TEMP 'pcstate'
           $env:PC_AGENT_ALLOW_DIR = Join-Path $env:RUNNER_TEMP 'pcallow'
           $env:PYTHONIOENCODING = 'utf-8'
+          $env:DEVKIT_NO_ASK = '1'
           python tools/pc-mcp/test/scenario.py
       - name: 常駐役の記録
         if: always()

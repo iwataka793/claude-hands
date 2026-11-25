@@ -96,12 +96,22 @@ func fail(format string, args ...any) *mcp.CallToolResult {
 
 // gate はスイッチを確かめる。need = ModeView（見るだけで使える）か ModeOperate（操作）。
 func (a *app) gate(need Mode) *mcp.CallToolResult {
-	m := a.sw.Current()
-	if m == ModeOff {
-		return fail("スイッチがオフです。カオルに「見るだけ」か「操作も可」にしてもらってください（切り替えはカオルだけ。%s）", a.sw.Path())
+	enough := func() bool {
+		m := a.sw.Current()
+		return m != ModeOff && (need != ModeOperate || m == ModeOperate)
 	}
-	if need == ModeOperate && m != ModeOperate {
-		return fail("スイッチが「見るだけ」なので操作できません。操作が要るならカオルに「操作も可」にしてもらってください")
+	if !enough() {
+		// カオルの PC に「許可しますか？」の窓を出してもらい、60 秒だけ返事を待つ（決めるのはカオル）
+		kind, what := "iphone-view", "見るだけ"
+		if need == ModeOperate {
+			kind, what = "iphone-operate", "操作も可"
+		}
+		if !askKaoru(kind, "iPhone の道具を使うため") {
+			return fail("スイッチが足りません（いま：%s）。カオルに「%s」にしてもらってください（切り替えはカオルだけ。%s）", a.sw.Current().String(), what, a.sw.Path())
+		}
+		if !waitFor(60*time.Second, enough) {
+			return fail("スイッチが足りません（いま：%s）。カオルの PC に「iPhone を『%s』にしますか？」の窓を出しましたが、60 秒で返事がありませんでした。カオルに聞いてください（切り替えはカオルだけ）", a.sw.Current().String(), what)
+		}
 	}
 	a.sw.Touch()
 	return nil

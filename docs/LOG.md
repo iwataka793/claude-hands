@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-25 スイッチを 1 つの窓に・道具から「許可しますか？」を出す
+
+- カオルの頼み：.bat の許可を 1 つのアプリにしてわかりやすく ＋ 許可のダイアログ（両方）。「もっとかっこよくてモダンなのがいい」で WinForms 版から WPF（暗い角丸の窓・3 つ切りのボタン・状態の札・自動オフまでの棒・🔐 10 分 許可）に作り直した
+- 置き場所：repo `tools/switch-app/`（devkit-switch.ps1 は UTF-8 BOM ＋ CRLF、.vbs は CP932）。PC は `%USERPROFILE%\devkit\switch-app\`。pc-switch.zip に入れ、pc-setup.bat が置く
+- 道具の側（iphone-mcp・pc-mcp の request.go）：スイッチ不足のとき `devkit\requests\<種類>.txt` を置いて窓を起こし、60 秒（許可は 90 秒）待つ。道具は mode.txt・allow.txt を書かない
+- PC で確かめた：構文 OK・XAML 2 つとも読める・窓の見た目（✕ は記号フォント Segoe Fluent Icons / MDL2 の E8BB。Path の ✕ は端が切れた）・「iPhone を『操作も可』にしますか？」の窓が出る（試しの頼みは Claude が置いた。押すのはカオル）
+- 残り：新しい .mcpb（iPhone・PC）をカオルが入れて、道具から頼む流れを通しで試す
+- Downloads の整理：開発の物を `%USERPROFILE%\devkit\installers`・`devkit\setup` に移し、古い版を消した。Downloads の iphone-mcp・pc-mcp の .bat と pc-agent.exe は道具の決まり（スイッチの置き場所）で触れないので残した
+
 ## 2026-11-25 Wake-on-LAN の試しを片付けた
 
 - PC：タスク DevKit-WakeStayAwake・DevKit-WakeTest の登録を外した。devkit\wake（記録・.bat・sleepstudy）と Downloads\devkit-setup\wol（iPhone の pcap）をごみ箱へ

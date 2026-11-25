@@ -74,7 +74,40 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 			if tool == "pc_status" {
 				return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "常駐役：動いていない\nスイッチ：オフ\n拡張機能の版：" + version + "\n使うときはカオルに PC-VIEW.bat か PC-OPERATE.bat を押してもらう"}}}, nil, nil
 			}
-			return errResult(offMsg), nil, nil
+			// カオルの PC に「許可しますか？」の窓を出してもらい、60 秒だけ待つ（決めるのはカオル）
+			kind := "pc-view"
+			if toolNeed[tool] == ModeOperate {
+				kind = "pc-operate"
+			}
+			if !askKaoru(kind, "PC の道具（"+tool+"）を使うため") {
+				return errResult(offMsg), nil, nil
+			}
+			if !waitFor(60*time.Second, func() bool { _, e := callAgent(ctx, "pc_status", noIn{}, 5*time.Second); return e == nil }) {
+				return errResult(offMsg + "。カオルの PC に「許可しますか？」の窓を出しましたが、60 秒で返事がありませんでした"), nil, nil
+			}
+			rep, err = callAgent(ctx, tool, in, timeout)
+		}
+		if err == nil && rep.IsError && strings.HasPrefix(rep.Text, "スイッチが「見るだけ」") {
+			st := NewState(stateDir(), 0)
+			if askKaoru("pc-operate", "PC の道具（"+tool+"）で操作するため") && waitFor(60*time.Second, func() bool { return st.Mode() == ModeOperate }) {
+				rep, err = callAgent(ctx, tool, in, timeout)
+			}
+		}
+		if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
+			why := rep.Text
+			if i := strings.Index(why, "（"); i >= 0 {
+				if j := strings.Index(why[i:], "）"); j > 0 {
+					why = why[i+len("（") : i+j]
+				}
+			}
+			st := NewState(stateDir(), 0)
+			if askKaoru("pc-allow", tool+"："+why) {
+				if waitFor(90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }) {
+					rep, err = callAgent(ctx, tool, in, timeout)
+				} else {
+					rep.Text += "\n（カオルの PC に「許可しますか？」の窓を出しましたが、90 秒で返事がありませんでした）"
+				}
+			}
 		}
 		if err != nil {
 			return errResult(err.Error()), nil, nil

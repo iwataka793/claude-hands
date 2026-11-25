@@ -8,8 +8,13 @@ if exist "%D%\pc-agent.exe" (
   timeout /t 4 >nul
 )
 copy /y "%~dp0pc-agent.exe" "%D%\pc-agent.exe" >nul || (echo pc-agent.exe を置けませんでした & pause & exit /b 1)
+set S=%USERPROFILE%\devkit\switch-app
+if not exist "%S%" mkdir "%S%"
+copy /y "%~dp0devkit-switch.ps1" "%S%\devkit-switch.ps1" >nul
+copy /y "%~dp0devkit-switch.vbs" "%S%\devkit-switch.vbs" >nul
 for %%f in (PC-OFF.bat PC-VIEW.bat PC-OPERATE.bat PC-ALLOW.bat) do copy /y "%~dp0%%f" "%USERPROFILE%\Desktop\%%f" >nul
 echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
 echo   スイッチ デスクトップの PC-OFF / PC-VIEW / PC-OPERATE / PC-ALLOW
+echo   スイッチの窓 %S%\devkit-switch.vbs（Claude が頼むと自動で出ます）
 pause

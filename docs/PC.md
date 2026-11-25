@@ -16,7 +16,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 ## 入れ方（カオル・最初と、新しい版にするとき）
 
 1. Releases の最新の `pc-N` から `pc-dev-kit.mcpb` と `pc-switch.zip` を落とす
-2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチ 4 つをデスクトップに置く。動いている常駐役は止めてから入れ替える）
+2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓を `devkit\switch-app` に、スイッチ 4 つをデスクトップに置く。動いている常駐役は止めてから入れ替える）
 3. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」に `pc-dev-kit.mcpb` をドラッグする
 4. 道具ごとの「許可」の確認は、カオルが「常に許可」を選べば次から出ない
 
@@ -32,7 +32,16 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 使わない時間が 30 分続くとオフに戻り、常駐役が終わる
 - 置き場所：スイッチ `%USERPROFILE%\devkit\pc-agent\mode.txt`、許可 `%ProgramData%\pc-agent\allow.txt`
 - 許可のファイルは、管理者しか書けないフォルダにある。PC-ALLOW.bat が UAC を通ってから書く。Claude の PowerShell は普通の権限なので書けない（試験で確かめた）
-- Claude 側の決まり：.bat を押さない・mode.txt / allow.txt を書かない。オフなら「オンにしてください」、許可が要るなら「PC-ALLOW.bat を押してください」と頼む
+- Claude 側の決まり：.bat・窓のボタンを押さない・mode.txt / allow.txt を書かない。オフなら「オンにしてください」、許可が要るなら「PC-ALLOW.bat（窓の「10 分 許可」）を押してください」と頼む
+
+## スイッチの窓と「許可しますか？」（2026-11-25 から）
+
+- `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone と PC のスイッチを 1 つの窓で切り替えられる（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。終わるのは通知領域の右クリック →「終わる」
+- 道具がスイッチ不足で止まるとき、道具は `%USERPROFILE%\devkit\requests\<種類>.txt`（iphone-view・iphone-operate・pc-view・pc-operate・pc-allow。中身は理由 1 行）を置き、窓を `/tray` で起こす。窓が「○○にしますか？」を出し、カオルが「許可する」か「断る」を押す
+- 道具は返事を待つ：60 秒（PC の許可は 90 秒）。許可されたらそのまま続ける。断られた・時間切れなら、今までどおり「スイッチが足りません」を返す
+- 窓は 55 秒（許可は 80 秒）で自動的に断る。2 分より古い頼みは捨てる。既定のボタンは「断る」（Enter・Esc で断る）
+- Claude 側の決まりは変わらない：mode.txt・allow.txt を書かない、窓のボタンを押さない。requests に置くのは道具だけ（Claude が手で置いてよいのは、カオルに見た目を見せる試しのときだけ）
+- `DEVKIT_NO_ASK` があるとき（CI の試験）や USERPROFILE が無いときは頼まない
 
 ### 許可が要るもの（道具が止める）
 
@@ -88,8 +97,8 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 | 症状 | まずやること |
 | --- | --- |
-| 「スイッチがオフ」 | カオルに PC-VIEW か PC-OPERATE を押してもらう |
-| 「カオルの許可が要ります」 | 本当に要る操作か考えてから、カオルに PC-ALLOW を頼む（理由を添える） |
+| 「スイッチがオフ」 | 道具が「許可しますか？」の窓を出して 60 秒待つ。それでもだめなら、カオルに PC-VIEW か PC-OPERATE を押してもらう |
+| 「カオルの許可が要ります」 | 道具が理由つきで「許可しますか？」の窓を出して 90 秒待つ。本当に要る操作のときだけ呼ぶ |
 | 「常駐役が断りました」 | 常駐役を起動し直す（カオルに PC-OFF → PC-VIEW） |
 | 道具がおかしい | `pc_status` の最近の記録。全部は `%USERPROFILE%\devkit\pc-agent\audit.log`・`agent.log` |
 
