@@ -241,10 +241,15 @@ iPhone の道具（[MCP.md](MCP.md)）の残り：
 
 遠隔で PC の電源を入れる（Wake-on-LAN）の下調べ（2026-11-25 カオルの頼み）：
 
-12. （試した 2026-11-25：LAN（ハブの中）は起こす機器にできない。Wi-Fi は合図が届くが ConnectedStandby なので起きない。スリープ解除タイマーでも起きない（LOG）。電源につないでいる間スリープしない設定はカオルが断った。残る手：電源ボタンを物理で押す SwitchBot など、をカオルが決める）PC の道具で、見るだけで調べる（何も変えない）：スリープの方式（`powercfg /a`。モダン スタンバイか S3 か）、LAN アダプター（USB-C の変換）の種類と起こす機能（`Get-NetAdapter`・`Get-NetAdapterPowerManagement`・`Get-NetAdapterAdvancedProperty` のマジックパケット）、起こせる機器（`powercfg /devicequery wake_armed`）、最近の起きた理由（イベントログの Power-Troubleshooter）。見込み：USB の LAN アダプターは電源を切った状態からは起こせない。スリープからなら見込みあり。結果と、変えるなら要る設定をまとめてカオルに出し、変えるのは決めてから
+12. （終わり 2026-11-25：今の PC では合図で起こせないと分かり、カオルが打ち切った。試しのものは片付けた。LOG 参照）PC の道具で、見るだけで調べる（何も変えない）：スリープの方式（`powercfg /a`。モダン スタンバイか S3 か）、LAN アダプター（USB-C の変換）の種類と起こす機能（`Get-NetAdapter`・`Get-NetAdapterPowerManagement`・`Get-NetAdapterAdvancedProperty` のマジックパケット）、起こせる機器（`powercfg /devicequery wake_armed`）、最近の起きた理由（イベントログの Power-Troubleshooter）。見込み：USB の LAN アダプターは電源を切った状態からは起こせない。スリープからなら見込みあり。結果と、変えるなら要る設定をまとめてカオルに出し、変えるのは決めてから
 
 iPhone の中身を調べる道具（PC の道具の iPhone 版。2026-11-25 カオルの頼み）：
 
 13. （済 2026-11-25。仮の位置・Safari のページ・DevKit ののぞき窓まで）今の iPhone の道具は画面の操作が中心。PC の道具のように、iPhone の中身を見る道具にする。先に、各窓口が iOS 27 で答えるかを見るだけで 1 つずつ試す（go-ios v1.3.2 に部品あり）：端末の情報と空き容量（lockdown・disk_usage）、アプリごとの大きさ（installationproxy）、クラッシュの記録（crashreport。ほかのアプリの分も）、プログラムごとの CPU・メモリ（instruments の sysmontap）、電池の状態（diagnostics の IORegistry）、構成プロファイル（mcinstall）。答えたものだけを道具にする（5〜7 個に抑える。見るだけで使える）。アプリの一覧・クラッシュの記録は個人の情報なので repo に写さない
     さらに、画面を毎回操作するのではなく、中から動かす分も同じ形で試す（カオルの頼み：PC の道具のように効率よく内部で動く）：アプリの起動・終了（instruments の processcontrol。WDA なし）、自分のアプリ・LiveContainer のファイルの読み書き（house_arrest。テストのデータ・設定）、写真などのフォルダ（afc）、クリップボードへの書き込み（pasteboard。打つ代わりに貼る）、URL・ショートカットの直接実行、開発用の仮の位置（simlocation）、言語・時刻の形式・タイムゾーンなどの一部の設定（lockdown。変える前にカオルに確かめる）、WDA なしの画面（instruments の screenshot）、Safari の中のページ（webinspector。設定でオンが要る）。ほかのアプリの細かい操作だけは画面（WDA。部品の名前で押す）が残る。自分のアプリには PC から呼べる受け口（のぞき窓）を入れる
+
+残り（2026-11-25 時点）：
+
+14. 次に iPhone の道具を出すとき：0.1.15 の「消してから打つ（欄が作り直されたらキーボードで消す）」を設定の検索欄で確かめる。あわせて、Wolow（Flutter のアプリ）で「消してから打った」と返したのに実際は消えていなかった件を直す（打ったあとに欄の値を読んで確かめる）
+15. PC の道具：画面の拡大率（DPI）が 100% でないときの座標と、画面・部品の操作（pc_ui_do・pc_keys）を、カオルの PC で確かめる
 
