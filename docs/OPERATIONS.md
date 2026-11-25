@@ -43,7 +43,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | 場所 | 中身 | 消してよいか |
 | --- | --- | --- |
 | デスクトップ「Claude 操作スイッチ」 | スイッチの窓を開くショートカット（アイコンは緑と灰色のスイッチ 2 つ） | 消してもよい（pc-setup.bat を動かすとまた作る） |
-| デスクトップ `selfIdentity.plist` | **鍵のファイル**（go-ios が iPhone とつながるときの PC 側の身分証明）。go-ios を別のフォルダで動かしたときにできた写しと見ている。本物は `devkit\go-ios` にある | カオルが決める（Claude は触らない。触るには許可が要る） |
+| デスクトップ `selfIdentity.plist` | 鍵の写し（go-ios を別のフォルダで動かしたときにできたもの）。2026-11-25 にカオルが消した。本物は `devkit\go-ios`。またできたら、カオルに聞いてから消す | — |
 | `devkit\switch-app\` | スイッチの窓（devkit-switch.ps1 / .vbs / .ico）。右下の通知領域に常駐する | 消さない |
 | `devkit\requests\` | Claude の道具がスイッチ不足のときに置く「頼み」（ふだんは空） | 消さない |
 | `devkit\iphone-mcp\` | iPhone の道具の状態：mode.txt（スイッチ）・last-used.txt・server.log・logs\（iPhone のログ。200 MB ずつ回す）・backup\（LiveContainer に入れ替える前の DevKit の控え）・files\ | 消さない（backup の古いものは消してよい） |
