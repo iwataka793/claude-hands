@@ -12,7 +12,10 @@ Windows と Claude で iPhone アプリを作るための道具箱です。Mac �
 | `App/UITests/` | シミュレーターで実際に操作するテスト | Actions で自動実行、スクリーンショットを保存 |
 | `scripts/` | Actions で使う補助スクリプト。`scripts/pc/` は PC で実機を見る・動かす台本（go.bat + plan.json） | |
 | `docs/` | 手順書（OPERATIONS.md）と記録（LOG.md） | |
-| `tools/` | WebDriverAgent を SideStore 向けにする道具など | |
+| `tools/iphone-mcp/` | Claude が iPhone を見て・動かす道具（Claude デスクトップの拡張機能。手順は docs/MCP.md） | Actions で試験 → Releases `mcp-N` |
+| `tools/pc-mcp/` | Claude が PC を見て・動かす道具（拡張機能＋常駐役。手順は docs/PC.md） | Actions で Windows の通し試験 → Releases `pc-N` |
+| `tools/switch-app/` | カオルが Claude に任せる範囲（オフ・見るだけ・操作も可・10 分許可）を切り替える窓。「許可しますか？」もここから出る | PC で確かめた |
+| `tools/lc-install/`・`tools/wda-sidestore/` | LiveContainer への入れ替え・WebDriverAgent を SideStore 向けにする道具 | |
 
 ## 試作1：スワイプ
 

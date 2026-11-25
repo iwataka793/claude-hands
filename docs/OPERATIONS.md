@@ -1,6 +1,7 @@
 # 運用の手順書（Claude 向け）
 
 この repo で iPhone アプリを作るときに、Claude が道具を使いこなすための手順書です。
+この repo には、iPhone アプリの開発のほかに、**Claude が PC と iPhone を見て・動かす道具**（拡張機能 2 つ：iPhone の道具 [MCP.md](MCP.md)・PC の道具 [PC.md](PC.md)）と、カオルが任せる範囲を決める**スイッチの窓**（tools/switch-app）も入っている。PC の容量・不具合・片付け・アプリの出し入れも、この repo の PC の道具でやる。
 新しいセッションでは、まずこれを全部読んでから作業します。経過・分かったことの記録は [LOG.md](LOG.md)（新しいものが上）。
 
 - 「未検証」と書いてある所は、まだ実機で確かめていない。使う前に記録を取って確かめる
@@ -29,10 +30,13 @@
    └─ WebDriverAgent（WebDriverAgentRunner-Runner）… PC から画面を操作するための部品
 ```
 
-Claude の手元のシェル（Bash）はクラウドの Linux で、PC ではない。PC では次の 2 つしかできない。
+Claude の手元のシェル（Bash）はクラウドの Linux で、PC ではない。PC と iPhone には次の道具で触る（速い順）。
 
-- ファイルを置く・読む（デスクトップアプリの橋渡し）
-- 画面を見てクリックする（computer use）
+- **PC の道具**（`pc_` で始まる。[PC.md](PC.md)）：PowerShell・容量・不具合の記録・アプリ・ファイル・ごみ箱・画面・窓の部品。PC の作業はまずこれ
+- **iPhone の道具**（`iphone_` で始まる。[MCP.md](MCP.md)）：画面・タップ・打つ・ログ・アプリの起動・中のファイル・LiveContainer への入れ替えなど。iPhone の作業はまずこれ
+- ファイルを置く・読む（デスクトップアプリの橋渡し：device_commit_files・device_stage_files）
+- 画面を見てクリックする（computer use）：上の道具でできないときだけ
+- どの道具も、カオルのスイッチ（デスクトップの「Claude 操作スイッチ」）の範囲でだけ動く。足りないと「許可しますか？」の窓が出る
 
 ---
 
