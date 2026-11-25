@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-25 Wake-on-LAN の試しを片付けた
+
+- PC：タスク DevKit-WakeStayAwake・DevKit-WakeTest の登録を外した。devkit\wake（記録・.bat・sleepstudy）と Downloads\devkit-setup\wol（iPhone の pcap）をごみ箱へ
+- iPhone：ショートカット WakePCLater を消した（DevKitRefresh は残す）。Wolow のアプリはカオルが消す
+- 残したもの：PC の Wi-Fi はつないだまま（LAN を抜いて試した。戻すのはカオル）
+- 「iPhone をマウスのふりにする」は、iOS がアプリに許していない（USB でも Bluetooth でも、キーボード・マウスとして名乗れない）
+
 ## 2026-11-25 スタンバイ中にプログラムで PC を起こせるか：起こせない
 
 - 試し：タスク DevKit-WakeTest（1 回だけ・「タスクを実行するためにスリープを解除する」＝スリープ解除タイマー）。電源につないだときのスリープ解除タイマーは「有効」
