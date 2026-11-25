@@ -62,6 +62,10 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | 開発の道具でアンインストールしたもの（2026-11-25） | Swift Developer Toolkit 6.4.3・Visual Studio Build Tools 2022・Windows SDK・VS Installer（11/24 に Windows で swift test を試すために入れた。今は GitHub の CI で試す）。また要るときは winget で入れ直す | — |
 | `AppData\Local\ms-playwright` | Playwright のブラウザ（701 MB・2026-08）。今は使っていないが、カオルが「あとで使うかも」で残した | 消さない |
 | `.cache\codex-runtimes` | OpenAI の ChatGPT（Codex）アプリの部品（2.4 GB）。アプリはストア版で入っていて、いつも動いている（サービス「ChatGPT」） | 消さない（アプリを使うなら要る） |
+| スタートアップ「新しい Outlook（最小化で起動）」 | Windows の起動時に新しい Outlook（olk）を最小化で開く。新しい Outlook は閉じると通知が来ないので、開いたままにするため（2026-11-25） | 消さない |
+| `devkit\setup\outlook-new-check.ps1` | 新しい Outlook の設定の点検（そのまま実行）と戻し（-Fix）。repo の `tools/pc-settings/` が元。手で確かめる一覧も出す | 消さない |
+| `devkit\setup\backup\Outlook（最小化で起動）.lnk` | 昔の Outlook（classic）の自動起動のショートカット。新しい Outlook に替えたので外した（両方動くと通知が二重） | classic に戻すときはスタートアップへ戻す |
+| `AppData\Local\Microsoft\Olk_old_20261125` | 新しい Outlook の古いデータ（7 月の古いアカウントが残っていてサインインできなかったので、リセットの前に名前を変えた） | ごみ箱へ送ってよい（先にカオルに確認） |
 | ダウンロード・デスクトップの .bat | もう無い。スイッチは窓に替えた（2026-11-25 にごみ箱へ）。.bat は Releases の zip の中に予備として残っている | — |
 
 - 2026-11-25 にごみ箱へ送ったもの：ダウンロードの iphone-mcp・pc-mcp（古い .bat と pc-agent.exe）、デスクトップの .bat 7 つ、`devkit\iphone-dev-kit`（11/24 に Windows で swift test を試したときの repo の写しとビルドの残り 174 MB。今は CI で試す。要るときは clone し直す）、古い .mcpb、作業の残り。ごみ箱から戻せる
