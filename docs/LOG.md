@@ -12,6 +12,8 @@
 - 新しい Outlook は閉じると通知が来ない（バックグラウンドで動かす設定は無かった）。Windows のスタートアップ（ストアのアプリなので自動起動の仕組みが無い）に olk を最小化で開くショートカットを置いた。閉じて、そのショートカットで開き直し、最小化で開くのを確かめた。昔の Outlook の自動起動は devkit\setup\backup へ移した（消していない）
 - Windows 側：通知 オン・応答不可 オフ・Outlook の通知 オン（設定の画面で確かめた）。スマートフォン連携の iPhone の Gmail・メールの通知もオンなので、PC では二重に出ることがある（カオルが決める）
 - 点検と戻しの台本 tools/pc-settings/outlook-new-check.ps1（PC は devkit\setup）。Windows 側（自動起動・通知の許可）は -Fix で戻せる。Outlook の中の設定は Windows から変えられないので、手で確かめる一覧を出す
+- 通知の試験（カオルの許可で Gmail から Yahoo・iCloud へテストを 2 回）：PC はどちらも届いた。Windows の通知の記録（%LOCALAPPDATA%\Microsoft\Windows\Notifications\wpndatabase.db の写しを winsqlite3.dll で読み、Outlook の分の時刻だけ出す）に Outlook の通知が 3 つ（14:17:09・14:19:43・14:20:08）。iCloud はすぐ、Yahoo（IMAP）は約 3 分おくれ。通知の音は Outlook 自身が鳴らす（Windows の通知は silent）。カオル：音は鳴った・iPhone にも 2 通来た
+- 通知の窓を UI オートメーションで「新しい通知」の名前で探す見張りは、何も拾えなかった（探し方が違う）。通知を確かめるときは wpndatabase.db の写しを読む
 - 気をつけること：Outlook の窓を pc_ui で一覧にすると、メールの一覧の件名・本文の頭まで出る。絞り込み（filter）を狭くする
 
 ## 2026-11-25 PC の点検（カオルの頼み。個人のファイルは見ない）
