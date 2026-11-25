@@ -6,7 +6,9 @@
 
 - 調べた（見るだけ・中身は見ない）：iPhone は自動入力＝Apple の「パスワード」だけ、iCloud パスワード同期オン（100 件）、**「強力なパスワードを提案」がオフ**（カオルの「Apple に自動生成が無い」の原因）。PC は iCloud for Windows がサインイン済み・パスワードとキーチェーン オンなのに **動いていなかった**（Windows のスタートアップ アプリで「iCloud」「iCloud キーチェーン」がオフ）。Chrome に iCloud パスワードの拡張機能が無く、Chrome 自身が保存して Google に同期。Edge も保存オン・サインイン済み・保存データあり。置き場所が Apple・Google・Microsoft の 3 つに分かれていた
 - カオル「最適にして」で調整：iPhone の「強力なパスワードを提案」オン／Windows のスタートアップで「iCloud」「iCloud キーチェーン」オン／Chrome に Apple 公式の拡張機能「iCloud パスワード」（pejdijmoenmkgeppbflobdenhhabjlaj）を入れ、確認コードはカオルが入れてつないだ／Chrome の「パスワードを保存するか確認」は拡張機能が入ると自動でオフ（「iCloud パスワードにより制御」）／Edge の「パスワードとパスキーの保存するよう依頼する」をオフ
-- Chrome と Edge に保存済みのパスワードは消していない（そのまま残る）。Apple へ移すかは後で決める
+- Chrome と Edge に保存済みのパスワードは消していない（そのまま残る）
+- 続けて Apple へ移した（カオルが最後のボタンを押し、Claude は手前まで準備）：Chrome →「パスワードをエクスポート」→ C:\Users\iwata\pw-move（同期されない専用フォルダー）→ iCloud パスワード（Windows）の「＋」→「パスワードを読み込む…」→ ファイルを選択（Claude がファイル名を入れておく）→ 開く → 「〔ファイル名〕を削除」。Edge も同じ（設定 → パスワード → 「…」→ パスワードのエクスポート）。件数 97 → 249（Chrome 分）→ 296（Edge 分）。重複は自動でスキップ。CSV は pw-move・ごみ箱・ダウンロードのどこにも残っていないのを確かめた
+- 気をつけること：iCloud パスワードの窓は開くと一覧（サイト名・ユーザー名）が見える。件数は pc_ui の id=m_PasswordLabel だけを読む。終わったら窓を閉じる
 - 既定のブラウザー：Edge だったので、カオルの許可で Chrome にした（設定 → アプリ → 既定のアプリ → Google Chrome → 既定値に設定。.htm・.html・http(s) が Chrome に）
 - つまずき：Chrome の Preferences を ConvertFrom-Json で読もうとして失敗し、エラーに中身の一部（よく開くサイトの一覧など）が出た。設定ファイルは正規表現で必要な値だけ抜く
 
