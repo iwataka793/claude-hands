@@ -56,7 +56,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `%ProgramData%\pc-agent\allow.txt` | 10 分の許可（管理者しか書けない場所） | 触らない |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
-| `devkit\installers\` | 入れ直し用：iphone-dev-kit.mcpb・pc-dev-kit.mcpb（いま入れている版）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
+| `devkit\installers\` | 入れ直し用：iphone-dev-kit.mcpb・pc-dev-kit.mcpb と pc-switch.zip（いま入れている版。2026-11-26 は pc-13）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
 | Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる） | 触らない（入れ直しは設定の画面から） |
 | `ドキュメント\pwtest-docker-code.zip` | Docker に残っていた pwtest（2026-02 の PC 版。CityRank の前身）のイメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core）から取り出した Python のコード。ほかに写しが無かったので残した | カオルが決める |
 | Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |
