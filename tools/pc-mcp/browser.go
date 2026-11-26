@@ -230,7 +230,8 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 		var r struct {
 			TargetID string `json:"targetId"`
 		}
-		if err := c.Call(ctx, "", "Target.createTarget", map[string]any{"url": u}, &r); err != nil {
+		// 空のタブを作ってから、つないで移る（作るときに URL を渡すと、読み込みが始まらないことがあった：Windows の headless）
+		if err := c.Call(ctx, "", "Target.createTarget", map[string]any{"url": "about:blank"}, &r); err != nil {
 			return errText("タブを開けません：%v", err)
 		}
 		b.mu.Lock()
@@ -238,7 +239,22 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 		b.mu.Unlock()
 		b.setCurrent(r.TargetID)
 		t := targetInfo{TargetID: r.TargetID, URL: u}
-		_ = a.brWaitLoad(ctx, t, 15*time.Second)
+		if u != "about:blank" {
+			cs, sid, err := b.session(ctx, r.TargetID)
+			if err != nil {
+				return errText("%v", err)
+			}
+			var nr struct {
+				ErrorText string `json:"errorText"`
+			}
+			if err := cs.Call(ctx, sid, "Page.navigate", map[string]any{"url": u}, &nr); err != nil {
+				return errText("開けません：%v", err)
+			}
+			if nr.ErrorText != "" {
+				return errText("開けません：%s", nr.ErrorText)
+			}
+			_ = a.brWaitLoad(ctx, t, 20*time.Second)
+		}
 		return a.brList(ctx, "開きました："+u)
 	case "select":
 		t, err := b.pickTab(ctx, in.Tab)
@@ -585,9 +601,9 @@ func (a *Agent) brWaitLoad(ctx context.Context, t targetInfo, d time.Duration) e
 	for time.Now().Before(end) {
 		var s string
 		cctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-		err := evalIn(cctx, c, sid, `document.readyState`, &s)
+		err := evalIn(cctx, c, sid, `document.readyState+' '+location.href`, &s)
 		cancel()
-		if err == nil && s == "complete" {
+		if err == nil && strings.HasPrefix(s, "complete ") && (t.URL == "about:blank" || !strings.HasSuffix(s, " about:blank")) {
 			return nil
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -886,7 +902,7 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 		if r.ErrorText != "" {
 			return "", fmt.Errorf("開けません：%s", r.ErrorText)
 		}
-		_ = a.brWaitLoad(ctx, *t, 20*time.Second)
+		_ = a.brWaitLoad(ctx, targetInfo{TargetID: t.TargetID, URL: u}, 20*time.Second)
 		return "goto " + shortTitle(u, 80), nil
 	case "back":
 		if err := evalIn(ctx, c, sid, `history.back()`, nil); err != nil {
