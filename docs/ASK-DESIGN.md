@@ -86,9 +86,10 @@
 
 - モック：https://claude.ai/artifact/CKwzX5eHzLtnc4PuHnesVq （Design のキャンバス。SWITCH・ALLOW・REQUEST・LIVE と、窓以外の案）
 - 形：深い黒地・細い線のアイコン・種類ごとの色（OFF 赤 #F2555A・VIEW 灰 #C7C7D1・OPERATE 緑 #3DD68C・ALLOW オレンジ #FF8A3D・Claude の説明は紫 #A78BFA・BACKUP 青 #60A5FA）。英語の見出しを大きく＋日本語を小さく（ボタンも「DENY／断る」「ALLOW／許可する」）。カオルが貼った画像（黒地に OFF・VIEW・OPERATE・ALLOW の行）の感じ
-- 採用：許可の頼みは窓（モックの ALLOW・REQUEST）。今の操作スイッチの窓も同じ見た目に（モックの SWITCH）。動いていることを見せるのは画面の隅の LIVE 窓（モックの LIVE とたたんだ姿）。TRY と DONE は同じ見た目で作る（モックはまだ無い）
+- 採用：許可の頼みは窓（モックの ALLOW・REQUEST）。今の操作スイッチの窓も同じ見た目に（モックの SWITCH）。動いていることを見せるのは画面の隅の LIVE 窓（モックの LIVE とたたんだ姿）。TRY（箱の色は青緑 #2DD4BF）と DONE（［まとめて戻す］は紫）も同じ見た目（2026-11-27 にモックを足した）
 - あとで考える：iPhone に知らせる（スマホからは「止める」だけ）。スマホから PC へ「止めて」を届ける新しい道（ntfy など）が要り、その道は「止める」以外を受け付けない作りにする
 - 見送り：画面の上のピル（隅の LIVE 窓と役目が重なる）、画面のふちが光る（文字が出せない）
+- 大きさ（2026-11-27）：どの窓も画面の高さの 3 分の 2 まで（ノート PC の 1280×800 相当で考える）。ALLOW 440×540・TRY 400×500・DONE 360×約 125（中身を開くと約 270）・LIVE 300×64（たたんだとき）。いつも出ているのは右下の LIVE だけ。動画の真ん中には出さない（ALLOW だけは真ん中）
 - 実物（WPF）の字体は Yu Gothic UI / Segoe UI Variable で近づける（モックは Inter と Noto Sans JP）
 
 ## 4. ブラウザ
