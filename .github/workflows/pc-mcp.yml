@@ -109,7 +109,7 @@ jobs:
           $src = Get-Content $f -Raw -Encoding UTF8
           $ms = [regex]::Matches($src, "(?s)\[xml\]\`$\w+ = @'\r?\n(.*?)\r?\n'@")
           foreach ($m in $ms) { $x = [xml]$m.Groups[1].Value; $w = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $x)); "XAML OK: $($w.GetType().Name) $($w.Title)" }
-          if ($ms.Count -lt 2) { "XAML が見つからない"; exit 1 }
+          if ($ms.Count -lt 2) { "XAML not found"; exit 1 }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
         run: |
