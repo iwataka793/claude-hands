@@ -53,7 +53,7 @@ return {v:'` + dkLibVersion + `',SEL,clean,vis,sens,role,nm,val,resolve};})());
 
 type brTabsIn struct {
 	Action string `json:"action,omitempty" jsonschema:"list（タブの一覧・既定）・new（url を新しいタブで開く）・select（tab を前に出す）・close（Claude が開いたタブを閉じる）"`
-	Tab    string `json:"tab,omitempty" jsonschema:"タブ：一覧の番号・題名や URL の一部・id の頭"`
+	Tab    string `json:"tab,omitempty" jsonschema:"タブ：一覧の id の頭（4 文字以上）か、題名・URL の一部。並び順の番号は使えない"`
 	URL    string `json:"url,omitempty" jsonschema:"new で開く URL"`
 }
 
@@ -130,17 +130,16 @@ func (b *Browser) pickTab(ctx context.Context, spec string) (targetInfo, error) 
 		b.setCurrent(pages[0].TargetID)
 		return pages[0], nil
 	}
-	if n, err := strconv.Atoi(spec); err == nil {
-		if n >= 1 && n <= len(pages) {
-			b.setCurrent(pages[n-1].TargetID)
-			return pages[n-1], nil
-		}
-		return targetInfo{}, fmt.Errorf("タブの番号 %d がありません（1〜%d）", n, len(pages))
+	// 並び順の番号は使わない：カオルがタブを開け閉めすると変わり、別のタブを動かしてしまう（2026-11-26 に一度あった）
+	if _, err := strconv.Atoi(spec); err == nil && len(spec) <= 3 {
+		return targetInfo{}, fmt.Errorf("タブは番号ではなく id の頭（一覧の id）か、題名・URL の一部で指定してください（並び順はカオルがタブを開け閉めすると変わるため）")
 	}
-	for _, p := range pages {
-		if strings.HasPrefix(strings.ToLower(p.TargetID), strings.ToLower(spec)) {
-			b.setCurrent(p.TargetID)
-			return p, nil
+	if len(spec) >= 4 {
+		for _, p := range pages {
+			if strings.HasPrefix(strings.ToLower(p.TargetID), strings.ToLower(spec)) {
+				b.setCurrent(p.TargetID)
+				return p, nil
+			}
 		}
 	}
 	ls := strings.ToLower(spec)
@@ -308,8 +307,8 @@ func (a *Agent) brList(ctx context.Context, head string) Reply {
 	if head != "" {
 		lines = append(lines, head)
 	}
-	lines = append(lines, fmt.Sprintf("Chrome のタブ（%d 個。★＝道具がいま使うタブ、＋＝Claude が開いたタブ）：", len(pages)))
-	for i, p := range pages {
+	lines = append(lines, fmt.Sprintf("Chrome のタブ（%d 個。★＝道具がいま使うタブ、＋＝Claude が開いたタブ。指定は id か題名で）：", len(pages)))
+	for _, p := range pages {
 		mark := "  "
 		if p.TargetID == cur {
 			mark = "★ "
@@ -319,7 +318,7 @@ func (a *Agent) brList(ctx context.Context, head string) Reply {
 			mark += "＋"
 		}
 		b.mu.Unlock()
-		lines = append(lines, fmt.Sprintf("[%d] %s%s — %s（id %s）", i+1, mark, shortTitle(p.Title, 50), shortTitle(p.URL, 90), p.TargetID[:8]))
+		lines = append(lines, fmt.Sprintf("・id %s %s%s — %s", p.TargetID[:8], mark, shortTitle(p.Title, 50), shortTitle(p.URL, 90)))
 	}
 	return okText(strings.Join(lines, "\n"))
 }

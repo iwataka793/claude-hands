@@ -207,6 +207,7 @@ else:
     check("許可があればログインのページも動かせる", "browser_do", {"steps": [
         {"goto": base + "/login.html"}, {"type": {"ref": "css=#u", "text": "user"}}, {"click": "送る"}, {"wait_for": "押された"}], "read": "none"}, False, "出た")
     set_mode("operate")  # 許可を取り消す
+    check("タブを並び順の番号では選ばない", "browser_read", {"tab": "1"}, True, "番号ではなく")
     check("カオルのタブは閉じない", "browser_tabs", {"action": "close", "tab": "about:blank"}, True, "閉じません")
     check("Claude が開いたタブは閉じる", "browser_tabs", {"action": "close", "tab": "ログイン"}, False, "閉じました")
     set_mode("view")

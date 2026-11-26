@@ -104,13 +104,13 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 | 道具 | スイッチ | 中身 |
 | --- | --- | --- |
-| browser_tabs | 見るだけ〜 | タブの一覧（[番号]・★＝道具がいま使うタブ・＋＝Claude が開いたタブ）。`action`：new（url）・select・close |
+| browser_tabs | 見るだけ〜 | タブの一覧（id・★＝道具がいま使うタブ・＋＝Claude が開いたタブ）。`action`：new（url）・select・close |
 | browser_read | 見るだけ〜 | 押せる部品の一覧（`[番号] 役「名前」 = 値`・画面の外・押せない・パスワード欄の印）。`mode`：elements（既定）・text・all。`filter` で絞る。canvas・iframe があれば数を出す |
 | browser_do | 操作も可 | `steps` を順に：click（番号・`text=…`・`css=…`）・double・click_xy・type（ref・text・clear・enter）・select・key（Enter・Ctrl+A など）・scroll・wait・wait_for（文字か css）・goto・back・js。終わったら部品の一覧を返す（`read`：elements・text・all・none）。`front: true` でタブを前に出す（見えていないと止まるゲームなど） |
 | browser_js | 操作も可 | ページの中で JavaScript（コンソールと同じ書き方・await 可・最後の値を返す） |
 | browser_screenshot | 見るだけ〜 | 見えている所か部品 1 つ（`target`）を JPEG で。画像の座標 → click_xy の座標の換算が付く。文字で読めないときだけ |
 
-- `tab` は一覧の番号・題名や URL の一部・id の頭。省くと最後に使ったタブ（無ければ見えているタブ）
+- `tab` は一覧の id の頭（4 文字以上）か、題名・URL の一部。省くと最後に使ったタブ（無ければ見えているタブ）。**並び順の番号は使えない**（カオルがタブを開け閉めすると変わり、2026-11-26 に別のタブへ移ろうとしてしまった）
 - 番号は次に読むまで有効。ページが変わったら読み直す。番号の代わりに `text=決める` のように名前で押してもよい
 - 押す・打つは本物のマウス・キーの合図（CDP の Input）なので、canvas のゲームも押せる（isTrusted=true を試験で確かめた）
 
