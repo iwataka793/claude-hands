@@ -70,6 +70,9 @@ const offMsg = "スイッチがオフです（PC の常駐役が動いていな�
 func forward[T any](tool string, timeout time.Duration) func(context.Context, *mcp.CallToolRequest, T) (*mcp.CallToolResult, any, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, in T) (*mcp.CallToolResult, any, error) {
 		rep, err := callAgent(ctx, tool, in, timeout)
+		if isBrowserTool(tool) {
+			return browserForward(ctx, tool, in, timeout, rep, err)
+		}
 		if errors.Is(err, errAgentDown) {
 			if tool == "pc_status" {
 				return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "常駐役：動いていない\nスイッチ：オフ\n拡張機能の版：" + version + "\n使うときはカオルに PC-VIEW.bat か PC-OPERATE.bat を押してもらう"}}}, nil, nil
@@ -86,6 +89,17 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 				return errResult(offMsg + "。カオルの PC に「許可しますか？」の窓を出しましたが、60 秒で返事がありませんでした"), nil, nil
 			}
 			rep, err = callAgent(ctx, tool, in, timeout)
+		}
+		if err == nil && rep.IsError && strings.HasPrefix(rep.Text, "PC のスイッチがオフ") {
+			// 常駐役はブラウザのために動いているが、PC はオフ
+			kind, want := "pc-view", ModeView
+			if toolNeed[tool] == ModeOperate {
+				kind, want = "pc-operate", ModeOperate
+			}
+			st := NewState(stateDir(), 0)
+			if askKaoru(kind, "PC の道具（"+tool+"）を使うため") && waitFor(60*time.Second, func() bool { return st.Mode() >= want }) {
+				rep, err = callAgent(ctx, tool, in, timeout)
+			}
 		}
 		if err == nil && rep.IsError && strings.HasPrefix(rep.Text, "スイッチが「見るだけ」") {
 			st := NewState(stateDir(), 0)
@@ -114,6 +128,57 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 		}
 		return toResult(rep), nil, nil
 	}
+}
+
+// browserForward：ブラウザの道具のスイッチが足りないとき、ブラウザの「許可しますか？」を出して待つ。
+func browserForward(ctx context.Context, tool string, in any, timeout time.Duration, rep Reply, err error) (*mcp.CallToolResult, any, error) {
+	need := toolNeed[tool]
+	if tool == "browser_tabs" {
+		if m, ok := in.(brTabsIn); ok && m.Action != "" && strings.ToLower(m.Action) != "list" {
+			need = ModeOperate
+		}
+	}
+	kind, want := "browser-view", ModeView
+	if need == ModeOperate {
+		kind, want = "browser-operate", ModeOperate
+	}
+	bst := NewState(browserDir(), 0)
+	short := errors.Is(err, errAgentDown) ||
+		(err == nil && rep.IsError && (strings.HasPrefix(rep.Text, "ブラウザのスイッチがオフ") || strings.HasPrefix(rep.Text, "ブラウザのスイッチが「見るだけ」")))
+	if short {
+		if !askKaoru(kind, "ブラウザの道具（"+tool+"）を使うため") {
+			if errors.Is(err, errAgentDown) {
+				return errResult("ブラウザのスイッチがオフです（常駐役が動いていない）。カオルにスイッチの窓で「ブラウザ」を「見るだけ」か「操作も可」にしてもらってください。切り替えはカオルだけ"), nil, nil
+			}
+			return toResult(rep), nil, nil
+		}
+		ok := waitFor(60*time.Second, func() bool {
+			if bst.Mode() < want {
+				return false
+			}
+			_, e := callAgent(ctx, "pc_status", noIn{}, 5*time.Second)
+			return e == nil
+		})
+		if !ok {
+			return errResult("ブラウザのスイッチが足りません。カオルの PC に「許可しますか？」の窓を出しましたが、60 秒で返事がありませんでした"), nil, nil
+		}
+		rep, err = callAgent(ctx, tool, in, timeout)
+	}
+	if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
+		st := NewState(stateDir(), 0)
+		st.revokers = []string{bst.path("mode.txt")}
+		if askKaoru("pc-allow", tool+"："+firstLine(rep.Text)) {
+			if waitFor(90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }) {
+				rep, err = callAgent(ctx, tool, in, timeout)
+			} else {
+				rep.Text += "\n（カオルの PC に「許可しますか？」の窓を出しましたが、90 秒で返事がありませんでした）"
+			}
+		}
+	}
+	if err != nil {
+		return errResult(err.Error()), nil, nil
+	}
+	return toResult(rep), nil, nil
 }
 
 type noIn struct{}

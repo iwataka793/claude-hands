@@ -37,6 +37,8 @@ type State struct {
 	dir  string
 	idle time.Duration
 	mu   sync.Mutex
+	// revokers：このファイルが許可より新しければ許可は取り消し（スイッチを切り替えた）。PC の状態にはブラウザの mode.txt も入れる
+	revokers []string
 }
 
 func NewState(dir string, idle time.Duration) *State {
@@ -84,8 +86,10 @@ func (s *State) Allowed() (bool, time.Duration) {
 	if err != nil {
 		return false, 0
 	}
-	if ms, err := os.Stat(s.path("mode.txt")); err == nil && ms.ModTime().After(st.ModTime()) {
-		return false, 0
+	for _, f := range append([]string{s.path("mode.txt")}, s.revokers...) {
+		if ms, err := os.Stat(f); err == nil && ms.ModTime().After(st.ModTime()) {
+			return false, 0
+		}
 	}
 	left := allowWindow - time.Since(st.ModTime())
 	if left <= 0 {

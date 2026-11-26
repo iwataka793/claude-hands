@@ -3,7 +3,8 @@ package main
 // ブラウザの道具（browser_*）：カオルのいつもの Chrome を、画面を撮らずに文字と番号で読んで動かす。
 //   - 読む：ページの部品（ボタン・リンク・入力欄）に番号を付けた一覧と、ページの文字
 //   - 動かす：何手もまとめて 1 回で送る（押す・打つ・選ぶ・キー・待つ・移る）。押すのは本物のマウスの合図なので canvas も押せる
-// スイッチは PC と同じ（見るだけ＝読む・撮る・タブの一覧、操作も可＝押す・打つ・JavaScript・タブを開く）。
+// スイッチは PC と別の「ブラウザ」（見るだけ＝読む・撮る・タブの一覧、操作も可＝押す・打つ・JavaScript・タブを開く）。
+// 許可（PC-ALLOW・10 分）は PC と共通。
 // 守り：パスワード欄・カード欄には許可があっても打たない。銀行・決済・ログインなどのページの操作と、
 // クッキーや保存領域を触る JavaScript はカオルの許可（PC-ALLOW）が要る。chrome:// などの設定のページには行かない。
 
@@ -204,8 +205,8 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 	if act == "" {
 		act = "list"
 	}
-	if act != "list" && a.st.Mode() != ModeOperate {
-		return errText("スイッチが「見るだけ」なので操作できません。要るならカオルに PC-OPERATE.bat を押してもらってください")
+	if act != "list" && a.bst.Mode() != ModeOperate {
+		return errText("ブラウザのスイッチが「見るだけ」なので操作できません。要るならカオルにスイッチの窓で「ブラウザ」を「操作も可」にしてもらってください")
 	}
 	switch act {
 	case "new":

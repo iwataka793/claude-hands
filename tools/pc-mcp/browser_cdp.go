@@ -188,6 +188,12 @@ func (b *Browser) conn(ctx context.Context) (*CDP, error) {
 	return b.cdp, nil
 }
 
+func (b *Browser) Connected() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.cdp != nil && b.cdp.Alive()
+}
+
 func (b *Browser) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -195,6 +201,7 @@ func (b *Browser) Close() {
 		b.cdp.Close()
 		b.cdp = nil
 	}
+	b.sessions = map[string]string{}
 }
 
 type targetInfo struct {

@@ -38,6 +38,16 @@ func stateDir() string {
 	return env("PC_AGENT_DIR", filepath.Join(home, "devkit", "pc-agent"))
 }
 
+// browserDir はブラウザのスイッチの置き場所（%USERPROFILE%\devkit\browser の mode.txt・last-used.txt）。
+// 書くのはカオルのスイッチの窓だけ。
+func browserDir() string {
+	home := os.Getenv("USERPROFILE")
+	if home == "" {
+		home, _ = os.UserHomeDir()
+	}
+	return env("PC_BROWSER_DIR", filepath.Join(home, "devkit", "browser"))
+}
+
 const agentAddr = "127.0.0.1:60210"
 
 func main() {

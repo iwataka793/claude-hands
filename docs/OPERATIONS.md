@@ -34,7 +34,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 - **PC の道具**（`pc_` で始まる。[PC.md](PC.md)）：PowerShell・容量・不具合の記録・アプリ・ファイル・ごみ箱・画面・窓の部品。PC の作業はまずこれ
 - **iPhone の道具**（`iphone_` で始まる。[MCP.md](MCP.md)）：画面・タップ・打つ・ログ・アプリの起動・中のファイル・LiveContainer への入れ替えなど。iPhone の作業はまずこれ
-- **ブラウザの道具**（`browser_` で始まる。PC の道具の中。[PC.md](PC.md) の「ブラウザ」）：カオルのいつもの Chrome を、画面を撮らずに文字と番号で読み（browser_read）、何手もまとめて動かす（browser_do）。Chrome の作業はまずこれ。Claude in Chrome・内蔵ブラウザより速い
+- **ブラウザの道具**（`browser_` で始まる。PC の道具の中。[PC.md](PC.md) の「ブラウザ」）：カオルのいつもの Chrome を、画面を撮らずに文字と番号で読み（browser_read）、何手もまとめて動かす（browser_do）。Chrome の作業はまずこれ。Claude in Chrome・内蔵ブラウザより速い。スイッチは PC と別の「ブラウザ」（許可は共通）
 - ファイルを置く・読む（デスクトップアプリの橋渡し：device_commit_files・device_stage_files）
 - 画面を見てクリックする（computer use）：上の道具でできないときだけ
 - どの道具も、カオルのスイッチ（デスクトップの「Claude 操作スイッチ」）の範囲でだけ動く。足りないと「許可しますか？」の窓が出る

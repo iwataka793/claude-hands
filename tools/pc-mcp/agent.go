@@ -43,7 +43,10 @@ type Agent struct {
 	ps    *Runner
 	token string
 	br    *Browser // Chrome とのつながり（ブラウザの道具を最初に使ったときにつなぐ）
+	bst   *State   // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
 }
+
+func isBrowserTool(t string) bool { return strings.HasPrefix(t, "browser_") }
 
 // 道具ごとに要るスイッチ
 var toolNeed = map[string]Mode{
@@ -76,6 +79,8 @@ func runAgent() {
 	b := make([]byte, 24)
 	_, _ = rand.Read(b)
 	a := &Agent{st: NewState(dir, time.Duration(idleMin)*time.Minute), ps: NewRunner(), token: hex.EncodeToString(b)}
+	a.bst = NewState(browserDir(), time.Duration(idleMin)*time.Minute)
+	a.st.revokers = []string{a.bst.path("mode.txt")}
 	if err := os.WriteFile(a.st.path("token.txt"), []byte(a.token), 0o600); err != nil {
 		slog.Error("token", "err", err)
 		return
@@ -85,9 +90,15 @@ func runAgent() {
 
 	srv := &http.Server{Handler: http.HandlerFunc(a.handle), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
-		// スイッチがオフ・使わない時間が続いた → 終わる
+		// PC もブラウザもオフ（か使わない時間が続いた）→ 終わる。ブラウザだけオフ → Chrome とのつながりを切る
 		for range time.Tick(2 * time.Second) {
-			if a.st.IdleExpired() || a.st.Mode() == ModeOff {
+			pcOn := !a.st.IdleExpired() && a.st.Mode() != ModeOff
+			brOn := !a.bst.IdleExpired() && a.bst.Mode() != ModeOff
+			if !brOn && a.br != nil && a.br.Connected() {
+				a.br.Close()
+				a.st.Audit("（ブラウザ）", "ブラウザのスイッチがオフなので Chrome とのつながりを切った", "ok", 0)
+			}
+			if !pcOn && !brOn {
 				a.st.Audit("（終了）", "スイッチがオフ", "ok", 0)
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				_ = srv.Shutdown(ctx)
@@ -135,15 +146,26 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 	if !ok {
 		return errText("知らない道具：%s", tool)
 	}
-	m := a.st.Mode()
-	if need > ModeOff {
+	if isBrowserTool(tool) {
+		m := a.bst.Mode()
 		if m == ModeOff {
-			return errText("スイッチがオフです。カオルに PC-VIEW.bat か PC-OPERATE.bat を押してもらってください（切り替えはカオルだけ）")
+			return errText("ブラウザのスイッチがオフです。カオルにスイッチの窓で「ブラウザ」を「見るだけ」か「操作も可」にしてもらってください（切り替えはカオルだけ）")
 		}
 		if need == ModeOperate && m != ModeOperate {
-			return errText("スイッチが「見るだけ」なので操作できません。要るならカオルに PC-OPERATE.bat を押してもらってください")
+			return errText("ブラウザのスイッチが「見るだけ」なので操作できません。要るならカオルにスイッチの窓で「ブラウザ」を「操作も可」にしてもらってください")
 		}
-		a.st.Touch()
+		a.bst.Touch()
+	} else {
+		m := a.st.Mode()
+		if need > ModeOff {
+			if m == ModeOff {
+				return errText("PC のスイッチがオフです。カオルに PC-VIEW.bat か PC-OPERATE.bat を押してもらってください（切り替えはカオルだけ）")
+			}
+			if need == ModeOperate && m != ModeOperate {
+				return errText("スイッチが「見るだけ」なので操作できません。要るならカオルに PC-OPERATE.bat を押してもらってください")
+			}
+			a.st.Touch()
+		}
 	}
 	if len(raw) == 0 || string(raw) == "null" {
 		raw = []byte("{}")
@@ -191,6 +213,13 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 	return errText("知らない道具：%s", tool)
 }
 
+func (a *Agent) chromeState() string {
+	if a.br != nil && a.br.Connected() {
+		return "つながっている"
+	}
+	return "つながっていない"
+}
+
 func (a *Agent) status() Reply {
 	allow, left := a.st.Allowed()
 	al := "なし"
@@ -200,6 +229,7 @@ func (a *Agent) status() Reply {
 	lines := []string{
 		"常駐役：動いている（版 " + version + "）",
 		"スイッチ：" + a.st.Mode().String(),
+		"ブラウザのスイッチ：" + a.bst.Mode().String() + "（Chrome：" + a.chromeState() + "）",
 		"許可（ALLOW）：" + al + "（" + allowFile() + "）",
 		fmt.Sprintf("自動オフまで（使わない時間）：%d 分", int(a.st.idle.Minutes())),
 		"記録：" + a.st.path("audit.log"),

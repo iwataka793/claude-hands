@@ -19,6 +19,10 @@ fails = []
 CHROME_PROF = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-chrome"
 shutil.rmtree(CHROME_PROF, ignore_errors=True)
 os.environ["PC_BROWSER_USERDATA"] = str(CHROME_PROF)
+BD = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-browser-switch"
+shutil.rmtree(BD, ignore_errors=True)
+BD.mkdir(parents=True, exist_ok=True)
+os.environ["PC_BROWSER_DIR"] = str(BD)
 
 
 def call(name, args=None, timeout=300):
@@ -72,6 +76,11 @@ def look(label, name, args):
 
 def set_mode(m):
     (SD / "mode.txt").write_text(m + "\r\n")
+    time.sleep(1.2)
+
+
+def set_bmode(m):
+    (BD / "mode.txt").write_text(m + "\r\n")
     time.sleep(1.2)
 
 
@@ -173,6 +182,8 @@ if not chrome:
     print("=== 5b. ブラウザ：Chrome が無いので飛ばす")
 else:
     print("=== 5b. ブラウザ（試験用の Chrome・headless）")
+    check("ブラウザのスイッチがオフなら使えない", "browser_tabs", {}, True, "ブラウザのスイッチがオフ")
+    set_bmode("operate")
     check("Chrome のリモートデバッグがオフ", "browser_tabs", {}, True, "リモートデバッグがオフ")
     site = pathlib.Path(__file__).parent / "site"
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site)))
@@ -210,10 +221,19 @@ else:
     check("タブを並び順の番号では選ばない", "browser_read", {"tab": "1"}, True, "番号ではなく")
     check("カオルのタブは閉じない", "browser_tabs", {"action": "close", "tab": "about:blank"}, True, "閉じません")
     check("Claude が開いたタブは閉じる", "browser_tabs", {"action": "close", "tab": "ログイン"}, False, "閉じました")
-    set_mode("view")
-    check("見るだけでは動かせない", "browser_do", {"steps": [{"wait": 1}]}, True, "見るだけ")
-    check("見るだけでも一覧は見られる", "browser_tabs", {}, False, "タブ")
+    set_bmode("view")
+    check("ブラウザが見るだけでは動かせない", "browser_do", {"steps": [{"wait": 1}]}, True, "見るだけ")
+    check("ブラウザが見るだけでも一覧は見られる", "browser_tabs", {}, False, "タブ")
+    set_bmode("operate")
+    set_mode("off")
+    time.sleep(3)
+    check("PC がオフでもブラウザは使える", "browser_tabs", {}, False, "タブ")
+    check("PC がオフなら PC の道具は使えない", "pc_disk", {}, True, "PC のスイッチがオフ")
     set_mode("operate")
+    set_bmode("off")
+    time.sleep(3)
+    check("ブラウザをオフにすると Chrome と切れる", "pc_status", {}, False, "Chrome：つながっていない")
+    check("ブラウザがオフなら使えない", "browser_read", {}, True, "ブラウザのスイッチがオフ")
     cp.kill()
     srv.shutdown()
 

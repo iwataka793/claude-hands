@@ -17,7 +17,7 @@ if ($args -contains '/shortcut') {
     $sc.Arguments = '"' + (Join-Path $here 'devkit-switch.vbs') + '"'
     $sc.WorkingDirectory = $here
     $sc.IconLocation = (Join-Path $here 'devkit-switch.ico') + ',0'
-    $sc.Description = 'iPhone と PC の Claude 操作スイッチ'
+    $sc.Description = 'iPhone・PC・ブラウザの Claude 操作スイッチ'
     $sc.Save()
     exit
 }
@@ -36,6 +36,7 @@ $IconFile = Join-Path $Here 'devkit-switch.ico'
 $U        = $env:USERPROFILE
 $Phone    = Join-Path $U 'devkit\iphone-mcp'
 $Pc       = Join-Path $U 'devkit\pc-agent'
+$Browser  = Join-Path $U 'devkit\browser'
 $AllowDir = Join-Path $env:ProgramData 'pc-agent'
 $Req      = Join-Path $U 'devkit\requests'
 $Idle     = [TimeSpan]::FromMinutes(30)
@@ -64,10 +65,11 @@ function Get-Left($dir) {
 }
 function Get-AllowLeft {
     $a = Join-Path $AllowDir 'allow.txt'
-    $m = Join-Path $Pc 'mode.txt'
     if (-not (Test-Path $a)) { return $null }
     $at = (Get-Item $a).LastWriteTime
-    if ((Test-Path $m) -and (Get-Item $m).LastWriteTime -gt $at) { return $null }  # 切り替えたら取り消し
+    foreach ($m in (Join-Path $Pc 'mode.txt'), (Join-Path $Browser 'mode.txt')) {
+        if ((Test-Path $m) -and (Get-Item $m).LastWriteTime -gt $at) { return $null }  # PC かブラウザを切り替えたら取り消し
+    }
     $left = $AllowWin - ((Get-Date) - $at)
     if ($left -le [TimeSpan]::Zero) { return $null }
     return $left
@@ -77,17 +79,20 @@ function Set-Mode($dir, $mode) {
     [IO.File]::WriteAllText((Join-Path $dir 'mode.txt'), "$mode`r`n")
 }
 function Set-PhoneMode($mode) { Set-Mode $Phone $mode }
-function Set-PcMode($mode) {
+# PC とブラウザは同じ常駐役（pc-agent.exe）が受け持つ。どちらかがオンなら動かす（両方オフで常駐役は自分で終わる）
+function Set-AgentMode($dir, $mode) {
     $exe = Join-Path $Pc 'pc-agent.exe'
     if ($mode -ne 'off' -and -not (Test-Path $exe)) {
         [System.Windows.MessageBox]::Show('pc-agent.exe がありません。先に pc-setup.bat を実行してください', 'devkit') | Out-Null
         return
     }
-    Set-Mode $Pc $mode
+    Set-Mode $dir $mode
     if ($mode -ne 'off' -and -not (Get-Process -Name 'pc-agent' -ErrorAction SilentlyContinue)) {
         Start-Process -FilePath $exe -ArgumentList 'agent' -WindowStyle Hidden
     }
 }
+function Set-PcMode($mode) { Set-AgentMode $Pc $mode }
+function Set-BrowserMode($mode) { Set-AgentMode $Browser $mode }
 function Grant-PcAllow {
     # 今までの PC-ALLOW.bat と同じことを、UAC（管理者の確認）を通ってから行う
     $cmd = @"
@@ -175,7 +180,7 @@ icacls `$A /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)
       <Grid x:Name="Header" Background="Transparent" Margin="0,0,0,14">
         <StackPanel>
           <TextBlock Text="Claude 操作スイッチ" FontSize="19" FontWeight="Bold" Foreground="White"/>
-          <TextBlock Text="iPhone と PC を、Claude にどこまで任せるか" FontSize="12" Foreground="#64748B" Margin="0,2,0,0"/>
+          <TextBlock Text="iPhone・PC・ブラウザを、Claude にどこまで任せるか" FontSize="12" Foreground="#64748B" Margin="0,2,0,0"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
           <Button x:Name="BtnMin" Width="34" Height="30" Margin="0,0,6,0"
@@ -237,23 +242,50 @@ icacls `$A /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)
           <TextBlock x:Name="PcLeft" FontSize="12" Foreground="#94A3B8" Margin="0,10,0,0" Text=" "/>
           <ProgressBar x:Name="PcBar" Style="{StaticResource Bar}" Maximum="30" Value="0" Foreground="#3B82F6" Margin="0,6,0,0"/>
 
-          <Border CornerRadius="12" Background="#1A1625" BorderBrush="#3B2A1A" BorderThickness="1" Padding="14,12" Margin="0,14,0,0">
-            <Grid>
-              <StackPanel VerticalAlignment="Center" Margin="0,0,130,0">
-                <TextBlock Text="パスワード・セキュリティ・お金" FontSize="13" FontWeight="SemiBold" Foreground="#FBBF24"/>
-                <TextBlock x:Name="AllowText" Text="許可していません" FontSize="12" Foreground="#A8A29E" Margin="0,3,0,0"/>
-              </StackPanel>
-              <Button x:Name="BtnAllow" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Btn}">
-                <Button.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#DC2626" Offset="1"/>
-                  </LinearGradientBrush>
-                </Button.Background>
-                <TextBlock Text="🔐 10 分 許可" FontFamily="Segoe UI Emoji, Yu Gothic UI" FontWeight="SemiBold"/>
-              </Button>
-            </Grid>
-          </Border>
         </StackPanel>
+      </Border>
+
+      <!-- ブラウザ（Chrome。PC とは別） -->
+      <Border CornerRadius="14" Background="#111C2E" Padding="16,14" Margin="0,12,0,0">
+        <StackPanel>
+          <Grid>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="🌐" FontSize="15" FontFamily="Segoe UI Emoji" VerticalAlignment="Center" Margin="0,0,8,0"/>
+              <TextBlock Text="ブラウザ" FontSize="16" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+              <TextBlock Text="Chrome" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="8,2,0,0"/>
+            </StackPanel>
+            <Border x:Name="BrPill" HorizontalAlignment="Right" CornerRadius="10" Padding="10,2" Background="#6B7280">
+              <TextBlock x:Name="BrState" Text="オフ" FontSize="12" Foreground="White" FontWeight="SemiBold"/>
+            </Border>
+          </Grid>
+          <Border CornerRadius="12" Background="#0B1220" Margin="0,12,0,0">
+            <UniformGrid Columns="3">
+              <RadioButton x:Name="BrOff" GroupName="br" Content="オフ" Style="{StaticResource Seg}" Tag="#4B5563"/>
+              <RadioButton x:Name="BrView" GroupName="br" Content="見るだけ" Style="{StaticResource Seg}" Tag="#2563EB"/>
+              <RadioButton x:Name="BrOp" GroupName="br" Content="操作も可" Style="{StaticResource Seg}" Tag="#16A34A"/>
+            </UniformGrid>
+          </Border>
+          <TextBlock x:Name="BrLeft" FontSize="12" Foreground="#94A3B8" Margin="0,10,0,0" Text=" "/>
+          <ProgressBar x:Name="BrBar" Style="{StaticResource Bar}" Maximum="30" Value="0" Foreground="#3B82F6" Margin="0,6,0,0"/>
+        </StackPanel>
+      </Border>
+
+      <!-- 許可（PC とブラウザで共通） -->
+      <Border CornerRadius="12" Background="#1A1625" BorderBrush="#3B2A1A" BorderThickness="1" Padding="14,12" Margin="0,12,0,0">
+        <Grid>
+          <StackPanel VerticalAlignment="Center" Margin="0,0,130,0">
+            <TextBlock Text="パスワード・セキュリティ・お金" FontSize="13" FontWeight="SemiBold" Foreground="#FBBF24"/>
+            <TextBlock x:Name="AllowText" Text="許可していません" FontSize="12" Foreground="#A8A29E" Margin="0,3,0,0"/>
+          </StackPanel>
+          <Button x:Name="BtnAllow" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Btn}">
+            <Button.Background>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#DC2626" Offset="1"/>
+              </LinearGradientBrush>
+            </Button.Background>
+            <TextBlock Text="🔐 10 分 許可" FontFamily="Segoe UI Emoji, Yu Gothic UI" FontWeight="SemiBold"/>
+          </Button>
+        </Grid>
       </Border>
 
       <Grid Margin="0,14,0,0">
@@ -267,7 +299,8 @@ icacls `$A /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)
 $win = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $c = @{}
 foreach ($n in 'Header','BtnMin','BtnClose','PhonePill','PhoneState','PhOff','PhView','PhOp','PhoneLeft','PhoneBar',
-               'PcPill','PcState','PcOff','PcView','PcOp','PcLeft','PcBar','AllowText','BtnAllow','BtnAllOff') { $c[$n] = $win.FindName($n) }
+               'PcPill','PcState','PcOff','PcView','PcOp','PcLeft','PcBar','AllowText','BtnAllow','BtnAllOff',
+               'BrPill','BrState','BrOff','BrView','BrOp','BrLeft','BrBar') { $c[$n] = $win.FindName($n) }
 
 function Brush($hex) { return (New-Object System.Windows.Media.BrushConverter).ConvertFromString($hex) }
 
@@ -285,13 +318,15 @@ function Show-Side($mode, $dir, $pill, $state, $rOff, $rView, $rOp, $leftText, $
 }
 
 function Update-View {
-    $m1 = Get-Mode $Phone; $m2 = Get-Mode $Pc
+    $m1 = Get-Mode $Phone; $m2 = Get-Mode $Pc; $m3 = Get-Mode $Browser
     Show-Side $m1 $Phone $c.PhonePill $c.PhoneState $c.PhOff $c.PhView $c.PhOp $c.PhoneLeft $c.PhoneBar
     Show-Side $m2 $Pc $c.PcPill $c.PcState $c.PcOff $c.PcView $c.PcOp $c.PcLeft $c.PcBar
+    Show-Side $m3 $Browser $c.BrPill $c.BrState $c.BrOff $c.BrView $c.BrOp $c.BrLeft $c.BrBar
     $al = Get-AllowLeft
     if ($al) { $c.AllowText.Text = "許可中　あと $([int][Math]::Ceiling($al.TotalMinutes)) 分"; $c.AllowText.Foreground = Brush '#FCA5A5' }
     else     { $c.AllowText.Text = '許可していません（Claude は触れない）'; $c.AllowText.Foreground = Brush '#A8A29E' }
-    $tray.Text = ("Claude 操作スイッチ  iPhone：{0} / PC：{1}{2}" -f $names[$m1], $names[$m2], $(if ($al) { '・許可中' } else { '' }))
+    $t = ("iPhone：{0} / PC：{1} / ブラウザ：{2}{3}" -f $names[$m1], $names[$m2], $names[$m3], $(if ($al) { '・許可中' } else { '' }))
+    $tray.Text = $(if ($t.Length -le 63) { $t } else { $t.Substring(0, 63) })  # 通知領域の文字は 63 字まで
 }
 
 $c.PhOff.Add_Click({ Set-PhoneMode 'off'; Update-View })
@@ -300,8 +335,11 @@ $c.PhOp.Add_Click({ Set-PhoneMode 'operate'; Update-View })
 $c.PcOff.Add_Click({ Set-PcMode 'off'; Update-View })
 $c.PcView.Add_Click({ Set-PcMode 'view'; Update-View })
 $c.PcOp.Add_Click({ Set-PcMode 'operate'; Update-View })
+$c.BrOff.Add_Click({ Set-BrowserMode 'off'; Update-View })
+$c.BrView.Add_Click({ Set-BrowserMode 'view'; Update-View })
+$c.BrOp.Add_Click({ Set-BrowserMode 'operate'; Update-View })
 $c.BtnAllow.Add_Click({ Grant-PcAllow; Update-View })
-$c.BtnAllOff.Add_Click({ Set-PhoneMode 'off'; Set-PcMode 'off'; Update-View })
+$c.BtnAllOff.Add_Click({ Set-PhoneMode 'off'; Set-PcMode 'off'; Set-BrowserMode 'off'; Update-View })
 $c.BtnClose.Add_Click({ $win.Hide() })
 $c.BtnMin.Add_Click({ $win.WindowState = 'Minimized' })
 # 窓のどこをつかんでも動かせる（ボタン・切り替えの上は押す方が先。押すと処理済みになり、ここまで来ない）
@@ -314,7 +352,7 @@ if (Test-Path $IconFile) { $tray.Icon = New-Object System.Drawing.Icon($IconFile
 $tray.Visible = $true
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $menu.Items.Add('開く', $null, { $win.Show(); if ($win.WindowState -eq 'Minimized') { $win.WindowState = 'Normal' }; $win.Activate() }) | Out-Null
-$menu.Items.Add('すべてオフ', $null, { Set-PhoneMode 'off'; Set-PcMode 'off'; Update-View }) | Out-Null
+$menu.Items.Add('すべてオフ', $null, { Set-PhoneMode 'off'; Set-PcMode 'off'; Set-BrowserMode 'off'; Update-View }) | Out-Null
 $menu.Items.Add('終わる', $null, { $script:quit = $true; $tray.Visible = $false; $win.Close(); $app.Shutdown() }) | Out-Null
 $tray.ContextMenuStrip = $menu
 $tray.Add_MouseClick({ param($s, $e) if ($e.Button -eq 'Left') { $win.Show(); if ($win.WindowState -eq 'Minimized') { $win.WindowState = 'Normal' }; $win.Activate() } })
@@ -386,6 +424,8 @@ function Check-Requests {
         'iphone-operate' { 'iPhone を「操作も可」にしますか？' }
         'pc-view'        { 'PC を「見るだけ」にしますか？' }
         'pc-operate'     { 'PC を「操作も可」にしますか？' }
+        'browser-view'    { 'ブラウザ（Chrome）を「見るだけ」にしますか？' }
+        'browser-operate' { 'ブラウザ（Chrome）を「操作も可」にしますか？' }
         'pc-allow'       { 'パスワード・セキュリティ・お金にかかわる操作を 10 分だけ許可しますか？' }
         default          { $null }
     }
@@ -398,6 +438,8 @@ function Check-Requests {
             'iphone-operate' { Set-PhoneMode 'operate' }
             'pc-view'        { Set-PcMode 'view' }
             'pc-operate'     { Set-PcMode 'operate' }
+            'browser-view'    { Set-BrowserMode 'view' }
+            'browser-operate' { Set-BrowserMode 'operate' }
             'pc-allow'       { Grant-PcAllow }
         }
     }

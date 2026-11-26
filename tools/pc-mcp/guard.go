@@ -35,7 +35,7 @@ var sensitivePathRe = regexp.MustCompile(`(?i)(` + strings.Join([]string{
 }, "|") + `)`)
 
 // スイッチの置き場所：許可があっても触らせない
-var switchPathRe = regexp.MustCompile(`(?i)(\\devkit\\pc-agent\b|\\ProgramData\\pc-agent\b|\\devkit\\iphone-mcp\\(mode|allow|last-used)\.txt|pc-agent\.exe|\bmode\.txt\b|\ballow\.txt\b)`)
+var switchPathRe = regexp.MustCompile(`(?i)(\\devkit\\pc-agent\b|\\devkit\\browser\\(mode|last-used)\.txt|\\ProgramData\\pc-agent\b|\\devkit\\iphone-mcp\\(mode|allow|last-used)\.txt|pc-agent\.exe|\bmode\.txt\b|\ballow\.txt\b)`)
 
 // Windows 本体：読むのはよいが、変えるには許可が要る
 var systemPathRe = regexp.MustCompile(`(?i)^([a-z]:\\?$|[a-z]:\\windows\b|[a-z]:\\program files|[a-z]:\\programdata\b|[a-z]:\\\$recycle\.bin|[a-z]:\\system volume information|[a-z]:\\users\\[^\\]+\\?$|.*\\start menu\\programs\\startup\b)`)
@@ -74,7 +74,7 @@ func isSwitchPlace(s string) bool {
 		return true
 	}
 	low := strings.ToLower(matchForm(s))
-	for _, d := range []string{stateDir(), allowDir()} {
+	for _, d := range []string{stateDir(), allowDir(), browserDir()} {
 		if d != "" && strings.Contains(low, strings.ToLower(matchForm(d))) {
 			return true
 		}

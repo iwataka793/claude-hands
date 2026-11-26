@@ -36,8 +36,8 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 ## スイッチの窓と「許可しますか？」（2026-11-25 から）
 
-- `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone と PC のスイッチを 1 つの窓で切り替えられる（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。右上の「—」で最小化（タスクバーへ）、ボタン以外のどこをつかんでも窓を動かせる（2026-11-26）。終わるのは通知領域の右クリック →「終わる」。デスクトップのショートカット「Claude 操作スイッチ」（アイコンは devkit-switch.ico）から開ける。もう動いているときは、2 つ目は起動せず、動いている方の窓を前に出す（名前つきの合図 Local\DevKitSwitchShow）
-- 道具がスイッチ不足で止まるとき、道具は `%USERPROFILE%\devkit\requests\<種類>.txt`（iphone-view・iphone-operate・pc-view・pc-operate・pc-allow。中身は理由 1 行）を置き、窓を `/tray` で起こす。窓が「○○にしますか？」を出し、カオルが「許可する」か「断る」を押す
+- `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone・PC・ブラウザのスイッチを 1 つの窓で切り替えられる（「パスワード・セキュリティ・お金」の 10 分 許可は PC とブラウザで共通）（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。右上の「—」で最小化（タスクバーへ）、ボタン以外のどこをつかんでも窓を動かせる（2026-11-26）。終わるのは通知領域の右クリック →「終わる」。デスクトップのショートカット「Claude 操作スイッチ」（アイコンは devkit-switch.ico）から開ける。もう動いているときは、2 つ目は起動せず、動いている方の窓を前に出す（名前つきの合図 Local\DevKitSwitchShow）
+- 道具がスイッチ不足で止まるとき、道具は `%USERPROFILE%\devkit\requests\<種類>.txt`（iphone-view・iphone-operate・pc-view・pc-operate・browser-view・browser-operate・pc-allow。中身は理由 1 行）を置き、窓を `/tray` で起こす。窓が「○○にしますか？」を出し、カオルが「許可する」か「断る」を押す
 - 道具は返事を待つ：60 秒（PC の許可は 90 秒）。許可されたらそのまま続ける。断られた・時間切れなら、今までどおり「スイッチが足りません」を返す
 - 窓は 55 秒（許可は 80 秒）で自動的に断る。2 分より古い頼みは捨てる。既定のボタンは「断る」（Enter・Esc で断る）
 - Claude 側の決まりは変わらない：mode.txt・allow.txt を書かない、窓のボタンを押さない。requests に置くのは道具だけ（Claude が手で置いてよいのは、カオルに見た目を見せる試しのときだけ）
@@ -88,9 +88,11 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 3. つないでいる間、Chrome の上に「自動テスト ソフトウェアによって制御されています」の帯が出る。常駐役が終わる（スイッチをオフ・30 分使わない）と切れる。次に使うとき、また「許可」が出る
 - つなぐのは PC の中（127.0.0.1）だけ。Chrome 144 からの公式の仕組み（Chrome DevTools MCP の autoConnect と同じ）。2026-11-26 の PC の Chrome は 158
 
-### スイッチと許可（PC と同じ）
+### スイッチと許可（ブラウザは PC と別のスイッチ・許可は共通。2026-11-26 から）
 
-| スイッチ | できること |
+スイッチの窓の「ブラウザ」の段で切り替える（置き場所 `%USERPROFILE%\devkit\browser\mode.txt`。書くのはカオルの窓だけ）。PC がオフでもブラウザだけ使える（常駐役はどちらかがオンなら動き、両方オフで終わる）。ブラウザをオフにする・30 分使わないと、Chrome とのつながりをすぐ切る（上の帯も消える）。足りないときは道具が「ブラウザ（Chrome）を〜にしますか？」の窓を出して 60 秒待つ（頼みの種類 browser-view・browser-operate）。PC かブラウザのスイッチを切り替えると、許可（10 分）は取り消し。
+
+| ブラウザのスイッチ | できること |
 | --- | --- |
 | 見るだけ | browser_tabs（一覧）・browser_read・browser_screenshot |
 | 操作も可 | 上に加えて browser_do・browser_js・タブを開く／前に出す／Claude が開いたタブを閉じる |
