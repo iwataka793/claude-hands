@@ -36,7 +36,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 ## スイッチの窓と「許可しますか？」（2026-11-25 から）
 
-- `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone と PC のスイッチを 1 つの窓で切り替えられる（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。終わるのは通知領域の右クリック →「終わる」。デスクトップのショートカット「Claude 操作スイッチ」（アイコンは devkit-switch.ico）から開ける。もう動いているときは、2 つ目は起動せず、動いている方の窓を前に出す（名前つきの合図 Local\DevKitSwitchShow）
+- `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone と PC のスイッチを 1 つの窓で切り替えられる（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。右上の「—」で最小化（タスクバーへ）、ボタン以外のどこをつかんでも窓を動かせる（2026-11-26）。終わるのは通知領域の右クリック →「終わる」。デスクトップのショートカット「Claude 操作スイッチ」（アイコンは devkit-switch.ico）から開ける。もう動いているときは、2 つ目は起動せず、動いている方の窓を前に出す（名前つきの合図 Local\DevKitSwitchShow）
 - 道具がスイッチ不足で止まるとき、道具は `%USERPROFILE%\devkit\requests\<種類>.txt`（iphone-view・iphone-operate・pc-view・pc-operate・pc-allow。中身は理由 1 行）を置き、窓を `/tray` で起こす。窓が「○○にしますか？」を出し、カオルが「許可する」か「断る」を押す
 - 道具は返事を待つ：60 秒（PC の許可は 90 秒）。許可されたらそのまま続ける。断られた・時間切れなら、今までどおり「スイッチが足りません」を返す
 - 窓は 55 秒（許可は 80 秒）で自動的に断る。2 分より古い頼みは捨てる。既定のボタンは「断る」（Enter・Esc で断る）

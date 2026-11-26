@@ -177,10 +177,16 @@ icacls `$A /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)
           <TextBlock Text="Claude 操作スイッチ" FontSize="19" FontWeight="Bold" Foreground="White"/>
           <TextBlock Text="iPhone と PC を、Claude にどこまで任せるか" FontSize="12" Foreground="#64748B" Margin="0,2,0,0"/>
         </StackPanel>
-        <Button x:Name="BtnClose" HorizontalAlignment="Right" VerticalAlignment="Top" Width="34" Height="30"
-                Style="{StaticResource Btn}" Background="#1E293B" Padding="0" ToolTip="隠す（右下に常駐したまま）">
-          <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Foreground="#CBD5E1"/>
-        </Button>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+          <Button x:Name="BtnMin" Width="34" Height="30" Margin="0,0,6,0"
+                  Style="{StaticResource Btn}" Background="#1E293B" Padding="0" ToolTip="最小化（タスクバーへ）">
+            <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Foreground="#CBD5E1"/>
+          </Button>
+          <Button x:Name="BtnClose" Width="34" Height="30"
+                  Style="{StaticResource Btn}" Background="#1E293B" Padding="0" ToolTip="隠す（右下に常駐したまま）">
+            <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="11" Foreground="#CBD5E1"/>
+          </Button>
+        </StackPanel>
       </Grid>
 
       <!-- iPhone -->
@@ -260,7 +266,7 @@ icacls `$A /inheritance:r /grant:r '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-18:(OI)(CI)
 '@
 $win = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $xaml))
 $c = @{}
-foreach ($n in 'Header','BtnClose','PhonePill','PhoneState','PhOff','PhView','PhOp','PhoneLeft','PhoneBar',
+foreach ($n in 'Header','BtnMin','BtnClose','PhonePill','PhoneState','PhOff','PhView','PhOp','PhoneLeft','PhoneBar',
                'PcPill','PcState','PcOff','PcView','PcOp','PcLeft','PcBar','AllowText','BtnAllow','BtnAllOff') { $c[$n] = $win.FindName($n) }
 
 function Brush($hex) { return (New-Object System.Windows.Media.BrushConverter).ConvertFromString($hex) }
@@ -297,7 +303,9 @@ $c.PcOp.Add_Click({ Set-PcMode 'operate'; Update-View })
 $c.BtnAllow.Add_Click({ Grant-PcAllow; Update-View })
 $c.BtnAllOff.Add_Click({ Set-PhoneMode 'off'; Set-PcMode 'off'; Update-View })
 $c.BtnClose.Add_Click({ $win.Hide() })
-$c.Header.Add_MouseLeftButtonDown({ $win.DragMove() })
+$c.BtnMin.Add_Click({ $win.WindowState = 'Minimized' })
+# 窓のどこをつかんでも動かせる（ボタン・切り替えの上は押す方が先。押すと処理済みになり、ここまで来ない）
+$win.Add_MouseLeftButtonDown({ param($s, $e) if ($e.ButtonState -eq 'Pressed') { try { $win.DragMove() } catch { } } })
 $win.Add_Closing({ param($s, $e) if (-not $script:quit) { $e.Cancel = $true; $win.Hide() } })
 
 # ---------------- 通知領域 ----------------
@@ -305,11 +313,11 @@ $tray = New-Object System.Windows.Forms.NotifyIcon
 if (Test-Path $IconFile) { $tray.Icon = New-Object System.Drawing.Icon($IconFile) } else { $tray.Icon = [System.Drawing.SystemIcons]::Shield }
 $tray.Visible = $true
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-$menu.Items.Add('開く', $null, { $win.Show(); $win.Activate() }) | Out-Null
+$menu.Items.Add('開く', $null, { $win.Show(); if ($win.WindowState -eq 'Minimized') { $win.WindowState = 'Normal' }; $win.Activate() }) | Out-Null
 $menu.Items.Add('すべてオフ', $null, { Set-PhoneMode 'off'; Set-PcMode 'off'; Update-View }) | Out-Null
 $menu.Items.Add('終わる', $null, { $script:quit = $true; $tray.Visible = $false; $win.Close(); $app.Shutdown() }) | Out-Null
 $tray.ContextMenuStrip = $menu
-$tray.Add_MouseClick({ param($s, $e) if ($e.Button -eq 'Left') { $win.Show(); $win.Activate() } })
+$tray.Add_MouseClick({ param($s, $e) if ($e.Button -eq 'Left') { $win.Show(); if ($win.WindowState -eq 'Minimized') { $win.WindowState = 'Normal' }; $win.Activate() } })
 
 # ---------------- Claude からの頼み（devkit\requests\*.txt） ----------------
 # ファイル名：iphone-view / iphone-operate / pc-view / pc-operate / pc-allow（.txt）。中身は理由（1 行）
