@@ -2,6 +2,12 @@
 
 新しいものが上。
 
+## 2026-11-26 名前を claude-hands（クロードハンド）に変えた
+
+- カオル「iphone-dev-kit は今のプログラムの名前としては違う」→ 候補から claude-hands。カタカナは「クロードハンド」。ふつうに頼んでも、合言葉（claude-hands・クロードハンド）でも使う
+- 変えたもの：GitHub の repo の名前（カオルが GitHub の設定で）、拡張機能の見える名前（iPhone（claude-hands）・PC（claude-hands）。道具の頭の名前も変わる）、.mcpb のファイル名（claude-hands-iphone.mcpb・claude-hands-pc.mcpb）、手順書の URL、go の module の名前。拡張機能の中の名前（iphone-dev-kit・pc-dev-kit）はそのまま（入れ直しで上書きされるように）。前の URL は GitHub が新しい方へつなぐ
+- 古い記録（このファイルの下の方）は iphone-dev-kit のまま残す
+
 ## 2026-11-26 別のセッションでも道具を使えるか、md を見直した
 
 - カオル「GitHub の md 群は、別のセッションでもこのプログラムを完璧に使える状態か」→ 見直して PC.md に足した：ブラウザの Claude 側の決まり（カオルのタブは頼まれたときだけ・題名を写さない・自分のタブで作業）、canvas のページの読み方（Phaser の例・見えているものだけ）、browser_js の const が残る件。つなぎ方の「切れる条件」をブラウザのスイッチに直した。OPERATIONS 16 を済に

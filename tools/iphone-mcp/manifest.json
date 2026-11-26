@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.2",
   "name": "iphone-dev-kit",
-  "display_name": "iPhone（iphone-dev-kit）",
+  "display_name": "iPhone（claude-hands）",
   "version": "0.1.0",
   "description": "USB でつないだ iPhone を Claude が見て・動かす（go-ios と WebDriverAgent）。カオルのスイッチ（オフ・見るだけ・操作も可）で止められる。",
   "author": {
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/iwataka793/iphone-dev-kit"
+    "url": "https://github.com/iwataka793/claude-hands"
   },
   "server": {
     "type": "binary",

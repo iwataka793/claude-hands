@@ -235,7 +235,7 @@ type stepsIn struct {
 }
 
 type lcInstallIn struct {
-	Tag   string `json:"tag,omitempty" jsonschema:"iphone-dev-kit の Releases のタグ（例 build-5）。省略で最新"`
+	Tag   string `json:"tag,omitempty" jsonschema:"claude-hands の Releases のタグ（例 build-5）。省略で最新"`
 	Asset string `json:"asset,omitempty" jsonschema:"Releases の中のファイル名（既定 DevKit.ipa）"`
 }
 
@@ -473,7 +473,7 @@ func (a *app) register(s *mcp.Server) {
 			return a.runSteps(ctx, in), nil, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "iphone_lc_install", Description: "GitHub の iphone-dev-kit の Releases から IPA を取り、LiveContainer の中のアプリを上書きする（前の中身は PC に控え）。LiveContainer を終わらせてから入れる。入れた後は iphone_app activate → iphone_tap_text「実行」で起動。操作も可のときだけ"},
+	mcp.AddTool(s, &mcp.Tool{Name: "iphone_lc_install", Description: "GitHub の claude-hands の Releases から IPA を取り、LiveContainer の中のアプリを上書きする（前の中身は PC に控え）。LiveContainer を終わらせてから入れる。入れた後は iphone_app activate → iphone_tap_text「実行」で起動。操作も可のときだけ"},
 		func(ctx context.Context, req *mcp.CallToolRequest, in lcInstallIn) (*mcp.CallToolResult, any, error) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil

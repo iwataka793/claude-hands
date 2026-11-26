@@ -23,7 +23,7 @@ import (
 	"howett.net/plist"
 )
 
-const releaseBase = "https://github.com/iwataka793/iphone-dev-kit/releases"
+const releaseBase = "https://github.com/iwataka793/claude-hands/releases"
 
 func download(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

@@ -1,5 +1,7 @@
 # 運用の手順書（Claude 向け）
 
+**名前**：claude-hands（クロードハンド。2026-11-26 に iphone-dev-kit から変えた）。カオルは「クロードハンドで〜」とも、ふつうに「PC の〜を見て」とも頼む。どちらでもこの道具を使う
+
 この repo で iPhone アプリを作るときに、Claude が道具を使いこなすための手順書です。
 この repo には、iPhone アプリの開発のほかに、**Claude が PC と iPhone を見て・動かす道具**（拡張機能 2 つ：iPhone の道具 [MCP.md](MCP.md)・PC の道具 [PC.md](PC.md)）と、カオルが任せる範囲を決める**スイッチの窓**（tools/switch-app）も入っている。PC の容量・不具合・片付け・アプリの出し入れも、この repo の PC の道具でやる。
 新しいセッションでは、まずこれを全部読んでから作業します。経過・分かったことの記録は [LOG.md](LOG.md)（新しいものが上）。
@@ -12,7 +14,7 @@
 ## 1. 全体の形
 
 ```
-[GitHub]  iwataka793/iphone-dev-kit（公開）
+[GitHub]  iwataka793/claude-hands（公開）
    ├─ Actions ios.yml   … main への push で DevKit をビルド → シミュレーターで UI テスト → Releases に build-N（最新版）
    ├─ Actions wda.yml   … WebDriverAgent をビルド → Releases に wda-N（最新版にはしない）
    └─ Actions core-tests.yml … Core/ のテスト（Linux）
@@ -56,8 +58,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `%ProgramData%\pc-agent\allow.txt` | 10 分の許可（管理者しか書けない場所） | 触らない |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
-| `devkit\installers\` | 入れ直し用：iphone-dev-kit.mcpb・pc-dev-kit.mcpb と pc-switch.zip（いま入れている版。2026-11-26 は pc-13）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
-| Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる） | 触らない（入れ直しは設定の画面から） |
+| `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb・claude-hands-pc.mcpb と pc-switch.zip（いま入れている版。2026-11-26 は pc-13）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
+| Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる）。2026-11-26 に名前を claude-hands に変えたが、拡張機能の中の名前（iphone-dev-kit・pc-dev-kit）はそのまま（変えると別の拡張機能として二重に入るため）。見える名前は「iPhone（claude-hands）」「PC（claude-hands）」 | 触らない（入れ直しは設定の画面から） |
 | `ドキュメント\pwtest-docker-code.zip` | Docker に残っていた pwtest（2026-02 の PC 版。CityRank の前身）のイメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core）から取り出した Python のコード。ほかに写しが無かったので残した | カオルが決める |
 | Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |
 | 開発の道具でアンインストールしたもの（2026-11-25） | Swift Developer Toolkit 6.4.3・Visual Studio Build Tools 2022・Windows SDK・VS Installer（11/24 に Windows で swift test を試すために入れた。今は GitHub の CI で試す）。また要るときは winget で入れ直す | — |
@@ -77,14 +79,14 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 1. **書く**：`App/`（画面）と `Core/`（iPhone に依存しないロジック）を直す。動きを確かめたい所には、iPhone のログに出る印を入れる（例：`logger.notice("DEVKIT ...")`、`privacy: .public` を付ける）
 2. **ビルド**：main に push → ios.yml が動く
    - 結果は REST で見る（このセッションの gh は GraphQL を使うコマンドが通らないことがある）：
-     `gh api 'repos/iwataka793/iphone-dev-kit/actions/runs?per_page=5' --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) \(.conclusion) \(.head_sha[0:7])"'`
-     失敗したら `gh api repos/iwataka793/iphone-dev-kit/actions/runs/<id>/jobs` で段階を見る
-   - ファイルは `curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/<タグ>/<ファイル>` で取れる。最新のタグは `gh api repos/iwataka793/iphone-dev-kit/releases/latest --jq .tag_name`。そのタグのコミットは `gh api repos/iwataka793/iphone-dev-kit/git/ref/tags/build-N --jq .object.sha`（リリースの説明文にも書いてある）
+     `gh api 'repos/iwataka793/claude-hands/actions/runs?per_page=5' --jq '.workflow_runs[] | "\(.id) \(.name) \(.status) \(.conclusion) \(.head_sha[0:7])"'`
+     失敗したら `gh api repos/iwataka793/claude-hands/actions/runs/<id>/jobs` で段階を見る
+   - ファイルは `curl -sL https://github.com/iwataka793/claude-hands/releases/download/<タグ>/<ファイル>` で取れる。最新のタグは `gh api repos/iwataka793/claude-hands/releases/latest --jq .tag_name`。そのタグのコミットは `gh api repos/iwataka793/claude-hands/git/ref/tags/build-N --jq .object.sha`（リリースの説明文にも書いてある）
    - Releases の `build-N` に DevKit.ipa・simulator-check.zip（シミュレーターの画面）・simulator-test.log が置かれる
    - このセッションからは Releases を作れない（403）。作るのは Actions に任せる
-3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/iphone-dev-kit/releases/download/build-N/simulator-check.zip` などで取って見る
+3. **シミュレーターで確かめる**：`curl -sL https://github.com/iwataka793/claude-hands/releases/download/build-N/simulator-check.zip` などで取って見る
 4. **iPhone に入れる**（人の手なし。2026-11-24 確認済み）：3-5 の手順で PC から LiveContainer に直接置く
-   - 予備：カオルに Safari で `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa` を開いて LiveContainer で入れてもらう
+   - 予備：カオルに Safari で `https://github.com/iwataka793/claude-hands/releases/latest/download/DevKit.ipa` を開いて LiveContainer で入れてもらう
    - 入ったかどうかは DEVKIT のログの `commit=` か、画面下の `build:` がコミット番号と同じかで確かめる
    - 比べる相手は「入れた build-N のタグのコミット」。ios.yml は App/・Core/・ios.yml・scripts/*.sh が変わったときだけ動くので、ほかのファイル（docs など）だけのコミットでは新しい build-N はできない
    - Actions が実行中なら、終わるまで待ってから比べる
@@ -262,8 +264,8 @@ LiveContainer は起動前に `LCAppInfo.plist` の `LCPatchRevision` を見て�
 ### 次に PC がつながったらやること（2026-11-25 カオルに頼まれた）
 
 PC の道具（[PC.md](PC.md)）を入れて確かめる：
-1. （済 2026-11-25。2〜5 も済。残りは DPI と画面・部品の操作）Releases の最新の `pc-N`（いまは pc-4）の `pc-dev-kit.mcpb` と `pc-switch.zip` を PC のダウンロードに置く
-2. カオルに `pc-switch.zip` の中の `pc-setup.bat` を 1 回実行してもらい、`pc-dev-kit.mcpb` を拡張機能に入れてもらう
+1. （済 2026-11-25。2〜5 も済。残りは DPI と画面・部品の操作）Releases の最新の `pc-N`（いまは pc-4）の `claude-hands-pc.mcpb` と `pc-switch.zip` を PC のダウンロードに置く
+2. カオルに `pc-switch.zip` の中の `pc-setup.bat` を 1 回実行してもらい、`claude-hands-pc.mcpb` を拡張機能に入れてもらう
 3. カオルに PC-VIEW を押してもらい、`pc_status` → `pc_disk`（引数なし）→ `pc_problems` で、カオルの PC で実際に動くか確かめる
 4. PC-ALLOW の流れ（UAC の「はい」→ 10 分の許可 → 切り替えで取り消し）を 1 回試す
 5. PC.md の最後の「まだ確かめていないこと」（ストア版 Claude からの 127.0.0.1 と token.txt・UAC と %ProgramData% の書き込みの制限・.bat の日本語・画面の拡大率）を 1 つずつ確かめて、PC.md と LOG.md を直す

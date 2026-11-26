@@ -7,8 +7,8 @@ go.bat ＋ plan.json（OPERATIONS.md 3 章）より速い：トンネル・ロ�
 
 ## 入れ方（カオル・初回だけ）
 
-1. Releases の `mcp-N` のうち番号がいちばん大きいもの（一覧の並びは名前順のことがあるので、`mcp-11` が `mcp-7` より下に出ることがある）から `iphone-dev-kit.mcpb` と `iphone-switch.zip` を PC に落とす
-2. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」の画面に `iphone-dev-kit.mcpb` をドラッグする（.mcpb のダブルクリックは Windows の「開くアプリ」選びになるだけ。Claude は自分で Claude デスクトップを操作できないので、ここはカオルの作業）
+1. Releases の `mcp-N` のうち番号がいちばん大きいもの（一覧の並びは名前順のことがあるので、`mcp-11` が `mcp-7` より下に出ることがある）から `claude-hands-iphone.mcpb` と `iphone-switch.zip` を PC に落とす
+2. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」の画面に `claude-hands-iphone.mcpb` をドラッグする（.mcpb のダブルクリックは Windows の「開くアプリ」選びになるだけ。Claude は自分で Claude デスクトップを操作できないので、ここはカオルの作業）
 3. スイッチは PC のデスクトップの「Claude 操作スイッチ」の窓で切り替える（pc-switch.zip の pc-setup.bat が置く。[PC.md](PC.md)）。`iphone-switch.zip` の .bat は予備
 - 更新するときは、新しい `mcp-N` の .mcpb で同じように入れ直す
 

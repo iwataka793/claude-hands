@@ -88,16 +88,16 @@ jobs:
           json.dump(m, open("pkg/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
           PY
           npx -y @anthropic-ai/mcpb validate pkg/manifest.json
-          npx -y @anthropic-ai/mcpb pack pkg iphone-dev-kit.mcpb
+          npx -y @anthropic-ai/mcpb pack pkg claude-hands-iphone.mcpb
           (cd switch && zip -q ../iphone-switch.zip *.bat)
-          ls -la iphone-dev-kit.mcpb iphone-switch.zip
+          ls -la claude-hands-iphone.mcpb iphone-switch.zip
 
       - name: 結果を保存
         uses: actions/upload-artifact@v4
         with:
           name: iphone-mcp
           path: |
-            tools/iphone-mcp/iphone-dev-kit.mcpb
+            tools/iphone-mcp/claude-hands-iphone.mcpb
             tools/iphone-mcp/iphone-switch.zip
             tools/iphone-mcp/go.sum
             tools/iphone-mcp/go.mod
@@ -108,7 +108,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="mcp-${{ github.run_number }}"
-          gh release create "$TAG" iphone-dev-kit.mcpb iphone-switch.zip \
+          gh release create "$TAG" claude-hands-iphone.mcpb iphone-switch.zip \
             --title "iPhone MCP $TAG" \
-            --notes "Claude デスクトップの拡張機能（設定 → 拡張機能 → 詳細設定 → Install Extension… で iphone-dev-kit.mcpb を選ぶ）。iphone-switch.zip はカオル用のスイッチ（オフ・見るだけ・操作も可）。commit ${GITHUB_SHA::7}" \
+            --notes "Claude デスクトップの拡張機能（設定 → 拡張機能 → 詳細設定 → Install Extension… で claude-hands-iphone.mcpb を選ぶ）。iphone-switch.zip はカオル用のスイッチ（オフ・見るだけ・操作も可）。commit ${GITHUB_SHA::7}" \
             --latest=false

@@ -8,16 +8,16 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 | 役 | ファイル | 何をするか |
 | --- | --- | --- |
-| 拡張機能 | `pc-dev-kit.mcpb`（中に `pc-mcp.exe`） | Claude デスクトップの中で動く。道具を並べて、中身は常駐役に頼むだけ |
+| 拡張機能 | `claude-hands-pc.mcpb`（中に `pc-mcp.exe`） | Claude デスクトップの中で動く。道具を並べて、中身は常駐役に頼むだけ |
 | 常駐役 | `%USERPROFILE%\devkit\pc-agent\pc-agent.exe` | カオルのスイッチ（.bat）で起動・停止する。PowerShell を開きっぱなしにして実際の作業をする。PC の中（127.0.0.1:60210）だけで受け付け、合言葉（token.txt）がないと答えない |
 
 常駐役を分けたわけ：ストア版の Claude から動くプログラムは、AppData への書き込みが別の場所に振り分けられる（iPhone の道具で確かめた）。常駐役はカオルがエクスプローラーから起動するので、振り分けを受けない。
 
 ## 入れ方（カオル・最初と、新しい版にするとき）
 
-1. Releases の最新の `pc-N` から `pc-dev-kit.mcpb` と `pc-switch.zip` を落とす
+1. Releases の最新の `pc-N` から `claude-hands-pc.mcpb` と `pc-switch.zip` を落とす
 2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓を `devkit\switch-app` に置き、デスクトップに窓のショートカット「Claude 操作スイッチ」を作る（.bat は zip の中の予備）。動いている常駐役は止めてから入れ替える）
-3. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」に `pc-dev-kit.mcpb` をドラッグする
+3. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」に `claude-hands-pc.mcpb` をドラッグする
 4. 道具ごとの「許可」の確認は、カオルが「常に許可」を選べば次から出ない
 
 ## スイッチと許可（カオルだけが切り替える）

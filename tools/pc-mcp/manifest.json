@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.2",
   "name": "pc-dev-kit",
-  "display_name": "PC（iphone-dev-kit）",
+  "display_name": "PC（claude-hands）",
   "version": "0.1.0",
   "description": "Windows の PC と Chrome を Claude が見て・動かす（容量・不具合の記録・PowerShell・画面の部品・Chrome のページを文字で読んでまとめて操作）。カオルのスイッチ（オフ・見るだけ・操作も可）と許可（ALLOW・10 分）で止められる。実際の作業は常駐役（pc-agent.exe）がする。",
   "author": {
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/iwataka793/iphone-dev-kit"
+    "url": "https://github.com/iwataka793/claude-hands"
   },
   "server": {
     "type": "binary",

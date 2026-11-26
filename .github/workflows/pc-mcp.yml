@@ -77,14 +77,14 @@ jobs:
           json.dump(m, open("pkg/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
           PY
           npx -y @anthropic-ai/mcpb validate pkg/manifest.json
-          npx -y @anthropic-ai/mcpb pack pkg pc-dev-kit.mcpb
+          npx -y @anthropic-ai/mcpb pack pkg claude-hands-pc.mcpb
           (cd sw && zip -q ../pc-switch.zip *)
-          ls -la pc-dev-kit.mcpb pc-switch.zip
+          ls -la claude-hands-pc.mcpb pc-switch.zip
       - uses: actions/upload-artifact@v4
         with:
           name: pc-mcp
           path: |
-            tools/pc-mcp/pc-dev-kit.mcpb
+            tools/pc-mcp/claude-hands-pc.mcpb
             tools/pc-mcp/pc-switch.zip
             tools/pc-mcp/pkg/server/pc-mcp.exe
             tools/pc-mcp/sw/pc-agent.exe
@@ -142,7 +142,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="pc-${{ github.run_number }}"
-          gh release create "$TAG" art/pc-dev-kit.mcpb art/pc-switch.zip -R "${{ github.repository }}" \
+          gh release create "$TAG" art/claude-hands-pc.mcpb art/pc-switch.zip -R "${{ github.repository }}" \
             --title "PC の道具 $TAG" \
-            --notes "pc-dev-kit.mcpb：Claude デスクトップの拡張機能（設定 → デスクトップアプリ → 拡張機能 にドラッグ）。pc-switch.zip：常駐役（pc-agent.exe）とスイッチ。開いて pc-setup.bat を実行。commit ${GITHUB_SHA::7}" \
+            --notes "claude-hands-pc.mcpb：Claude デスクトップの拡張機能（設定 → デスクトップアプリ → 拡張機能 にドラッグ）。pc-switch.zip：常駐役（pc-agent.exe）とスイッチ。開いて pc-setup.bat を実行。commit ${GITHUB_SHA::7}" \
             --latest=false

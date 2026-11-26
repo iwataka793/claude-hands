@@ -1,4 +1,6 @@
-# iphone-dev-kit
+# claude-hands（クロードハンド）
+
+Claude が PC・iPhone・ブラウザ（Chrome）を見て・動かすための道具と、iPhone アプリ開発の仕組み。2026-11-26 に iphone-dev-kit から名前を変えた。
 
 Windows と Claude で iPhone アプリを作るための道具箱です。Mac は使いません。
 コードは GitHub に置き、ビルドは GitHub Actions のクラウドの Mac で行い、iPhone には SideStore / LiveContainer で入れます。
@@ -27,7 +29,7 @@ Windows と Claude で iPhone アプリを作るための道具箱です。Mac �
 ## iPhone に入れる
 
 1. iPhone の Safari で最新の IPA をダウンロード：
-   `https://github.com/iwataka793/iphone-dev-kit/releases/latest/download/DevKit.ipa`
+   `https://github.com/iwataka793/claude-hands/releases/latest/download/DevKit.ipa`
 2. LiveContainer（または SideStore）でその IPA を開いて入れる
 3. 画面下の `build:` の文字が、GitHub の最新コミットの番号と同じなら最新版
 

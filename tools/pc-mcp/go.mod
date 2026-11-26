@@ -1,4 +1,4 @@
-module github.com/iwataka793/iphone-dev-kit/tools/pc-mcp
+module github.com/iwataka793/claude-hands/tools/pc-mcp
 
 go 1.26.0
 
