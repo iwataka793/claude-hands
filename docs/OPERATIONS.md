@@ -34,6 +34,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 
 - **PC の道具**（`pc_` で始まる。[PC.md](PC.md)）：PowerShell・容量・不具合の記録・アプリ・ファイル・ごみ箱・画面・窓の部品。PC の作業はまずこれ
 - **iPhone の道具**（`iphone_` で始まる。[MCP.md](MCP.md)）：画面・タップ・打つ・ログ・アプリの起動・中のファイル・LiveContainer への入れ替えなど。iPhone の作業はまずこれ
+- **ブラウザの道具**（`browser_` で始まる。PC の道具の中。[PC.md](PC.md) の「ブラウザ」）：カオルのいつもの Chrome を、画面を撮らずに文字と番号で読み（browser_read）、何手もまとめて動かす（browser_do）。Chrome の作業はまずこれ。Claude in Chrome・内蔵ブラウザより速い
 - ファイルを置く・読む（デスクトップアプリの橋渡し：device_commit_files・device_stage_files）
 - 画面を見てクリックする（computer use）：上の道具でできないときだけ
 - どの道具も、カオルのスイッチ（デスクトップの「Claude 操作スイッチ」）の範囲でだけ動く。足りないと「許可しますか？」の窓が出る
@@ -95,6 +96,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 ## 3. PC の使い方
 
 **PC そのものを調べる・動かすとき**（容量・不具合・アプリの操作など）は、道具に `pc_status` があれば [PC.md](PC.md) の道具を使う。画面を撮って押す computer use より速い。
+
+**ブラウザ（Chrome）を動かすとき**は、道具に `browser_read` があればそれを使う（[PC.md](PC.md) の「ブラウザ」）。読む順は：部品の一覧（browser_read）→ 文字（mode=text）→ ページの中のデータ（browser_js。見えているものだけ）→ 画像（browser_screenshot）は最後。次の手が読めるときは browser_do に何手もまとめる（1 回の往復で済む）。人のまねをしなくてよい（2026-11-26 カオル）
 
 **iPhone のときは、まず MCP（[MCP.md](MCP.md)）が使えるか確かめる**：道具に `iphone_status` があれば、iPhone の確認・操作・DevKit の入れ替えはそれで行う（速い）。スイッチがオフなら、カオルに「見るだけ」か「操作も可」にしてもらう。MCP が無いときだけ、以下の go.bat のやり方を使う。
 
@@ -289,4 +292,5 @@ iPhone の中身を調べる道具（PC の道具の iPhone 版。2026-11-25 カ
 
 14. 「消してから打つ」：設定の検索欄は 0.1.16 で確かめた（2026-11-25。「Wi-Fi」→「一般」に入れ替わった）。残り：Flutter のアプリで「消してから打った」と返したのに実際は消えていなかった件（Wolow で見つけた。Wolow は消したので、次に Flutter のアプリを触るときに、打ったあとに欄の値を読んで確かめるよう直す）
 15. PC の道具：画面の拡大率（DPI）が 100% でないときの座標と、画面・部品の操作（pc_ui_do・pc_keys）を、カオルの PC で確かめる
+16. ブラウザの道具（2026-11-26 に作った）：カオルの Chrome で、chrome://inspect/#remote-debugging をオン → 新しい pc-N を入れる → Chrome の「許可」→ 速さを Claude in Chrome と比べる。DevToolsActivePort の場所と、許可の窓の出方を記録で確かめる
 

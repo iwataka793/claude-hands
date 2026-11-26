@@ -231,5 +231,11 @@ func runMCP() {
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_ui_do", Description: "窓の部品を名前で探して押す・文字を入れる・切り替える・開く（UI オートメーション）。位置で押す（click_xy、pc_screenshot の画像の座標でもよい）もできる。操作も可のときだけ"}, forward[uiDoIn]("pc_ui_do", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_keys", Description: "キーボードで打つ（文字・特別なキー・Enter）。window で先に窓を前に出せる。操作も可のときだけ"}, forward[keysIn]("pc_keys", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_trash", Description: "ファイル・フォルダをごみ箱に送る（完全には消さない。元に戻せる）。Windows 本体・パスワードなどの場所はカオルの許可が要る。消す前にカオルに確かめる決まり。操作も可のときだけ"}, forward[trashIn]("pc_trash", 6*time.Minute))
+	// ブラウザ（カオルのいつもの Chrome。画面を撮らずに文字と番号で読んで動かす）
+	mcp.AddTool(s, &mcp.Tool{Name: "browser_tabs", Description: "Chrome のタブの一覧（番号・題名・URL）。action=new で URL を新しいタブで開く・select で前に出す・close で Claude が開いたタブを閉じる（一覧は見るだけで使える、ほかは操作も可）。初めて使うとき、Chrome が「許可しますか？」を出すのでカオルに押してもらう"}, forward[brTabsIn]("browser_tabs", 2*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "browser_read", Description: "Chrome のページを文字で読む（画像より速く正確）：押せる部品（ボタン・リンク・入力欄）に番号を付けた一覧と、ページの文字。filter で絞れる。番号は browser_do で使う。見るだけで使える"}, forward[brReadIn]("browser_read", 2*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "browser_do", Description: "Chrome のページで何手もまとめて動かす（1 回の呼び出しで）：click（番号・text=…・css=…）・double・click_xy・type・select・key・scroll・wait・wait_for・goto・back・js。押すのは本物のマウスの合図なので canvas も押せる。終わったら部品の一覧を返す（read で変えられる）。パスワード・カードの欄には打たない。銀行・決済・ログインなどのページはカオルの許可が要る。操作も可のときだけ"}, forward[brDoIn]("browser_do", 6*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "browser_js", Description: "Chrome のページの中で JavaScript を動かして、値を返す（コンソールと同じ書き方・await 可）。表を全部読む・canvas のゲームの中の見えている数字を読む、など。クッキー・保存領域・パスワードにかかわるものはカオルの許可が要る。操作も可のときだけ"}, forward[brJSIn]("browser_js", 3*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "browser_screenshot", Description: "Chrome のページの見えている所（か部品 1 つ）を撮る（縮めた JPEG）。文字で読めない所（canvas・画像）を見るときだけ使う。返事に画像の座標 → click_xy の座標の換算が付く。見るだけで使える"}, forward[brShotIn]("browser_screenshot", 2*time.Minute))
 	_ = s.Run(context.Background(), &mcp.StdioTransport{})
 }

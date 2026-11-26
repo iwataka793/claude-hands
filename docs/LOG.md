@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-26 ブラウザの道具を作った（pc-mcp に browser_ を 5 つ）
+
+- カオル「PC・スマホの次はブラウザ。MCP サーバーのような速さで、汎用に。許可がいるプログラムを置く形で」→ PC の道具（拡張機能＋常駐役）に足した。スイッチ・許可は PC と同じ
+- つなぎ方：Chrome 144 からの自動接続（chrome://inspect/#remote-debugging をオン → User Data の DevToolsActivePort → つなぐと Chrome が「許可しますか？」）。Node は PC に無いので Playwright MCP は使わず、Go で CDP を直接（WebSocket も手書き・127.0.0.1 だけ）
+- 道具：browser_tabs・browser_read（部品に番号・文字）・browser_do（まとめて動かす。本物のマウス・キーの合図）・browser_js・browser_screenshot
+- 守り：パスワード・カード欄には許可があっても打たない（Ctrl+V も押さない）。銀行・決済・ログインなどのページの操作・クッキーの JavaScript・file:// は PC-ALLOW。chrome:// には行かない。カオルが開いたタブは閉じない
+- 手元（Linux の headless Chrome）の試験：19 項目 OK。1 回 0.01〜0.1 秒（ページの移動と待ちを除く）。canvas の本物のクリック（isTrusted=true）も OK
+- まだ：カオルの Chrome で、DevToolsActivePort の場所・許可の窓の出方・速さ（OPERATIONS 16）
+
 ## 2026-11-26 ブラウザ操作の速さ（ポーカーのブラウザゲームで試した）
 
 - Claude in Chrome がつながった（カオルが拡張機能をつなぎ直した）。PC の画面ごと動かす道具（computer use）はブラウザの中を押せない（見るだけ）ので、ブラウザは Chrome の拡張機能か内蔵ブラウザで動かす

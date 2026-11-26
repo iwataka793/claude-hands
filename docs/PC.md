@@ -77,6 +77,49 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | pc_keys | 操作も可 | 打つ（`text`、日本語は `paste: true` が確実）・特別なキー（`keys`：^s・%{F4}・{TAB} など）・`enter`。`window` を前に出せなければ打たない |
 | pc_trash | 操作も可 | ごみ箱へ送る（元に戻せる）。消す前にカオルに確かめる決まり |
 
+## ブラウザ（2026-11-26 から。browser_ で始まる道具）
+
+カオルのいつもの Chrome（ログイン済み）を、画面を撮らずに**文字と番号**で読んで、**何手もまとめて**動かす。1 回の呼び出しは PC の中で 0.01〜0.1 秒（手元の試験）。往復が減るので、Claude in Chrome や内蔵ブラウザより速い。
+
+### つなぎ方（カオル・最初に 1 回）
+
+1. Chrome で `chrome://inspect/#remote-debugging` を開き、リモートデバッグを許可する（オン）。Chrome が User Data の `DevToolsActivePort` に番号を書く
+2. 道具を初めて使うと、Chrome が「リモートデバッグを許可しますか？」を出す。カオルが「許可」を押す（押さなければ 75 秒で止まる）
+3. つないでいる間、Chrome の上に「自動テスト ソフトウェアによって制御されています」の帯が出る。常駐役が終わる（スイッチをオフ・30 分使わない）と切れる。次に使うとき、また「許可」が出る
+- つなぐのは PC の中（127.0.0.1）だけ。Chrome 144 からの公式の仕組み（Chrome DevTools MCP の autoConnect と同じ）。2026-11-26 の PC の Chrome は 158
+
+### スイッチと許可（PC と同じ）
+
+| スイッチ | できること |
+| --- | --- |
+| 見るだけ | browser_tabs（一覧）・browser_read・browser_screenshot |
+| 操作も可 | 上に加えて browser_do・browser_js・タブを開く／前に出す／Claude が開いたタブを閉じる |
+| 許可（PC-ALLOW・10 分） | 銀行・証券・決済・ログイン・パスワード・2 段階認証などのページの操作、クッキー・保存領域・パスワードにかかわる JavaScript、file:// のページ、カオルが開いたタブを閉じる |
+
+- **許可があっても打たない**：パスワード欄・カード番号・セキュリティコード・ワンタイムコードの欄（type="password"・autocomplete の cc- など）。その欄では Tab・Enter・Esc・矢印以外のキー（貼り付けの Ctrl+V も）を押さない。値は読んでも「（入力あり・伏せる）」になる
+- **行かない**：chrome://・chrome-extension://・devtools:// などの設定・拡張機能のページ（パスワードの設定を含む）
+- 決まりは文字で見る守り（「うっかり」止め）。Claude 側の決まり（CLAUDE.md：パスワード・2 段階認証のコードはカオル、お金は先に確認）と組み合わせる
+
+### 道具
+
+| 道具 | スイッチ | 中身 |
+| --- | --- | --- |
+| browser_tabs | 見るだけ〜 | タブの一覧（[番号]・★＝道具がいま使うタブ・＋＝Claude が開いたタブ）。`action`：new（url）・select・close |
+| browser_read | 見るだけ〜 | 押せる部品の一覧（`[番号] 役「名前」 = 値`・画面の外・押せない・パスワード欄の印）。`mode`：elements（既定）・text・all。`filter` で絞る。canvas・iframe があれば数を出す |
+| browser_do | 操作も可 | `steps` を順に：click（番号・`text=…`・`css=…`）・double・click_xy・type（ref・text・clear・enter）・select・key（Enter・Ctrl+A など）・scroll・wait・wait_for（文字か css）・goto・back・js。終わったら部品の一覧を返す（`read`：elements・text・all・none）。`front: true` でタブを前に出す（見えていないと止まるゲームなど） |
+| browser_js | 操作も可 | ページの中で JavaScript（コンソールと同じ書き方・await 可・最後の値を返す） |
+| browser_screenshot | 見るだけ〜 | 見えている所か部品 1 つ（`target`）を JPEG で。画像の座標 → click_xy の座標の換算が付く。文字で読めないときだけ |
+
+- `tab` は一覧の番号・題名や URL の一部・id の頭。省くと最後に使ったタブ（無ければ見えているタブ）
+- 番号は次に読むまで有効。ページが変わったら読み直す。番号の代わりに `text=決める` のように名前で押してもよい
+- 押す・打つは本物のマウス・キーの合図（CDP の Input）なので、canvas のゲームも押せる（isTrusted=true を試験で確かめた）
+
+### 速く使うコツ
+
+- 次の手が読めるときは 1 回の browser_do にまとめる（開く → 打つ → 押す → 待つ → 読む）
+- 読む量を絞る（`filter`・`max`）。画像は最後
+- 毎回同じ手順なら、browser_js に台本をまとめるか、PC に置くプログラムにする
+
 ## よく使う流れ
 
 | したいこと | やり方 |
@@ -86,6 +129,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | 重い | `pc_processes`（メモリ）と `pc_processes sort=cpu` |
 | アプリを操作 | `pc_open` → `pc_windows` → `pc_ui window=... filter=...` で名前を見る → `pc_ui_do` → 結果を `pc_ui` か `pc_screenshot window=...` で確かめる |
 | 画像を見て押す | `pc_screenshot` → 画像の座標を読む → `pc_ui_do action=click_xy from_image=true x=.. y=..` |
+| ブラウザで作業 | `browser_tabs` → `browser_read`（部品の番号）→ `browser_do`（何手もまとめて。終わりに部品の一覧が返る）→ 足りなければ `browser_read mode=text filter=…` |
 
 ## 気をつけること（試験で分かったこと）
 
@@ -109,7 +153,8 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - PowerShell（Windows PowerShell 5.1）を開きっぱなしにして、台本を base64 の 1 行で送り、終わりの印まで読む。時間切れなら起動し直す
 - 容量の計算とファイルは Go（速い）。つなぎ目（ジャンクション）はたどらない。OneDrive のクラウドのみのファイルは分けて数える
 - 台本は `tools/pc-mcp/scripts/*.ps1`（exe に埋め込む）
-- 試験：`tools/pc-mcp/test/scenario.py`（GitHub の Windows で毎回。手元では Linux＋pwsh でも動く）
+- 試験：`tools/pc-mcp/test/scenario.py`（GitHub の Windows で毎回。手元では Linux＋pwsh でも動く）。ブラウザは headless の Chrome（一時のプロフィール・`--remote-debugging-port=0`）と `test/site/` の試験のページで試す（`PC_BROWSER_USERDATA` で User Data の場所を変える）
+- ブラウザ：`browser*.go`。WebSocket と CDP は外の部品を使わず手で書いた（127.0.0.1 だけ）。ページの中に置く小さな道具箱（dkLib）が、部品の番号・名前・伏せる欄の見分けをする
 - ビルド：`.github/workflows/pc-mcp.yml`（Linux でビルド → Windows で通しの試験 → Releases `pc-N`）
 
 ## カオルの PC で確かめたこと（2026-11-25）

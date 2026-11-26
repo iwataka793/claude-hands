@@ -42,6 +42,7 @@ type Agent struct {
 	st    *State
 	ps    *Runner
 	token string
+	br    *Browser // Chrome とのつながり（ブラウザの道具を最初に使ったときにつなぐ）
 }
 
 // 道具ごとに要るスイッチ
@@ -51,6 +52,10 @@ var toolNeed = map[string]Mode{
 	"pc_files": ModeView, "pc_screenshot": ModeView, "pc_windows": ModeView, "pc_ui": ModeView,
 	"pc_powershell": ModeView, // 中で「見るだけ」か「操作」かを分ける
 	"pc_open":       ModeOperate, "pc_ui_do": ModeOperate, "pc_keys": ModeOperate, "pc_trash": ModeOperate,
+	// ブラウザ（Chrome）
+	"browser_tabs": ModeView, // 一覧は見るだけ、開く・前に出す・閉じるは中で「操作も可」を確かめる
+	"browser_read": ModeView, "browser_screenshot": ModeView,
+	"browser_do": ModeOperate, "browser_js": ModeOperate,
 }
 
 func runAgent() {
@@ -93,6 +98,9 @@ func runAgent() {
 	}()
 	_ = srv.Serve(ln)
 	a.ps.Close()
+	if a.br != nil {
+		a.br.Close()
+	}
 	_ = os.Remove(a.st.path("token.txt"))
 	slog.Info("agent stop")
 }
@@ -169,6 +177,16 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 		return a.keys(ctx, raw)
 	case "pc_trash":
 		return a.trash(ctx, raw)
+	case "browser_tabs":
+		return a.brTabs(ctx, raw)
+	case "browser_read":
+		return a.brRead(ctx, raw)
+	case "browser_do":
+		return a.brDo(ctx, raw)
+	case "browser_js":
+		return a.brJS(ctx, raw)
+	case "browser_screenshot":
+		return a.brShot(ctx, raw)
 	}
 	return errText("知らない道具：%s", tool)
 }

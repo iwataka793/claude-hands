@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><title>試験のページ</title></head><body>
+<h1>ブラウザの道具の試験</h1>
+<p id="msg">まだ押していない</p>
+<label>名前 <input id="name" name="name"></label>
+<label>暗証 <input id="pw" type="password" name="pw"></label>
+<select id="fruit"><option value="a">りんご</option><option value="b">みかん</option><option value="c">ぶどう</option></select>
+<button id="go" onclick="document.getElementById('msg').textContent='押した:'+document.getElementById('name').value+':'+document.getElementById('fruit').value">決める</button>
+<a href="page2.html">次のページへ</a>
+<canvas id="cv" width="300" height="150" style="border:1px solid #000"></canvas>
+<p id="cvmsg">canvas まだ</p>
+<div style="height:2000px"></div><button id="far" onclick="this.textContent='遠くを押した'">遠くのボタン</button>
+<script>
+const cv=document.getElementById('cv');
+cv.addEventListener('pointerdown',e=>{document.getElementById('cvmsg').textContent='canvas 押された trusted='+e.isTrusted+' x='+Math.round(e.offsetX)+' y='+Math.round(e.offsetY);});
+document.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('msg').textContent+=' [Enter]'; });
+</script></body></html>

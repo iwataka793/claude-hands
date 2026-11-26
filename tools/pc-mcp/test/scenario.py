@@ -5,7 +5,7 @@
   PCAGENT 常駐役の exe（pc-agent.exe）
   PC_AGENT_DIR / PC_AGENT_ALLOW_DIR  置き場所（試験用の一時フォルダ）
 """
-import json, os, subprocess, sys, time, pathlib, tempfile
+import json, os, subprocess, sys, time, pathlib, tempfile, shutil, threading, http.server, functools
 
 WIN = os.name == "nt"
 MCP = os.environ["PCMCP"]
@@ -15,6 +15,10 @@ AD = pathlib.Path(os.environ["PC_AGENT_ALLOW_DIR"])
 SD.mkdir(parents=True, exist_ok=True)
 AD.mkdir(parents=True, exist_ok=True)
 fails = []
+# ブラウザの試験：試験用の Chrome（一時のプロフィール）を常駐役に教えておく
+CHROME_PROF = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-chrome"
+shutil.rmtree(CHROME_PROF, ignore_errors=True)
+os.environ["PC_BROWSER_USERDATA"] = str(CHROME_PROF)
 
 
 def call(name, args=None, timeout=300):
@@ -154,6 +158,63 @@ if WIN:
         fails.append("メモ帳に入れた文字が読めない")
     look("メモ帳の窓", "pc_screenshot", {"window": "notepad"})
     look("メモ帳を閉じる（保存しない）", "pc_powershell", {"script": "Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force; 'closed'"})
+
+
+def find_chrome():
+    for c in [os.environ.get("PC_TEST_CHROME", ""), r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+              r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", shutil.which("google-chrome") or "", shutil.which("chromium") or ""]:
+        if c and os.path.exists(c):
+            return c
+    return None
+
+
+chrome = find_chrome()
+if not chrome:
+    print("=== 5b. ブラウザ：Chrome が無いので飛ばす")
+else:
+    print("=== 5b. ブラウザ（試験用の Chrome・headless）")
+    check("Chrome のリモートデバッグがオフ", "browser_tabs", {}, True, "リモートデバッグがオフ")
+    site = pathlib.Path(__file__).parent / "site"
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site)))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    cp = subprocess.Popen([chrome, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0",
+                           f"--user-data-dir={CHROME_PROF}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(100):
+        if (CHROME_PROF / "DevToolsActivePort").exists():
+            break
+        time.sleep(0.2)
+    time.sleep(1)
+    check("タブを開く", "browser_tabs", {"action": "new", "url": base + "/index.html"}, False, "試験のページ")
+    check("部品の一覧", "browser_read", {}, False, "「決める」")
+    check("パスワード欄に印", "browser_read", {"filter": "password"}, False, "Claude は打たない")
+    check("まとめて動かす（打つ・選ぶ・押す・待つ）", "browser_do", {"steps": [
+        {"type": {"ref": "text=名前", "text": "かおる"}}, {"select": {"ref": "css=#fruit", "value": "みかん"}},
+        {"click": "text=決める"}, {"wait_for": "押した"}], "read": "text"}, False, "押した:かおる:b")
+    check("パスワード欄には打たない", "browser_do", {"steps": [{"type": {"ref": "css=#pw", "text": "x"}}]}, True, "打ちません")
+    check("パスワード欄では貼らない", "browser_do", {"steps": [{"click": "css=#pw"}, {"key": "Ctrl+V"}], "read": "none"}, True, "押しません")
+    check("canvas を本物のクリックで押す・遠くのボタン", "browser_do", {"steps": [
+        {"click": "css=#cv"}, {"click": "遠くのボタン"},
+        {"js": "document.getElementById('cvmsg').textContent + ' / ' + document.getElementById('far').textContent"}], "read": "none"}, False, "trusted=true")
+    check("ページを移る・あとで出る文字を待つ・戻る", "browser_do", {"steps": [
+        {"click": "text=次のページへ"}, {"click": "あとで出す"}, {"wait_for": "あとから出た"}, {"back": True}, {"js": "location.pathname"}], "read": "none"}, False, "index.html")
+    check("JavaScript（await・最後の値）", "browser_js", {"code": "let a = 20; await new Promise(r => setTimeout(r, 50)); a + 1"}, False, "21")
+    check("クッキーの JavaScript は許可が要る", "browser_js", {"code": "document.cookie"}, True, "許可")
+    check("Chrome の設定には行かない", "browser_do", {"steps": [{"goto": "chrome://settings/passwords"}]}, True, "行きません")
+    check("ログインのページは許可が要る", "browser_do", {"steps": [{"goto": base + "/login.html"}]}, True, "許可")
+    check("撮る（部品だけ）", "browser_screenshot", {"target": "css=#cv"}, False, "click_xy")
+    (AD / "allow.txt").write_text("allow\r\n")
+    check("許可があればログインのページも動かせる", "browser_do", {"steps": [
+        {"goto": base + "/login.html"}, {"type": {"ref": "css=#u", "text": "user"}}, {"click": "送る"}, {"wait_for": "押された"}], "read": "none"}, False, "出た")
+    set_mode("operate")  # 許可を取り消す
+    check("カオルのタブは閉じない", "browser_tabs", {"action": "close", "tab": "about:blank"}, True, "閉じません")
+    check("Claude が開いたタブは閉じる", "browser_tabs", {"action": "close", "tab": "ログイン"}, False, "閉じました")
+    set_mode("view")
+    check("見るだけでは動かせない", "browser_do", {"steps": [{"wait": 1}]}, True, "見るだけ")
+    check("見るだけでも一覧は見られる", "browser_tabs", {}, False, "タブ")
+    set_mode("operate")
+    cp.kill()
+    srv.shutdown()
 
 print("=== 6. オフにすると常駐役が終わる")
 set_mode("off")
