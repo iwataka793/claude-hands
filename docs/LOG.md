@@ -7,6 +7,7 @@
 - カオル「iphone-dev-kit は今のプログラムの名前としては違う」→ 候補から claude-hands。カタカナは「クロードハンド」。ふつうに頼んでも、合言葉（claude-hands・クロードハンド）でも使う
 - 変えたもの：GitHub の repo の名前（カオルが GitHub の設定で）、拡張機能の見える名前（iPhone（claude-hands）・PC（claude-hands）。道具の頭の名前も変わる）、.mcpb のファイル名（claude-hands-iphone.mcpb・claude-hands-pc.mcpb）、手順書の URL、go の module の名前。拡張機能の中の名前（iphone-dev-kit・pc-dev-kit）はそのまま（入れ直しで上書きされるように）。前の URL は GitHub が新しい方へつなぐ
 - 古い記録（このファイルの下の方）は iphone-dev-kit のまま残す
+- カオルの PC に入れた：claude-hands-pc.mcpb（pc-14）・claude-hands-iphone.mcpb（mcp-17）。道具の頭の名前が PC_claude-hands・iPhone_claude-hands に変わり、pc_status・iphone_status が動いた。常駐役は pc-13 のまま（中身は同じ）。新しい .mcpb は devkit\installers へ移した
 
 ## 2026-11-26 別のセッションでも道具を使えるか、md を見直した
 
