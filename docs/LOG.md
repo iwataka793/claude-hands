@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-26 3 つの手の連動を設計した（まだ作らない）
+
+- カオル「PC とブラウザは連動できている。iPhone も連動させて、3 つをオーケストレーションできないか」→ 設計した。全部 [LINK-DESIGN.md](LINK-DESIGN.md)
+- 土台（3 つの手の操作を 1 本の時系列の記録 TIMELINE に・LIVE 窓を共通に）→ 部品 3 つ（SEND・COMPARE・CALL）→ RECIPE（機器をまたぐ台本を常駐役が 1 回で動かす。守りは 1 手ずつ）→ WATCH（起きたら動く見張り。足す・変えるは先にカオルに聞く・AUTO の段で全部止められる）→ 外からの入口（見る・止めるだけ）
+- 調べたこと：Apple の公式の MCP サーバーは Mac の Safari と Xcode だけ。Windows から iPhone を動かせるものは無いので、claude-hands の iPhone の道具は今後も要る
+- カオル「今日考えたもの（窓と許可・見た目・連動）は、あとでまとめて実装してもらう」
+
 ## 2026-11-26 窓の見た目を決めた（まだ作らない）
 
 - カオル「窓のデザインがちょっとダサい」→ 貼ってもらった画像（黒地に OFF・VIEW・OPERATE・ALLOW の行）と CityRank の好み（英語の見出しを大きく＋日本語を小さく）でモックを作った：https://claude.ai/artifact/CKwzX5eHzLtnc4PuHnesVq
