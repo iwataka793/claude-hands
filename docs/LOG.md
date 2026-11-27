@@ -7,6 +7,8 @@
 - ブラウザの道具に `profile`（claude・kaoru）を足した。既定は claude。Claude 用の Chrome は道具が別の User Data（%LOCALAPPDATA%\claude-hands\chrome-claude）で起動し、remote-debugging-port=0 でつなぐ（許可の問い合わせなし）。スイッチがオフ・30 分使わないと Browser.close で閉じる
 - Claude 用の Chrome では、ログイン・お金・パスワードのページは ALLOW があっても開かない・動かさない。タブは全部 Claude のものなので閉じてよい
 - CI：今までのブラウザの試験は PC_BROWSER_PROFILE=kaoru（試験用の一時の Chrome）で続け、Claude 用の Chrome の試験（起動・読む・ログインのページに行かない・閉じる・2 つにつながる）を足した
+- カオルの PC で確かめた（pc-42、22:04）：browser_tabs new → 別の Chrome（pid 別・User Data は %LOCALAPPDATA%\claude-hands\chrome-claude）が起動し、許可の問い合わせなしでつながった。example.com を開いて文字で読めた。accounts.google.com は「Claude 用の Chrome では開かない」で止まった。カオルの Chrome（YouTube）はそのまま
+- 気づいたこと：Claude 用の Chrome はカオルの Chrome と見た目が同じで見分けにくい。起動したときにいちばん前に出る（フォーカスを取る）。英語のページで翻訳の吹き出しが出る
 
 ## 2026-11-27 作る順番 3-4：作業の道 A〜E（pc-38・mcp-24）
 
