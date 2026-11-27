@@ -61,7 +61,7 @@
   .sline1 { display:flex; align-items:center; gap:6px; }
   .slabel { font-size:13px; font-weight:800; letter-spacing:.14em; color:#6E6E7A; margin-right:auto; }
   .strip.live .slabel { color:var(--op); }
-  .chipm { height:20px; padding:0 7px; border-radius:6px; font-size:10px; font-weight:700; letter-spacing:.03em; display:flex; align-items:center; }
+  .chipm { height:18px; padding:0 7px; border-radius:6px; font-size:10px; font-weight:700; letter-spacing:.03em; display:flex; align-items:center; white-space:nowrap; box-sizing:border-box; }
   .chipm.view { background:rgba(199,199,209,.10); border:1px solid rgba(199,199,209,.35); color:var(--view); }
   .chipm.operate { background:rgba(61,214,140,.12); border:1px solid rgba(61,214,140,.45); color:var(--op); }
   .stitle { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -139,7 +139,7 @@
  <div class="strip" id="strip">
   <span class="sdot"></span>
   <div class="sbody">
-    <div class="sline1"><span class="slabel" id="slabel">IDLE</span><span id="chips" style="display:flex;gap:4px"></span></div>
+    <div class="sline1"><span class="slabel" id="slabel">IDLE</span><span id="chips" style="display:flex;gap:4px;flex:none"></span></div>
     <span class="stitle jp" id="stitle"></span>
     <span class="slast jp" id="slast"></span>
   </div>
@@ -289,7 +289,7 @@ async function refresh() {
   const L = v.live || {};
   $('strip').classList.toggle('live', !!L.live);
   $('slabel').textContent = L.live ? 'LIVE' : 'IDLE';
-  $('chips').innerHTML = L.live ? v.devs.filter((d) => d.mode !== 'off').map((d) => `<span class="chipm ${d.mode}">${esc(d.name)} ${LABEL[d.mode]}</span>`).join('') : '';
+  $('chips').innerHTML = L.live ? v.devs.filter((d) => d.mode !== 'off').map((d) => `<span class="chipm ${d.mode}" title="${esc(d.name)}：${LABEL[d.mode]}">${esc(d.name)}</span>`).join('') : '';
   $('stitle').textContent = L.live ? L.title : 'Claude は止まっています';
   $('slast').textContent = L.live ? (L.last || '') : (L.last ? '最後：' + L.last : 'まだ動きはありません');
   $('sbtnb').textContent = L.live ? 'STOP' : 'ALL OFF';
