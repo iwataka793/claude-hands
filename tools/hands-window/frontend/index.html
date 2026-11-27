@@ -42,7 +42,7 @@
   body.done #card { display:none; } body.done #done { display:flex; }
   .dhead { display:flex; align-items:baseline; gap:8px; }
   .dlabel { font-weight:700; font-size:13px; letter-spacing:.14em; color:#60A5FA; }
-  .dtitle { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dtitle { font-size:12px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; } /* 題名は折り返して全部出す（4 行まで） */
   .dsum { font-size:11px; color:var(--sub); line-height:1.5; }
   .dreport { display:none; flex:1; overflow:auto; font-size:11px; color:var(--text); white-space:pre-wrap; line-height:1.5;
     border-top:1px solid var(--line); padding-top:6px; }
@@ -87,6 +87,7 @@
     open = !!s.open; document.body.classList.toggle('open', open);
     $('dtime').textContent = '作業が終わりました' + (s.doneTime ? '（' + s.doneTime + '）' : '');
     $('dtitle').textContent = s.doneTitle || '';
+    $('dtitle').title = s.doneTitle || '';
     $('dsum').textContent = (s.summary || []).join('\n');
     $('dsum').style.whiteSpace = 'pre-wrap';
     $('dreport').textContent = s.report || '';
@@ -95,6 +96,20 @@
     $('dundo').classList.toggle('armed', !!s.undoArmed);
     $('dundo').querySelector('span').textContent = s.undoArmed ? 'もう一度押すと戻す' : 'まとめて戻す';
     $('dmsg').textContent = s.undoMsg || '';
+    fitDone();
+  }
+  // DONE の窓（たたんだ形）の高さを中身に合わせる（題名が何行になっても切れない・すき間も出ない）
+  let lastFit = 0;
+  function fitDone() {
+    if (open || !bound()) return;
+    const d = $('done');
+    const keep = d.style.bottom;
+    d.style.bottom = 'auto';
+    d.style.height = 'auto';
+    const h = Math.ceil(d.getBoundingClientRect().height);
+    d.style.height = '';
+    d.style.bottom = keep;
+    if (h > 0 && h !== lastFit) { lastFit = h; window.go.main.App.FitDone(h); }
   }
   function draw(s) {
     if (!s) return;

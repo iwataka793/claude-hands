@@ -49,6 +49,7 @@ type App struct {
 	doneOpen  bool      // 詳しく
 	undoArmed bool      // ［まとめて戻す］を 1 回押した（もう 1 回で戻す）
 	undoMsg   string
+	doneFit   int // DONE（たたんだ形）の中身の高さ（画面から。題名の行数で変わる）
 }
 
 func newApp() *App { return &App{} }
@@ -283,7 +284,7 @@ func (a *App) apply(st LiveState) {
 	case st.Mode == "done" && st.Open:
 		w, h = doneW, openH
 	case st.Mode == "done":
-		w, h = doneW, doneH
+		w, h = doneW, a.doneHeight()
 	case st.Compact:
 		w, h = smallW, smallH
 	}
@@ -419,4 +420,18 @@ func (a *App) Undo() string {
 	a.undoMsg, a.doneAt, a.doneOpen = msg, time.Now(), true
 	a.mu.Unlock()
 	return msg
+}
+
+func (a *App) doneHeight() int {
+	if a.doneFit >= 120 && a.doneFit <= 400 {
+		return a.doneFit
+	}
+	return doneH
+}
+
+// FitDone：画面が DONE の中身の高さを知らせる（題名が長いと折り返して高くなる）
+func (a *App) FitDone(h int) {
+	a.mu.Lock()
+	a.doneFit = h
+	a.mu.Unlock()
 }
