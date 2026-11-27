@@ -21,6 +21,14 @@ copy /y "%~dp0devkit-switch.vbs" "%S%\devkit-switch.vbs" >nul
 copy /y "%~dp0devkit-switch.ico" "%S%\devkit-switch.ico" >nul
 rem スイッチは窓で切り替える。デスクトップには窓のショートカットだけを置く（.bat は zip の中に予備として残す）
 wscript.exe "%S%\devkit-switch.vbs" /shortcut
+rem LIVE の窓（右下の「Claude が動いています」。Windows の起動のたびに動かす）
+set H=%USERPROFILE%\devkit\hands
+if not exist "%H%" mkdir "%H%"
+taskkill /im claude-hands-live.exe /f >nul 2>&1
+timeout /t 1 >nul
+copy /y "%~dp0claude-hands-live.exe" "%H%\claude-hands-live.exe" >nul || echo LIVE の窓を置けませんでした
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Startup')+'\claude-hands LIVE.lnk'); $s.TargetPath=$env:USERPROFILE+'\devkit\hands\claude-hands-live.exe'; $s.Save()"
+start "" "%H%\claude-hands-live.exe"
 rem 守りの場所（取り置き）と毎日の点検を作る（管理者が要るので UAC が出る）
 echo.
 echo 守りの場所（取り置き）と毎日の点検を作ります。UAC が出たら「はい」を押してください...
@@ -30,4 +38,5 @@ echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
 echo   スイッチの窓 %S%\devkit-switch.vbs（デスクトップの「Claude 操作スイッチ」。Claude が頼むと自動で出ます）
 echo   守りの場所 %ProgramData%\claude-hands（取り置き・毎日 12:00 の点検）
+echo   LIVE の窓 %USERPROFILE%\devkit\hands\claude-hands-live.exe（Claude が動いている間だけ右下に出る。スタートアップにも置いた）
 pause

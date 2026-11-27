@@ -8,6 +8,7 @@ on:
     paths:
       - "tools/pc-mcp/**"
       - "tools/switch-app/**"
+      - "tools/hands-window/**"
       - ".github/workflows/pc-mcp.yml"
   workflow_dispatch:
 
@@ -66,6 +67,8 @@ jobs:
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$V" -o pkg/server/pc-mcp.exe .
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$V" -o sw/pc-agent.exe .
           cp switch/*.bat switch/*.ps1 sw/
+          # LIVE の窓（Go ＋ Wails。Windows では C のコンパイラが要らない）
+          (cd ../hands-window && go mod tidy && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags desktop,production -ldflags "-s -w -H windowsgui -X main.version=$V" -o ../pc-mcp/sw/claude-hands-live.exe .)
           cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs ../switch-app/devkit-switch.ico sw/
           ls -la pkg/server sw
       - name: 拡張機能（.mcpb）とスイッチにまとめる
@@ -88,6 +91,7 @@ jobs:
             tools/pc-mcp/pc-switch.zip
             tools/pc-mcp/pkg/server/pc-mcp.exe
             tools/pc-mcp/sw/pc-agent.exe
+            tools/pc-mcp/sw/claude-hands-live.exe
 
   wintest:
     needs: build
@@ -122,6 +126,24 @@ jobs:
             if ($err.Count) { $err | ForEach-Object { $_.ToString() }; exit 1 }
             "OK: $n"
           }
+      - name: LIVE の窓が出るか（フォーカスを取らない・右下）
+        shell: pwsh
+        run: |
+          $h = Join-Path $env:RUNNER_TEMP 'livehome'
+          New-Item -ItemType Directory -Force -Path "$h/devkit/pc-agent", "$h/devkit/hands/timeline" | Out-Null
+          Set-Content "$h/devkit/pc-agent/mode.txt" 'operate'
+          $now = (Get-Date).ToString('o')
+          Set-Content "$h/devkit/hands/timeline/$((Get-Date).ToString('yyyy-MM-dd')).jsonl" "{`"t`":`"$now`",`"hand`":`"pc`",`"tool`":`"pc_trash`",`"ok`":true}"
+          Set-Content "$h/devkit/hands/task.json" '{"id":"x","title":"CI test","start":"2026-01-01T00:00:00Z"}'
+          $rep = Join-Path $env:RUNNER_TEMP 'live-report.json'
+          $env:HANDS_HOME = $h; $env:HANDS_LIVE_TEST = $rep
+          $p = Start-Process (Resolve-Path art/sw/claude-hands-live.exe).Path -PassThru
+          $p | Wait-Process -Timeout 40 -ErrorAction SilentlyContinue
+          if (-not $p.HasExited) { $p | Stop-Process -Force }
+          if (-not (Test-Path $rep)) { "no report"; exit 1 }
+          $r = Get-Content $rep | ConvertFrom-Json
+          $r | ConvertTo-Json -Compress
+          if (-not ($r.found -and $r.visible -and $r.noActivate -and $r.toolWindow -and $r.topmost) -or $r.foregroundIsLive) { "LIVE window check failed"; exit 1 }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
         run: |
