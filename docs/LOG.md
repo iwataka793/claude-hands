@@ -5,8 +5,9 @@
 ## 2026-11-27 夜の区切り（後片付けと、次にやること）
 
 - 片付け（カオルに確かめてから）：最新の版を devkit\installers に（pc-switch.zip＝pc-47・claude-hands-pc.mcpb＝pc-42・claude-hands-iphone.mcpb＝mcp-24）。古い版と、ダウンロードにたまった pc-switch-30〜46（zip と開いたフォルダ）・古い .mcpb・試しの記録を取り置きへ（36 件）。pc-switch-47 の開いたフォルダは、エクスプローラーで開いていて使用中のため残った（取り置きに写しはできた）
-- いま入っている版：常駐役と窓 pc-47、拡張機能 PC pc-42・iPhone mcp-24
+- いま入っている版：常駐役とスイッチの窓 pc-47、LIVE と DONE の窓 pc-48、拡張機能 PC pc-42・iPhone mcp-24
 - 直し（pc-48）：DONE の窓の題名が 1 行で「…」と切れて読めなかった（カオル）→ 折り返して全部出す（4 行まで）・窓の高さを中身に合わせる（画面が高さを知らせる FitDone）
+- pc-48 をカオルの PC で（22:48）：LIVE と DONE の exe だけ Claude が入れ替えた。長い題名の作業を閉じると、DONE の窓に題名が 2 行で全部出て、窓も中身に合わせて高くなった。ついでに入れ直し用の pc-switch.zip を pc-48 にし、ダウンロードに残った pc-switch-47・48 を取り置きへ
 - 次にやること：
   - 作る順番 5：箱（TRY の窓）。先に Sandboxie-Plus が Home 版で動くかを確かめる（入れるときに UAC と使用条件の同意）
   - 作る順番 7：iPhone の操作の記録とバックアップ（先に idevicebackup2 が iOS 27 で使えるか）
