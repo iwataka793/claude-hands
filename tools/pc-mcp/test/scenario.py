@@ -306,7 +306,8 @@ else:
     check("撮る（部品だけ）", "browser_screenshot", {"target": "css=#cv"}, False, "click_xy")
     (AD / "allow.txt").write_text("allow\r\n")
     check("許可があればログインのページも動かせる", "browser_do", {"steps": [
-        {"goto": base + "/login.html"}, {"type": {"ref": "css=#u", "text": "user"}}, {"click": "送る"}, {"wait_for": "押された"}], "read": "none"}, False, "出た")
+        {"goto": base + "/login.html"}, {"type": {"ref": "css=#u", "text": "user"}}, {"click": "次へ"}, {"wait_for": "押された"}], "read": "none"}, False, "出た")
+    check("E：許可があっても「送る」は押さない", "browser_do", {"steps": [{"click": "送る"}], "read": "none"}, True, "E（")
     set_mode("operate")  # 許可を取り消す
     check("タブを並び順の番号では選ばない", "browser_read", {"tab": "1"}, True, "番号ではなく")
     check("カオルのタブは閉じない", "browser_tabs", {"action": "close", "tab": "about:blank"}, True, "閉じません")
