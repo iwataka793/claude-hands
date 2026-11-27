@@ -13,6 +13,7 @@
 - pc-43 をカオルの PC で：紫のダークの設定は入った。起動の直後に開いたタブが一覧に無かったが、これはカオルがまちがって閉じたもの（道具の問題ではなかった。いったん「最初のページを待つ」直しを入れたが取り消した）。タブを開くと Chrome が自分の窓を前に出した（デスクトップが前のとき。前の窓の記録を 0.4 秒ごとに取って確かめた）→ 直し（pc-44）：Claude 用の Chrome ではタブを Target.createTarget の background: true で開く（窓を前に出さない）
 - pc-45 をカオルの PC で（22:24）：まだ起動のときに Chrome が前を取った（前の窓の記録：Claude → about:blank - Google Chrome）。最小化の指定（SW_SHOWMINNOACTIVE）で起動しても Chrome は前を取る。PowerShell で試して、**窓なしで起動（--no-startup-window）→ つないでから Target.createTarget（newWindow・background）で窓を作る**と、カオルの窓が前のまま（4 秒ずっと Claude）で窓もできた → 直し（pc-46）。窓を全部閉じたあと（Chrome は窓なしで動き続ける）も、同じく後ろで窓を作る
 - pc-46 をカオルの PC で（22:32）：起動 → ページ移動 → 2 つ目のタブの間、前の窓は 16 秒ずっとカオルの Claude の窓のまま。紫の Chrome は後ろにできた。ただ、後ろで開いたタブは表に出ないので、窓には空のページが表のまま → 直し（pc-47）：窓に空のページ 1 枚しかないときは、新しいタブを作らずにそれを使う
+- pc-47 をカオルの PC で（22:38）：browser_tabs new で Wikipedia → 紫のダークの窓の表に Wikipedia が出た（窓の題名も「Wikipedia - Google Chrome」）。前の窓はカオルの Claude の窓のまま。カオルが見て「問題なし」。**作る順番 4 は終わり**
 
 ## 2026-11-27 作る順番 3-4：作業の道 A〜E（pc-38・mcp-24）
 
