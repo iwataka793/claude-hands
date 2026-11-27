@@ -289,7 +289,11 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 			TargetID string `json:"targetId"`
 		}
 		// 空のタブを作ってから、つないで移る（作るときに URL を渡すと、読み込みが始まらないことがあった：Windows の headless）
-		if err := c.Call(ctx, "", "Target.createTarget", map[string]any{"url": "about:blank"}, &r); err != nil {
+		params := map[string]any{"url": "about:blank"}
+		if b.profile == profClaude {
+			params["background"] = true // Claude 用の Chrome は、タブを開いても窓を前に出さない（カオルの窓のフォーカスを取らない）
+		}
+		if err := c.Call(ctx, "", "Target.createTarget", params, &r); err != nil {
 			return errText("タブを開けません：%v", err)
 		}
 		b.mu.Lock()

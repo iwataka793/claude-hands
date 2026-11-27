@@ -202,6 +202,7 @@ func (b *Browser) connClaudeLocked(ctx context.Context) (*CDP, error) {
 		return wsDial(u, 10*time.Second)
 	}
 	ws, err := try()
+	launched := false
 	if err != nil {
 		if lerr := launchClaudeChrome(ctx); lerr != nil {
 			return nil, lerr
@@ -209,9 +210,33 @@ func (b *Browser) connClaudeLocked(ctx context.Context) (*CDP, error) {
 		if ws, err = try(); err != nil {
 			return nil, fmt.Errorf("Claude 用の Chrome につなげません（%v）", err)
 		}
+		launched = true
 	}
 	b.cdp = newCDP(ws)
 	b.sessions = map[string]string{}
+	if launched {
+		// 起動したばかりの Chrome は、最初のページができる前にタブを作ると、そのタブが消えることがあった（2026-11-27 カオルの PC）。
+		// 最初のページ（about:blank）ができるまで待つ
+		end := time.Now().Add(10 * time.Second)
+		for time.Now().Before(end) {
+			var r struct {
+				TargetInfos []targetInfo `json:"targetInfos"`
+			}
+			if b.cdp.Call(ctx, "", "Target.getTargets", nil, &r) == nil {
+				n := 0
+				for _, t := range r.TargetInfos {
+					if t.Type == "page" {
+						n++
+					}
+				}
+				if n > 0 {
+					break
+				}
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	return b.cdp, nil
 }
 
