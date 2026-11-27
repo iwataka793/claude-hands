@@ -19,6 +19,11 @@ fails = []
 CHROME_PROF = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-chrome"
 shutil.rmtree(CHROME_PROF, ignore_errors=True)
 os.environ["PC_BROWSER_USERDATA"] = str(CHROME_PROF)
+os.environ["PC_BROWSER_PROFILE"] = "kaoru"   # 既定は Claude 用の Chrome。今までの試験は「カオルの Chrome」（試験用の一時のもの）で
+CLAUDE_CHROME = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-chrome-claude"
+shutil.rmtree(CLAUDE_CHROME, ignore_errors=True)
+os.environ["PC_CLAUDE_CHROME_DIR"] = str(CLAUDE_CHROME)
+os.environ["PC_CLAUDE_CHROME_ARGS"] = "--headless=new --no-sandbox --disable-gpu"
 BD = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-browser-switch"
 shutil.rmtree(BD, ignore_errors=True)
 BD.mkdir(parents=True, exist_ok=True)
@@ -308,6 +313,15 @@ else:
     check("許可があればログインのページも動かせる", "browser_do", {"steps": [
         {"goto": base + "/login.html"}, {"type": {"ref": "css=#u", "text": "user"}}, {"click": "次へ"}, {"wait_for": "押された"}], "read": "none"}, False, "出た")
     check("E：許可があっても「送る」は押さない", "browser_do", {"steps": [{"click": "送る"}], "read": "none"}, True, "E（")
+    # Claude 用の Chrome（道具が自分で起動する・ログインのページは許可があっても開かない）
+    os.environ["PC_CHROME_EXE"] = chrome
+    check("Claude 用の Chrome を起動してタブを開く", "browser_tabs", {"action": "new", "url": base + "/index.html", "profile": "claude"}, False, "試験のページ")
+    if not (CLAUDE_CHROME / "DevToolsActivePort").exists():
+        fails.append("Claude 用の Chrome が別の User Data で起動していない")
+    check("Claude 用の Chrome で読む", "browser_read", {"profile": "claude"}, False, "「決める」")
+    check("Claude 用の Chrome ではログインのページに行かない（許可があっても）", "browser_do", {"profile": "claude", "steps": [{"goto": base + "/login.html"}], "read": "none"}, True, "Claude 用の Chrome では")
+    check("Claude 用の Chrome のタブは閉じてよい", "browser_tabs", {"action": "close", "tab": "試験のページ", "profile": "claude"}, False, "閉じました")
+    check("2 つの Chrome につながっている", "pc_status", {}, False, "Claude 用の Chrome・カオルの Chrome")
     set_mode("operate")  # 許可を取り消す
     check("タブを並び順の番号では選ばない", "browser_read", {"tab": "1"}, True, "番号ではなく")
     check("カオルのタブは閉じない", "browser_tabs", {"action": "close", "tab": "about:blank"}, True, "閉じません")

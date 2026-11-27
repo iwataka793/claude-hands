@@ -2,6 +2,12 @@
 
 新しいものが上。
 
+## 2026-11-27 作る順番 4：Claude 用の Chrome（pc-42〜）
+
+- ブラウザの道具に `profile`（claude・kaoru）を足した。既定は claude。Claude 用の Chrome は道具が別の User Data（%LOCALAPPDATA%\claude-hands\chrome-claude）で起動し、remote-debugging-port=0 でつなぐ（許可の問い合わせなし）。スイッチがオフ・30 分使わないと Browser.close で閉じる
+- Claude 用の Chrome では、ログイン・お金・パスワードのページは ALLOW があっても開かない・動かさない。タブは全部 Claude のものなので閉じてよい
+- CI：今までのブラウザの試験は PC_BROWSER_PROFILE=kaoru（試験用の一時の Chrome）で続け、Claude 用の Chrome の試験（起動・読む・ログインのページに行かない・閉じる・2 つにつながる）を足した
+
 ## 2026-11-27 作る順番 3-4：作業の道 A〜E（pc-38・mcp-24）
 
 - カオルと決めた（21:27）：D の決めた操作の一覧（ごみ箱へ・アプリを開く・窓の部品を押す・打つ・ページの操作など）、E の見分け方（送信・購入・ログイン・投稿などの名前のボタンと、送信に当たる Enter は止めてカオルに返す）、C の確かめはまず「エラーが出たか」「Windows のエラーの記録が増えたか」の 2 つ

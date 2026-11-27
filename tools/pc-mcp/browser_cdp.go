@@ -135,11 +135,11 @@ func chromeUserData() string {
 }
 
 // browserWSURL は、DevToolsActivePort から ws の行き先を作る（PC_BROWSER_WS があればそれ）。
-func browserWSURL() (string, error) {
-	if v := env("PC_BROWSER_WS", ""); v != "" {
+func browserWSURL(userData string) (string, error) {
+	if v := env("PC_BROWSER_WS", ""); v != "" && userData == chromeUserData() {
 		return v, nil
 	}
-	p := filepath.Join(chromeUserData(), "DevToolsActivePort")
+	p := filepath.Join(userData, "DevToolsActivePort")
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return "", errNoRemoteDebug
@@ -159,6 +159,7 @@ var errNoRemoteDebug = errors.New("Chrome のリモートデバッグがオフ�
 
 // Browser は、常駐役が持ち続ける Chrome とのつながり（タブごとのセッションも覚える）。
 type Browser struct {
+	profile  string // claude（Claude 用の Chrome。道具が起動する）・kaoru（カオルの Chrome）
 	mu       sync.Mutex
 	cdp      *CDP
 	sessions map[string]string // targetId → sessionId
@@ -172,7 +173,10 @@ func (b *Browser) conn(ctx context.Context) (*CDP, error) {
 	if b.cdp != nil && b.cdp.Alive() {
 		return b.cdp, nil
 	}
-	u, err := browserWSURL()
+	if b.profile == profClaude {
+		return b.connClaudeLocked(ctx)
+	}
+	u, err := browserWSURL(chromeUserData())
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +190,42 @@ func (b *Browser) conn(ctx context.Context) (*CDP, error) {
 	b.cdp = newCDP(ws)
 	b.sessions = map[string]string{}
 	return b.cdp, nil
+}
+
+// connClaudeLocked：Claude 用の Chrome につなぐ。動いていなければ起動する（許可の問い合わせは出ない）
+func (b *Browser) connClaudeLocked(ctx context.Context) (*CDP, error) {
+	try := func() (*wsConn, error) {
+		u, err := browserWSURL(claudeChromeDir())
+		if err != nil {
+			return nil, err
+		}
+		return wsDial(u, 10*time.Second)
+	}
+	ws, err := try()
+	if err != nil {
+		if lerr := launchClaudeChrome(ctx); lerr != nil {
+			return nil, lerr
+		}
+		if ws, err = try(); err != nil {
+			return nil, fmt.Errorf("Claude 用の Chrome につなげません（%v）", err)
+		}
+	}
+	b.cdp = newCDP(ws)
+	b.sessions = map[string]string{}
+	return b.cdp, nil
+}
+
+// Quit：Claude 用の Chrome を閉じる（カオルの Chrome はつながりを切るだけ）
+func (b *Browser) Quit() {
+	b.mu.Lock()
+	c := b.cdp
+	b.mu.Unlock()
+	if b.profile == profClaude && c != nil && c.Alive() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = c.Call(ctx, "", "Browser.close", nil, nil)
+		cancel()
+	}
+	b.Close()
 }
 
 func (b *Browser) Connected() bool {

@@ -15,6 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -47,8 +48,10 @@ type Agent struct {
 	st    *State
 	ps    *Runner
 	token string
-	br    *Browser // Chrome とのつながり（ブラウザの道具を最初に使ったときにつなぐ）
-	bst   *State   // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
+	br    *Browser // カオルの Chrome とのつながり（profile=kaoru で最初に使ったときにつなぐ）
+	brc   *Browser // Claude 用の Chrome（既定。最初に使ったときに起動してつなぐ）
+	brMu  sync.Mutex
+	bst   *State // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
 }
 
 func isBrowserTool(t string) bool { return strings.HasPrefix(t, "browser_") }
@@ -100,9 +103,13 @@ func runAgent() {
 		for range time.Tick(2 * time.Second) {
 			pcOn := !a.st.IdleExpired() && a.st.Mode() != ModeOff
 			brOn := !a.bst.IdleExpired() && a.bst.Mode() != ModeOff
-			if !brOn && a.br != nil && a.br.Connected() {
-				a.br.Close()
-				a.st.Audit("（ブラウザ）", "ブラウザのスイッチがオフなので Chrome とのつながりを切った", "ok", 0)
+			if !brOn {
+				for _, b := range a.browsers() {
+					if b.Connected() {
+						b.Quit() // Claude 用の Chrome は閉じる。カオルの Chrome はつながりを切るだけ
+						a.st.Audit("（ブラウザ）", "ブラウザのスイッチがオフなので "+profileName(b.profile)+" とのつながりを切った", "ok", 0)
+					}
+				}
 			}
 			if !pcOn && !brOn {
 				a.st.Audit("（終了）", "スイッチがオフ", "ok", 0)
@@ -115,8 +122,8 @@ func runAgent() {
 	}()
 	_ = srv.Serve(ln)
 	a.ps.Close()
-	if a.br != nil {
-		a.br.Close()
+	for _, b := range a.browsers() {
+		b.Quit()
 	}
 	_ = os.Remove(a.st.path("token.txt"))
 	slog.Info("agent stop")
@@ -223,10 +230,16 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 }
 
 func (a *Agent) chromeState() string {
-	if a.br != nil && a.br.Connected() {
-		return "つながっている"
+	var on []string
+	for _, b := range a.browsers() {
+		if b.Connected() {
+			on = append(on, profileName(b.profile))
+		}
 	}
-	return "つながっていない"
+	if len(on) == 0 {
+		return "つながっていない"
+	}
+	return "つながっている（" + strings.Join(on, "・") + "）"
 }
 
 func (a *Agent) status() Reply {

@@ -95,6 +95,14 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 ## ブラウザ（2026-11-26 から。browser_ で始まる道具）
 
+### Claude 用の Chrome（2026-11-27 から。pc-42〜。ASK-DESIGN.md の 4）
+
+- ブラウザの道具は**既定で Claude 用の Chrome**（`profile=claude`）を使う。カオルのいつもの Chrome（ログインしたまま）は、**カオルに頼まれたときだけ** `profile=kaoru`
+- Claude 用の Chrome：道具が自分で起動する（User Data は `%LOCALAPPDATA%\claude-hands\chrome-claude`。カオルの Chrome とは別で、ログイン・履歴・パスワードは入っていない）。`--remote-debugging-port=0`（PC の中 127.0.0.1 だけ）なので「許可しますか？」は出ない。ブラウザのスイッチがオフ・30 分使わないと閉じる
+- **Claude 用の Chrome ではログインしない**：ログイン・お金・パスワードにかかわるページ（銀行・決済・サインインなど）は、ALLOW があっても開かない・動かさない（いつの間にかログインがたまるのを防ぐ）。要るときはカオルに聞いてから `profile=kaoru`
+- Claude 用の Chrome のタブは全部 Claude のものなので、閉じてよい
+- pc_status の「Chrome：つながっている（Claude 用の Chrome・カオルの Chrome）」で、どちらにつないでいるかが分かる
+
 カオルのいつもの Chrome（ログイン済み）を、画面を撮らずに**文字と番号**で読んで、**何手もまとめて**動かす。1 回の呼び出しは PC の中で 0.01〜0.1 秒（手元の試験）。往復が減るので、Claude in Chrome や内蔵ブラウザより速い。
 
 ### つなぎ方（カオル・最初に 1 回）
