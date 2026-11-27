@@ -4,9 +4,15 @@ set D=%USERPROFILE%\devkit\pc-agent
 if not exist "%D%" mkdir "%D%"
 if exist "%D%\pc-agent.exe" (
   >"%D%\mode.txt" echo(off
+  rem ブラウザのスイッチが入っていると常駐役は止まらないので、ブラウザもオフにする
+  if exist "%USERPROFILE%\devkit\browser" >"%USERPROFILE%\devkit\browser\mode.txt" echo(off
   echo 動いている常駐役を止めています...
-  timeout /t 4 >nul
+  for /l %%i in (1,1,20) do (
+    tasklist /fi "imagename eq pc-agent.exe" 2>nul | find /i "pc-agent.exe" >nul || goto stopped
+    timeout /t 1 >nul
+  )
 )
+:stopped
 copy /y "%~dp0pc-agent.exe" "%D%\pc-agent.exe" >nul || (echo pc-agent.exe を置けませんでした & pause & exit /b 1)
 set S=%USERPROFILE%\devkit\switch-app
 if not exist "%S%" mkdir "%S%"
