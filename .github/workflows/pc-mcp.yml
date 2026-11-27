@@ -159,15 +159,15 @@ jobs:
           $h = Join-Path $env:RUNNER_TEMP 'swhome'
           New-Item -ItemType Directory -Force -Path "$h/devkit/requests", "$h/devkit/hands", "$h/devkit/pc-agent" | Out-Null
           Set-Content "$h/devkit/pc-agent/mode.txt" 'off'
-          $req = "$h/devkit/requests/pc-operate.txt"
-          Set-Content $req '{"kind":"pc-operate","what":"PC test","why":"CI test","tool":"pc_ui_do","from":"ci"}'
-          (Get-Item $req).LastWriteTime = (Get-Date).AddSeconds(-47)   # 残り 8 秒：試験の間に時間切れになる
           $rep = Join-Path $env:RUNNER_TEMP 'switch-report.json'
           $env:HANDS_HOME = $h; $env:HANDS_ALLOW_DIR = Join-Path $env:RUNNER_TEMP 'swallow'; $env:HANDS_SWITCH_TEST = $rep
           $np = Start-Process notepad.exe -PassThru; Start-Sleep 3
+          $req = "$h/devkit/requests/pc-operate.txt"
+          Set-Content $req '{"kind":"pc-operate","what":"PC test","why":"CI test","tool":"pc_ui_do","from":"ci"}'
+          (Get-Item $req).LastWriteTime = (Get-Date).AddSeconds(-44)   # 残り 11 秒：5 秒で出ていて、12 秒までに時間切れ
           $p = Start-Process (Resolve-Path art/sw/claude-hands-switch.exe).Path -ArgumentList '/tray' -PassThru
           $p | Wait-Process -Timeout 50 -ErrorAction SilentlyContinue
-          if (-not $p.HasExited) { $p | Stop-Process -Force }
+          if (-not $p.HasExited) { "did not quit"; $p | Stop-Process -Force; exit 1 }
           $np | Stop-Process -Force -ErrorAction SilentlyContinue
           if (-not (Test-Path $rep)) { "no report"; exit 1 }
           $r = Get-Content $rep | ConvertFrom-Json

@@ -79,8 +79,7 @@ func (a *App) loop() {
 			reported = true
 		}
 		if test != "" && time.Since(start) > 12*time.Second {
-			trayStop()
-			runtime.Quit(a.ctx)
+			a.Quit() // quit を立ててから（立てないと閉じる前の確かめで隠すだけになる）
 			return
 		}
 		time.Sleep(500 * time.Millisecond)
