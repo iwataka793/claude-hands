@@ -16,7 +16,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 ## 入れ方（カオル・最初と、新しい版にするとき）
 
 1. Releases の最新の `pc-N` から `claude-hands-pc.mcpb` と `pc-switch.zip` を落とす
-2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓を `devkit\switch-app` に置き、デスクトップに窓のショートカット「Claude 操作スイッチ」を作る（.bat は zip の中の予備）。動いている常駐役は止めてから入れ替える）
+2. `pc-switch.zip` を開いて、中の `pc-setup.bat` を実行する（常駐役を `devkit\pc-agent` に、スイッチの窓 `claude-hands-switch.exe` と LIVE の窓を `devkit\hands` に、予備の PowerShell の窓を `devkit\switch-app` に置き、デスクトップに窓のショートカット「Claude 操作スイッチ」を作る（.bat は zip の中の予備）。動いている常駐役・窓は止めてから入れ替える）
 3. Claude デスクトップの「設定 → デスクトップアプリ → 拡張機能」に `claude-hands-pc.mcpb` をドラッグする
 4. 道具ごとの「許可」の確認は、カオルが「常に許可」を選べば次から出ない
 
@@ -34,7 +34,18 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 許可のファイルは、管理者しか書けないフォルダにある。PC-ALLOW.bat が UAC を通ってから書く。Claude の PowerShell は普通の権限なので書けない（試験で確かめた）
 - Claude 側の決まり：.bat・窓のボタンを押さない・mode.txt / allow.txt を書かない。オフなら「オンにしてください」、許可が要るなら「PC-ALLOW.bat（窓の「10 分 許可」）を押してください」と頼む
 
-## スイッチの窓と「許可しますか？」（2026-11-25 から）
+## スイッチの窓と「許可しますか？」（2026-11-27 から新しい窓）
+
+- `%USERPROFILE%\devkit\hands\claude-hands-switch.exe`（Go ＋ Wails。tools/switch-window）。デスクトップの「Claude 操作スイッチ」から開く。見た目はモック（ASK-DESIGN.md の「見た目」）：黒地、OFF 赤・VIEW 灰・OPERATE 緑・ALLOW オレンジ
+- **SWITCH**：iPhone・PC・WEB（ブラウザ）を OFF・VIEW・OPERATE で切り替える（mode.txt を書く。PC か WEB をオンにしたとき常駐役が動いていなければ起こす）。ALLOW の［10 MIN］は UAC を通って allow.txt を書く。許可中は［CANCEL］（PC の mode.txt を書き直して取り消す）。下に最後の動き（TIMELINE）と［すべてオフ］。右下に出る。［×］で隠す（通知領域に残る）、［—］で最小化、上のところをつかんで動かせる
+- **通知領域**：丸の色がいちばん強いスイッチ（OFF 赤・VIEW 灰・OPERATE 緑・ALLOW オレンジ）。左で押すと SWITCH、右で押すとメニュー（開く・すべてオフ・終わる）。マウスを乗せると「iPhone：OFF / PC：VIEW / WEB：OFF」
+- **頼みの窓（VIEW・OPERATE・ALLOW）**：画面の真ん中・いちばん前に出て、通知音を鳴らす。フォーカスは取らない（打っている途中のキーが入らない。キーでは答えられない。出てから 1 秒は押せない）。中身は WHAT（しようとしていること。道具が作る）・WHY（Claude の説明。今は作業の名前＝hands start の題名。無いと「説明がありません」）・IF ALLOWED（許可すると。窓の側が種類ごとに持つ）。［DENY／断る］［ALLOW／許可する］、残りの秒、ほかに待っている頼みの数
+- 頼みのファイル：`devkit\requests\<種類>.txt` に JSON（kind・what・why・tool・from・at）。前の形（理由 1 行）も読む。返事は `<種類>.answer.json`（allow・deny・timeout）。**断る・時間切れだと、道具は待たずに「カオルが断りました。同じ操作をやり直さず、チャットで聞いて」と Claude に返す**。ALLOW を許可しても UAC で「いいえ」なら deny
+- 記録：許可・断る・時間切れは `devkit\hands\asks.jsonl`（時刻・種類・WHAT・WHY・道具・返事）
+- 予備：今までの PowerShell の窓（`devkit\switch-app\devkit-switch.vbs /old`）。新しい exe があると、vbs をふつうに開いても新しい方に任せて終わる。2 つが同時に頼みを取らないよう、pc-setup.bat は動いている PowerShell の窓を止める
+- まだ：頼みの署名（偽の頼み）、Claude の道具（pc_ui_do など）がこの窓の部品を押せないようにする守り、言い換えの表（WHAT をもっと細かく）、説明（WHY）を道具の引数で受け取る
+
+### 前の窓（2026-11-25〜27。予備として残す）
 
 - `%USERPROFILE%\devkit\switch-app\devkit-switch.vbs` を開くと、iPhone・PC・ブラウザのスイッチを 1 つの窓で切り替えられる（「パスワード・セキュリティ・お金」の 10 分 許可は PC とブラウザで共通）（中身は .bat と同じ：mode.txt を書く。PC の許可は UAC を通って allow.txt を書く）。右下の通知領域に常駐し、窓を閉じても残る。右上の「—」で最小化（タスクバーへ）、ボタン以外のどこをつかんでも窓を動かせる（2026-11-26）。終わるのは通知領域の右クリック →「終わる」。デスクトップのショートカット「Claude 操作スイッチ」（アイコンは devkit-switch.ico）から開ける。もう動いているときは、2 つ目は起動せず、動いている方の窓を前に出す（名前つきの合図 Local\DevKitSwitchShow）
 - 道具がスイッチ不足で止まるとき、道具は `%USERPROFILE%\devkit\requests\<種類>.txt`（iphone-view・iphone-operate・pc-view・pc-operate・browser-view・browser-operate・pc-allow。中身は理由 1 行）を置き、窓を `/tray` で起こす。窓が「○○にしますか？」を出し、カオルが「許可する」か「断る」を押す

@@ -69,6 +69,9 @@ func timelineMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 			return next(ctx, method, req)
 		}
 		start := time.Now()
+		if p, ok := req.GetParams().(*mcp.CallToolParamsRaw); ok {
+			curTool.Store(p.Name)
+		}
 		res, err := next(ctx, method, req)
 		p, ok := req.GetParams().(*mcp.CallToolParamsRaw)
 		if !ok || p.Name == "iphone_status" {

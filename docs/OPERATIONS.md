@@ -21,7 +21,7 @@
 
 [Windows PC]（カオルの PC。Claude はデスクトップアプリ経由でつなぐ）。置き場所の全部と、それぞれ何かは 1-1
    ├─ %USERPROFILE%\devkit\go-ios\ios.exe   … iPhone とやりとりする道具（go-ios v1.3.2）
-   ├─ %USERPROFILE%\devkit\switch-app\     … Claude 操作スイッチの窓（devkit-switch.vbs。Claude の「許可しますか？」もここから出る）
+   ├─ %USERPROFILE%\devkit\switch-app\     … 予備のスイッチの窓（PowerShell。今の窓は devkit\hands\claude-hands-switch.exe）
    ├─ %USERPROFILE%\devkit\installers\     … 入れ物（.mcpb・.msi・.ipa など）
    └─ %USERPROFILE%\devkit\setup\          … 台本（go.bat / go.ps1 / plan.json）、ID などの設定 config.ps1（公開 repo に入れない）、記録（runs\）
 
@@ -52,12 +52,12 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | --- | --- | --- |
 | デスクトップ「Claude 操作スイッチ」 | スイッチの窓を開くショートカット（アイコンは緑と灰色のスイッチ 2 つ） | 消してもよい（pc-setup.bat を動かすとまた作る） |
 | デスクトップ `selfIdentity.plist` | 鍵の写し（go-ios を別のフォルダで動かしたときにできたもの）。2026-11-25 にカオルが消した。本物は `devkit\go-ios`。またできたら、カオルに聞いてから消す | — |
-| `devkit\switch-app\` | スイッチの窓（devkit-switch.ps1 / .vbs / .ico）。右下の通知領域に常駐する | 消さない |
-| `devkit\requests\` | Claude の道具がスイッチ不足のときに置く「頼み」（ふだんは空） | 消さない |
+| `devkit\switch-app\` | 予備のスイッチの窓（devkit-switch.ps1 / .vbs / .ico。`/old` で開く）。アイコンはデスクトップのショートカットも使う | 消さない |
+| `devkit\requests\` | Claude の道具がスイッチ不足のときに置く「頼み」と、窓の返事（*.answer.json） | 消さない |
 | `devkit\iphone-mcp\` | iPhone の道具の状態：mode.txt（スイッチ）・last-used.txt・server.log・logs\（iPhone のログ。200 MB ずつ回す）・backup\（LiveContainer に入れ替える前の DevKit の控え）・files\ | 消さない（backup の古いものは消してよい） |
 | `devkit\pc-agent\` | PC の道具の常駐役（pc-agent.exe）・スイッチ（mode.txt）・合言葉（token.txt）・記録（audit.log・agent.log） | 消さない |
 | `%ProgramData%\pc-agent\allow.txt` | 10 分の許可（管理者しか書けない場所） | 触らない |
-| `devkit\hands\` | 作業のまとまり：timeline\（TIMELINE）・task.json（今の作業）・done\（DONE の報告）・git-folders.txt（Git で記録するフォルダ）・claude-hands-live.exe（LIVE の窓。スタートアップの「claude-hands LIVE」から起動）・tests\（試しの台本） | 消さない |
+| `devkit\hands\` | 作業のまとまり：timeline\（TIMELINE）・task.json（今の作業）・done\（DONE の報告）・git-folders.txt（Git で記録するフォルダ）・claude-hands-live.exe（LIVE の窓。スタートアップの「claude-hands LIVE」から起動）・claude-hands-switch.exe（スイッチと「許可しますか？」の窓。デスクトップの「Claude 操作スイッチ」）・asks.jsonl（許可・断るの記録）・tests\（試しの台本） | 消さない |
 | `devkit\backup\` | バックアップの台本と結果（2026-11-27）：setup-restore.ps1（システムの保護の設定。管理者で 1 回）・onedrive-policy.ps1（OneDrive のフォルダの移動を止めるポリシー。管理者で 1 回）・copy-onedrive.ps1（OneDrive\PC-Backup へ写す。毎時）・restore-test.ps1（戻す練習。管理者で読むだけ）と、それぞれの結果の .txt / .log | 消さない |
 | `%ProgramData%\claude-hands\` | 守りの場所（pc-15 から。pc-setup.bat が UAC で作る）：holding（取り置き。Claude は入れるだけ）・status（毎日の点検の結果）・bin（点検の台本） | 触らない（取り置きから戻すのはカオル） |
 | 予定のタスク `\claude-hands\` | RestorePoint（SYSTEM・毎日 12:00 に復元ポイント・30 日たった取り置きを消す・status\daily.txt に結果。pc-15 から台本は bin\hands-daily.ps1）・CopyToOneDrive（カオル・毎時とサインイン時に OneDrive へ写す） | 消さない |

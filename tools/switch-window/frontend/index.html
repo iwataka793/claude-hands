@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>claude-hands SWITCH</title>
+<style>
+  :root { --bg:#0E0E12; --card:#121217; --line:#23232B; --line2:#2A2A33; --chip:#1B1B22; --text:#F4F4F5; --sub:#9A9AA6; --dim:#8B8B96;
+    --off:#F2555A; --view:#C7C7D1; --op:#3DD68C; --allow:#FF8A3D; --why:#A78BFA; }
+  html, body { margin:0; height:100%; background:transparent; overflow:hidden; user-select:none;
+    font-family:"Segoe UI Variable Text","Segoe UI","Yu Gothic UI","Meiryo",sans-serif; color:var(--text); }
+  .jp { font-family:"Yu Gothic UI","Meiryo","Segoe UI",sans-serif; }
+  button { font:inherit; cursor:pointer; }
+  .frame { position:absolute; inset:0; box-sizing:border-box; background:var(--bg); border:1px solid var(--line); border-radius:22px;
+    padding:18px 18px 14px; display:flex; flex-direction:column; gap:12px; }
+  .hidden { display:none !important; }
+
+  /* ---- SWITCH ---- */
+  .head { display:flex; align-items:center; justify-content:space-between; --wails-draggable:drag; }
+  .brand { display:flex; flex-direction:column; gap:1px; }
+  .brand b { font-size:22px; font-weight:800; letter-spacing:.02em; }
+  .brand span { font-size:11px; color:var(--sub); }
+  .wbtns { display:flex; gap:8px; --wails-draggable:no-drag; }
+  .wbtn { width:32px; height:32px; border-radius:10px; border:1px solid var(--line); background:#16161C; color:var(--sub);
+    display:flex; align-items:center; justify-content:center; padding:0; }
+  .wbtn:hover { color:var(--text); }
+  .dev { border:1px solid var(--line); border-radius:16px; padding:8px 12px; display:flex; flex-direction:column; gap:8px; background:var(--card); }
+  .devhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .devname { display:flex; align-items:center; gap:9px; min-width:0; }
+  .ico { width:28px; height:28px; border-radius:9px; background:var(--chip); color:var(--view); display:flex; align-items:center; justify-content:center; flex:none; }
+  .devname b { font-size:15px; font-weight:700; }
+  .devname .hint { font-size:11px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .status { font-size:11px; white-space:nowrap; }
+  .seg { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; background:#0B0B0F; border-radius:12px; padding:4px; }
+  .seg button { display:flex; align-items:center; justify-content:center; gap:6px; height:34px; border-radius:9px; font-size:12px; font-weight:700;
+    letter-spacing:.03em; background:transparent; border:1px solid transparent; color:#7C7C88; }
+  .seg button:hover { color:var(--text); }
+  .seg button.on.off { background:rgba(242,85,90,.12); border-color:rgba(242,85,90,.45); color:var(--off); }
+  .seg button.on.view { background:rgba(199,199,209,.10); border-color:rgba(199,199,209,.35); color:var(--view); }
+  .seg button.on.operate { background:rgba(61,214,140,.12); border-color:rgba(61,214,140,.45); color:var(--op); }
+  .allowbox { border:1px solid var(--line); border-radius:16px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; background:var(--card); }
+  .allowbox.on { border-color:rgba(255,138,61,.55); }
+  .allowrow { display:flex; align-items:center; justify-content:space-between; }
+  .allowname { display:flex; align-items:center; gap:10px; }
+  .allowname b { font-size:15px; font-weight:700; display:block; }
+  .allowname span { font-size:11px; color:var(--dim); }
+  .abtn { height:34px; padding:0 14px; border-radius:10px; font-size:12px; font-weight:700; letter-spacing:.04em;
+    background:rgba(255,138,61,.14); border:1px solid rgba(255,138,61,.55); color:var(--allow); }
+  .abtn.cancel { background:transparent; border-color:#3A3A44; color:var(--view); }
+  .bar { height:4px; border-radius:2px; background:var(--line); } .bar i { display:block; height:4px; border-radius:2px; background:var(--allow); }
+  .allowfoot { display:flex; justify-content:space-between; font-size:11px; color:var(--sub); }
+  .foot { margin-top:auto; display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); }
+  .foot b { font-weight:700; letter-spacing:.06em; color:#6E6E7A; }
+  .foot .last { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .foot .alloff { --wails-draggable:no-drag; height:26px; padding:0 10px; border-radius:8px; border:1px solid var(--line2); background:var(--chip); color:var(--text); font-size:11px; }
+  .msg { font-size:11px; color:var(--allow); } .msg:empty { display:none; }
+  #devs { display:flex; flex-direction:column; gap:8px; }
+
+  /* ---- ASK ---- */
+  .ask { --c:var(--allow); border-color:color-mix(in srgb, var(--c) 45%, transparent); padding:22px; gap:16px; }
+  .askhead { display:flex; align-items:center; justify-content:space-between; --wails-draggable:drag; }
+  .askname { display:flex; align-items:center; gap:12px; }
+  .askico { width:44px; height:44px; border-radius:14px; background:color-mix(in srgb, var(--c) 12%, transparent); color:var(--c); display:flex; align-items:center; justify-content:center; }
+  .askname b { font-size:20px; font-weight:800; letter-spacing:.02em; display:block; }
+  .askname span { font-size:11px; color:var(--sub); }
+  .timer { width:44px; height:44px; position:relative; flex:none; }
+  .timer svg { position:absolute; inset:0; transform:rotate(-90deg); }
+  .timer div { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--c); }
+  .label { font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--dim); display:flex; align-items:center; gap:6px; }
+  .label span { font-weight:500; letter-spacing:0; }
+  .what { font-size:18px; font-weight:700; line-height:1.5; word-break:break-all; }
+  .whybox { display:flex; flex-direction:column; gap:8px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .whybox .label { color:var(--why); }
+  .whybox .label span { color:var(--dim); }
+  .why { font-size:13px; line-height:1.7; color:#D4D4DC; max-height:90px; overflow:auto; word-break:break-all; }
+  .why.none { color:var(--dim); }
+  .ifrow { display:flex; gap:10px; align-items:flex-start; }
+  .ifrow > span:first-child { color:var(--c); display:flex; margin-top:3px; }
+  .iftext { font-size:13px; line-height:1.7; color:#D4D4DC; }
+  .answers { margin-top:auto; display:flex; flex-direction:column; gap:10px; }
+  .answers .two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .big { height:56px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+  .big b { font-size:15px; font-weight:800; letter-spacing:.04em; }
+  .big span { font-size:10px; }
+  .deny { background:var(--chip); border:1px solid var(--line2); color:var(--text); }
+  .deny span { color:var(--sub); }
+  .yes { background:var(--c); border:1px solid var(--c); color:#120A04; }
+  .big:disabled { opacity:.45; cursor:default; }
+  .askfoot { display:flex; justify-content:space-between; font-size:11px; color:var(--dim); }
+</style>
+</head>
+<body>
+<!-- スイッチ -->
+<div class="frame hidden" id="panel">
+  <div class="head">
+    <div class="brand"><b>HANDS</b><span class="jp">Claude 操作スイッチ</span></div>
+    <div class="wbtns">
+      <button class="wbtn" id="min" aria-label="最小化" title="最小化"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+      <button class="wbtn" id="hide" aria-label="隠す" title="隠す（右下に常駐したまま）"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+  <div id="devs"></div>
+  <div class="allowbox" id="allowbox">
+    <div class="allowrow">
+      <div class="allowname">
+        <span style="color:var(--allow);display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>
+        <div><b>ALLOW</b><span class="jp">パスワード・セキュリティ・お金を 10 分</span></div>
+      </div>
+      <button class="abtn" id="allowbtn">10 MIN</button>
+    </div>
+    <div id="allowon" class="hidden">
+      <div class="bar"><i id="allowbar"></i></div>
+      <div class="allowfoot jp" style="margin-top:6px"><span id="allowleft"></span><span>切り替えると取り消し</span></div>
+    </div>
+  </div>
+  <div class="msg jp" id="msg"></div>
+  <div class="foot">
+    <b>LOG</b><span class="last jp" id="last">まだ動きはありません</span>
+    <button class="alloff jp" id="alloff" title="iPhone・PC・ブラウザを全部オフ">すべてオフ</button>
+  </div>
+</div>
+
+<!-- Claude からの頼み -->
+<div class="frame ask hidden" id="ask">
+  <div class="askhead">
+    <div class="askname">
+      <span class="askico" id="askico"></span>
+      <div><b id="askhead">ALLOW</b><span class="jp" id="asktarget">Claude からの頼み</span></div>
+    </div>
+    <div class="timer"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="none" stroke="#23232B" stroke-width="2.5"/><circle id="ring" cx="22" cy="22" r="20" fill="none" stroke="currentColor" style="color:var(--c)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="125.7" stroke-dashoffset="0"/></svg><div id="secs">80</div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span class="label">WHAT <span class="jp">しようとしていること</span></span>
+    <div class="what jp" id="what"></div>
+  </div>
+  <div class="whybox">
+    <span class="label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>WHY <span class="jp">Claude の説明（作業の名前）</span></span>
+    <div class="why jp" id="why"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span class="label">IF ALLOWED <span class="jp">許可すると</span></span>
+    <div class="ifrow"><span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="iftext jp" id="if"></span></div>
+  </div>
+  <div class="answers">
+    <div class="two">
+      <button class="big deny" id="deny"><b>DENY</b><span class="jp">断る</span></button>
+      <button class="big yes" id="yes"><b>ALLOW</b><span class="jp">許可する</span></button>
+    </div>
+    <div class="askfoot jp"><span id="auto"></span><span id="others"></span></div>
+  </div>
+</div>
+
+<script>
+const A = () => window.go.main.App;
+const COL = { off:'var(--off)', view:'var(--view)', operate:'var(--op)', allow:'var(--allow)' };
+const LABEL = { off:'OFF', view:'VIEW', operate:'OPERATE' };
+const HINT = { off:'Claude は何もできません', view:'見るだけ・調べるだけ', operate:'ふつうの操作を任せる' };
+const ICON = {
+  iphone:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
+  pc:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+  web:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>',
+};
+const MICON = {
+  off:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>',
+  view:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  operate:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 3l16.5 7.2-7 2.3-2.3 7z"/></svg>',
+  allow:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+let devKey = '';
+function renderDevs(devs) {
+  const key = JSON.stringify(devs);
+  if (key === devKey) return;
+  devKey = key;
+  $('devs').innerHTML = devs.map((d) => {
+    const st = d.mode === 'off' ? 'オフ' : `あと ${d.left} 分でオフ`;
+    const sc = d.mode === 'off' ? '#6E6E7A' : COL[d.mode];
+    const opts = ['off', 'view', 'operate'].map((m) =>
+      `<button class="${m}${d.mode === m ? ' on' : ''}" data-k="${d.key}" data-m="${m}" aria-pressed="${d.mode === m}">${MICON[m]}<span>${LABEL[m]}</span></button>`).join('');
+    return `<div class="dev"><div class="devhead"><div class="devname"><span class="ico">${ICON[d.key]}</span><b>${esc(d.name)}</b><span class="hint jp">${HINT[d.mode]}</span></div>`
+      + `<span class="status jp" style="color:${sc}">${st}</span></div><div class="seg">${opts}</div></div>`;
+  }).join('');
+}
+
+$('devs').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-k]');
+  if (!b) return;
+  await A().SetMode(b.dataset.k, b.dataset.m);
+  refresh();
+});
+$('hide').onclick = () => A().HidePanel();
+$('min').onclick = () => A().Minimise();
+$('alloff').onclick = async () => { await A().AllOff(); refresh(); };
+$('allowbtn').onclick = async () => {
+  if ($('allowbtn').classList.contains('cancel')) await A().AllowCancel(); else await A().AllowNow();
+  refresh();
+};
+
+let askKind = '', askShownAt = 0;
+$('deny').onclick = () => answer(false);
+$('yes').onclick = () => answer(true);
+async function answer(yes) {
+  if (!askKind || Date.now() - askShownAt < 1000) return; // 出た直後の押しまちがいは受け付けない
+  const k = askKind;
+  askKind = '';
+  $('deny').disabled = $('yes').disabled = true;
+  await A().Answer(k, yes);
+  refresh();
+}
+// 頼みの窓はキーでは答えない（打っている途中の Enter などで許可しないように）
+document.addEventListener('keydown', (e) => { if (!$('ask').classList.contains('hidden')) { e.preventDefault(); } }, true);
+
+function renderAsk(a) {
+  const mode = a.head.toLowerCase();
+  $('ask').style.setProperty('--c', COL[mode] || COL.allow);
+  if (a.kind !== askKind) {
+    askKind = a.kind;
+    askShownAt = Date.now();
+    $('deny').disabled = $('yes').disabled = true;
+    setTimeout(() => { $('deny').disabled = $('yes').disabled = false; }, 1000);
+  }
+  $('askico').innerHTML = MICON[mode] || MICON.allow;
+  $('askhead').textContent = a.head;
+  $('asktarget').textContent = 'Claude からの頼み · ' + (a.target === 'WEB' ? 'ブラウザ（Chrome）' : a.target);
+  $('what').textContent = a.what;
+  const why = $('why');
+  why.textContent = a.why || '説明がありません（作業の名前が付いていない）';
+  why.classList.toggle('none', !a.why);
+  $('if').textContent = a.if;
+  $('secs').textContent = a.secs;
+  $('ring').style.strokeDashoffset = String(125.7 * (1 - a.secs / Math.max(a.total, 1)));
+  $('auto').textContent = `${a.total} 秒で自動的に断ります`;
+  $('others').textContent = a.others > 0 ? `ほかに ${a.others} 件待っています` : '';
+}
+
+async function refresh() {
+  let v;
+  try { v = await A().State(); } catch (e) { return; }
+  if (v.ask) {
+    $('panel').classList.add('hidden');
+    $('ask').classList.remove('hidden');
+    renderAsk(v.ask);
+    return;
+  }
+  askKind = '';
+  $('ask').classList.add('hidden');
+  $('panel').classList.remove('hidden');
+  renderDevs(v.devs);
+  const on = v.allowSecs > 0;
+  $('allowbox').classList.toggle('on', on);
+  $('allowon').classList.toggle('hidden', !on);
+  $('allowbtn').textContent = on ? 'CANCEL' : '10 MIN';
+  $('allowbtn').classList.toggle('cancel', on);
+  if (on) {
+    $('allowbar').style.width = Math.round(v.allowSecs / 6) + '%';
+    $('allowleft').textContent = `あと ${Math.floor(v.allowSecs / 60)}:${String(v.allowSecs % 60).padStart(2, '0')}`;
+  }
+  $('msg').textContent = v.msg || '';
+  $('last').textContent = v.last || 'まだ動きはありません';
+  $('last').title = 'claude-hands SWITCH ' + v.version;
+}
+
+setInterval(refresh, 500);
+refresh();
+</script>
+</body>
+</html>

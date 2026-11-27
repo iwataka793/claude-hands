@@ -113,11 +113,11 @@ func (a *app) gate(need Mode) *mcp.CallToolResult {
 		if need == ModeOperate {
 			kind, what = "iphone-operate", "操作も可"
 		}
-		if !askKaoru(kind, "iPhone の道具を使うため") {
+		if !askKaoru(kind, iphoneWhat(need)) {
 			return fail("スイッチが足りません（いま：%s）。カオルに「%s」にしてもらってください（切り替えはカオルだけ。%s）", a.sw.Current().String(), what, a.sw.Path())
 		}
-		if !waitFor(60*time.Second, enough) {
-			return fail("スイッチが足りません（いま：%s）。カオルの PC に「iPhone を『%s』にしますか？」の窓を出しましたが、60 秒で返事がありませんでした。カオルに聞いてください（切り替えはカオルだけ）", a.sw.Current().String(), what)
+		if ok, why := waitKaoru(kind, 60*time.Second, enough); !ok {
+			return fail("スイッチが足りません（いま：%s。iPhone を「%s」にする頼み）。%s", a.sw.Current().String(), what, why)
 		}
 	}
 	a.sw.Touch()

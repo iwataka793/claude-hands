@@ -9,6 +9,7 @@ on:
       - "tools/pc-mcp/**"
       - "tools/switch-app/**"
       - "tools/hands-window/**"
+      - "tools/switch-window/**"
       - ".github/workflows/pc-mcp.yml"
   workflow_dispatch:
 
@@ -69,6 +70,9 @@ jobs:
           cp switch/*.bat switch/*.ps1 sw/
           # LIVE の窓（Go ＋ Wails。Windows では C のコンパイラが要らない）
           (cd ../hands-window && go mod tidy && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags desktop,production -ldflags "-s -w -H windowsgui -X main.version=$V" -o ../pc-mcp/sw/claude-hands-live.exe .)
+          # スイッチと「許可しますか？」の窓（同じく Go ＋ Wails）。先に中身（頼みの受け付け）の試験
+          (mkdir -p /tmp/swc && cp ../switch-window/core.go ../switch-window/core_test.go /tmp/swc/ && cd /tmp/swc && printf 'package main\n\nvar version = "t"\n\nfunc main() {}\n' > stub.go && printf 'module swc\n\ngo 1.24\n' > go.mod && go test -v . )
+          (cd ../switch-window && go mod tidy && GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -tags desktop,production -ldflags "-s -w -H windowsgui -X main.version=$V" -o ../pc-mcp/sw/claude-hands-switch.exe .)
           cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs ../switch-app/devkit-switch.ico sw/
           ls -la pkg/server sw
       - name: 拡張機能（.mcpb）とスイッチにまとめる
@@ -92,6 +96,7 @@ jobs:
             tools/pc-mcp/pkg/server/pc-mcp.exe
             tools/pc-mcp/sw/pc-agent.exe
             tools/pc-mcp/sw/claude-hands-live.exe
+            tools/pc-mcp/sw/claude-hands-switch.exe
 
   wintest:
     needs: build
@@ -148,6 +153,32 @@ jobs:
           # 出す前に別の窓が前にあったのに、LIVE が前を取ったら失敗（前に何も無いときは試験の機械の都合なので見ない）
           $took = $r.foregroundIsLive -and $r.initForeground
           if (-not ($r.found -and $r.visible -and $r.noActivate -and $r.toolWindow -and $r.topmost) -or $took) { "LIVE window check failed"; exit 1 }
+      - name: スイッチの窓が頼みを出すか（真ん中・いちばん前・フォーカスは取らない・時間切れの返事）
+        shell: pwsh
+        run: |
+          $h = Join-Path $env:RUNNER_TEMP 'swhome'
+          New-Item -ItemType Directory -Force -Path "$h/devkit/requests", "$h/devkit/hands", "$h/devkit/pc-agent" | Out-Null
+          Set-Content "$h/devkit/pc-agent/mode.txt" 'off'
+          $req = "$h/devkit/requests/pc-operate.txt"
+          Set-Content $req '{"kind":"pc-operate","what":"PC test","why":"CI test","tool":"pc_ui_do","from":"ci"}'
+          (Get-Item $req).LastWriteTime = (Get-Date).AddSeconds(-47)   # 残り 8 秒：試験の間に時間切れになる
+          $rep = Join-Path $env:RUNNER_TEMP 'switch-report.json'
+          $env:HANDS_HOME = $h; $env:HANDS_ALLOW_DIR = Join-Path $env:RUNNER_TEMP 'swallow'; $env:HANDS_SWITCH_TEST = $rep
+          $np = Start-Process notepad.exe -PassThru; Start-Sleep 3
+          $p = Start-Process (Resolve-Path art/sw/claude-hands-switch.exe).Path -ArgumentList '/tray' -PassThru
+          $p | Wait-Process -Timeout 50 -ErrorAction SilentlyContinue
+          if (-not $p.HasExited) { $p | Stop-Process -Force }
+          $np | Stop-Process -Force -ErrorAction SilentlyContinue
+          if (-not (Test-Path $rep)) { "no report"; exit 1 }
+          $r = Get-Content $rep | ConvertFrom-Json
+          $r | ConvertTo-Json -Compress
+          $ans = "$h/devkit/requests/pc-operate.answer.json"
+          if (Test-Path $ans) { Get-Content $ans } else { "no answer file" }
+          Get-Content "$h/devkit/hands/asks.jsonl" -ErrorAction SilentlyContinue
+          $took = $r.foregroundIsSwitch -and $r.initForeground
+          if (-not ($r.found -and $r.visible -and $r.shown -eq 'ask' -and $r.topmost) -or $took) { "SWITCH window check failed"; exit 1 }
+          if (-not ((Test-Path $ans) -and ((Get-Content $ans -Raw) -match '"timeout"'))) { "timeout answer missing"; exit 1 }
+          if (Test-Path $req) { "request not taken"; exit 1 }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
         run: |

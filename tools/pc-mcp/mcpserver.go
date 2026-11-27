@@ -82,11 +82,11 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 			if toolNeed[tool] == ModeOperate {
 				kind = "pc-operate"
 			}
-			if !askKaoru(kind, "PC の道具（"+tool+"）を使うため") {
+			if !askKaoru(kind, tool, actionOf(tool)) {
 				return errResult(offMsg), nil, nil
 			}
-			if !waitFor(60*time.Second, func() bool { _, e := callAgent(ctx, "pc_status", noIn{}, 5*time.Second); return e == nil }) {
-				return errResult(offMsg + "。カオルの PC に「許可しますか？」の窓を出しましたが、60 秒で返事がありませんでした"), nil, nil
+			if ok, why := waitKaoru(kind, 60*time.Second, func() bool { _, e := callAgent(ctx, "pc_status", noIn{}, 5*time.Second); return e == nil }); !ok {
+				return errResult(offMsg + "。" + why), nil, nil
 			}
 			rep, err = callAgent(ctx, tool, in, timeout)
 		}
@@ -97,29 +97,32 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 				kind, want = "pc-operate", ModeOperate
 			}
 			st := NewState(stateDir(), 0)
-			if askKaoru(kind, "PC の道具（"+tool+"）を使うため") && waitFor(60*time.Second, func() bool { return st.Mode() >= want }) {
-				rep, err = callAgent(ctx, tool, in, timeout)
+			if askKaoru(kind, tool, actionOf(tool)) {
+				if ok, why := waitKaoru(kind, 60*time.Second, func() bool { return st.Mode() >= want }); ok {
+					rep, err = callAgent(ctx, tool, in, timeout)
+				} else {
+					rep.Text += "\n（" + why + "）"
+				}
 			}
 		}
 		if err == nil && rep.IsError && strings.HasPrefix(rep.Text, "スイッチが「見るだけ」") {
 			st := NewState(stateDir(), 0)
-			if askKaoru("pc-operate", "PC の道具（"+tool+"）で操作するため") && waitFor(60*time.Second, func() bool { return st.Mode() == ModeOperate }) {
-				rep, err = callAgent(ctx, tool, in, timeout)
+			if askKaoru("pc-operate", tool, actionOf(tool)) {
+				if ok, why := waitKaoru("pc-operate", 60*time.Second, func() bool { return st.Mode() == ModeOperate }); ok {
+					rep, err = callAgent(ctx, tool, in, timeout)
+				} else {
+					rep.Text += "\n（" + why + "）"
+				}
 			}
 		}
 		if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
-			why := rep.Text
-			if i := strings.Index(why, "（"); i >= 0 {
-				if j := strings.Index(why[i:], "）"); j > 0 {
-					why = why[i+len("（") : i+j]
-				}
-			}
+			why := allowWhy(rep.Text)
 			st := NewState(stateDir(), 0)
-			if askKaoru("pc-allow", tool+"："+why) {
-				if waitFor(90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }) {
+			if askKaoru("pc-allow", tool, actionOf(tool)+"："+why) {
+				if ok, w := waitKaoru("pc-allow", 90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }); ok {
 					rep, err = callAgent(ctx, tool, in, timeout)
 				} else {
-					rep.Text += "\n（カオルの PC に「許可しますか？」の窓を出しましたが、90 秒で返事がありませんでした）"
+					rep.Text += "\n（" + w + "）"
 				}
 			}
 		}
@@ -146,13 +149,13 @@ func browserForward(ctx context.Context, tool string, in any, timeout time.Durat
 	short := errors.Is(err, errAgentDown) ||
 		(err == nil && rep.IsError && (strings.HasPrefix(rep.Text, "ブラウザのスイッチがオフ") || strings.HasPrefix(rep.Text, "ブラウザのスイッチが「見るだけ」")))
 	if short {
-		if !askKaoru(kind, "ブラウザの道具（"+tool+"）を使うため") {
+		if !askKaoru(kind, tool, actionOf(tool)) {
 			if errors.Is(err, errAgentDown) {
 				return errResult("ブラウザのスイッチがオフです（常駐役が動いていない）。カオルにスイッチの窓で「ブラウザ」を「見るだけ」か「操作も可」にしてもらってください。切り替えはカオルだけ"), nil, nil
 			}
 			return toResult(rep), nil, nil
 		}
-		ok := waitFor(60*time.Second, func() bool {
+		ok, why := waitKaoru(kind, 60*time.Second, func() bool {
 			if bst.Mode() < want {
 				return false
 			}
@@ -160,18 +163,18 @@ func browserForward(ctx context.Context, tool string, in any, timeout time.Durat
 			return e == nil
 		})
 		if !ok {
-			return errResult("ブラウザのスイッチが足りません。カオルの PC に「許可しますか？」の窓を出しましたが、60 秒で返事がありませんでした"), nil, nil
+			return errResult("ブラウザのスイッチが足りません。" + why), nil, nil
 		}
 		rep, err = callAgent(ctx, tool, in, timeout)
 	}
 	if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
 		st := NewState(stateDir(), 0)
 		st.revokers = []string{bst.path("mode.txt")}
-		if askKaoru("pc-allow", tool+"："+firstLine(rep.Text)) {
-			if waitFor(90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }) {
+		if askKaoru("pc-allow", tool, actionOf(tool)+"："+allowWhy(rep.Text)) {
+			if ok, w := waitKaoru("pc-allow", 90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }); ok {
 				rep, err = callAgent(ctx, tool, in, timeout)
 			} else {
-				rep.Text += "\n（カオルの PC に「許可しますか？」の窓を出しましたが、90 秒で返事がありませんでした）"
+				rep.Text += "\n（" + w + "）"
 			}
 		}
 	}

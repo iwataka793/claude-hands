@@ -22,6 +22,13 @@ if ($args -contains '/shortcut') {
     exit
 }
 
+# 新しい窓（devkit\hands\claude-hands-switch.exe）があれば、そちらに任せて終わる（/old を付けると今までのこの窓）
+$NewExe = Join-Path $env:USERPROFILE 'devkit\hands\claude-hands-switch.exe'
+if (($args -notcontains '/old') -and (Test-Path $NewExe)) {
+    if ($args -contains '/tray') { Start-Process $NewExe -ArgumentList '/tray' } else { Start-Process $NewExe }
+    exit
+}
+
 $created = $false
 $mutex = New-Object System.Threading.Mutex($true, 'Local\DevKitSwitchApp', [ref]$created)
 $showSignal = New-Object System.Threading.EventWaitHandle($false, 'AutoReset', 'Local\DevKitSwitchShow')
@@ -415,6 +422,9 @@ function Check-Requests {
     $f = Get-ChildItem $Req -Filter '*.txt' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -First 1
     if (-not $f) { return }
     $why = ((Get-Content $f.FullName -Raw -Encoding UTF8 -ErrorAction SilentlyContinue) + '').Trim()
+    if ($why.StartsWith('{')) {  # 新しい形（JSON）：しようとしていること・説明
+        try { $j = $why | ConvertFrom-Json; $why = ($j.what + $(if ($j.why) { ' / ' + $j.why } else { '' })) } catch { }
+    }
     $kind = $f.BaseName.ToLower()
     $age = (Get-Date) - $f.LastWriteTime
     Remove-Item $f.FullName -ErrorAction SilentlyContinue

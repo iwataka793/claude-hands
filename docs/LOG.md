@@ -2,6 +2,17 @@
 
 新しいものが上。
 
+## 2026-11-27 作る順番 3-1：スイッチと「許可しますか？」の窓を作り直す（Go ＋ Wails）
+
+- 3 番（A〜E の分け方・ALLOW と SWITCH の窓）を 4 つに分けた：①窓の作り直し（これ）②言い換えの表と説明の受け付け ③頼みの署名（と、道具がこの窓を押せない守り）④A〜E の分け方。1 つずつカオルの PC で確かめる
+- `tools/switch-window` → `claude-hands-switch.exe`（pc-switch.zip に入る。pc-setup.bat が devkit\hands に置き、デスクトップの「Claude 操作スイッチ」をこちらに向ける）。モックの見た目（黒地・OFF 赤／VIEW 灰／OPERATE 緑／ALLOW オレンジ・説明は紫）
+- 頼みを JSON にした（kind・what・why・tool・from・at）。WHAT は道具が作る（今は道具ごとの短い言い方。表に無いと「よく分からない操作（名前）」）。WHY は今の作業の名前。IF ALLOWED は窓の側が種類ごとに持つ（頼みからは受け取らない）
+- 返事のファイル（requests\<種類>.answer.json）を足した：断る・時間切れなら、道具は 60 秒待たずに「カオルが断りました。やり直さずチャットで聞いて」を返す（今までは断っても 60 秒待っていた）
+- 頼みの窓は真ん中・いちばん前・通知音。フォーカスは取らない・キーでは答えない・出てから 1 秒は押せない（押しまちがい止め）
+- 通知領域は Wails に無いので、Go から Win32（Shell_NotifyIcon）で出す。丸の色はいちばん強いスイッチ
+- 今までの PowerShell の窓は予備（`devkit-switch.vbs /old`）。新しい exe があれば vbs はそちらに任せる。2 つが同時に頼みを取らないよう、pc-setup.bat が動いている PowerShell の窓を止める
+- CI：頼みの受け付け（古い・知らない種類を捨てる・前の形も読む・ALLOW の取り消し）の試験と、Windows で「頼みを置いて起動 → 真ん中・いちばん前・メモ帳から前を取らない・時間切れの返事が書かれる」の試験
+
 ## 2026-11-27 作る順番 3：LIVE の窓（Go ＋ Wails。pc-26）
 
 - `tools/hands-window`（Go ＋ Wails v2.10.2。画面は HTML）。Windows では C のコンパイラが要らないので、PC の道具と同じ Linux の CI で組み立て（`-tags desktop,production`）、pc-switch.zip に入れた。pc-setup.bat が `devkit\hands\claude-hands-live.exe` に置き、スタートアップに入れて起動する

@@ -19,11 +19,17 @@ if not exist "%S%" mkdir "%S%"
 copy /y "%~dp0devkit-switch.ps1" "%S%\devkit-switch.ps1" >nul
 copy /y "%~dp0devkit-switch.vbs" "%S%\devkit-switch.vbs" >nul
 copy /y "%~dp0devkit-switch.ico" "%S%\devkit-switch.ico" >nul
-rem スイッチは窓で切り替える。デスクトップには窓のショートカットだけを置く（.bat は zip の中に予備として残す）
-wscript.exe "%S%\devkit-switch.vbs" /shortcut
-rem LIVE の窓（右下の「Claude が動いています」。Windows の起動のたびに動かす）
+rem 窓（スイッチ・LIVE）の置き場所
 set H=%USERPROFILE%\devkit\hands
 if not exist "%H%" mkdir "%H%"
+rem スイッチと「許可しますか？」の窓（新しい窓。今までの PowerShell の窓は予備：devkit-switch.vbs /old）
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='powershell.exe'\" | Where-Object { $_.CommandLine -like '*devkit-switch.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+taskkill /im claude-hands-switch.exe /f >nul 2>&1
+timeout /t 1 >nul
+copy /y "%~dp0claude-hands-switch.exe" "%H%\claude-hands-switch.exe" >nul || echo スイッチの窓を置けませんでした
+rem デスクトップには窓のショートカットだけを置く（.bat は zip の中に予備として残す）
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Claude 操作スイッチ.lnk'); $s.TargetPath=$env:USERPROFILE+'\devkit\hands\claude-hands-switch.exe'; $s.Arguments=''; $s.WorkingDirectory=$env:USERPROFILE+'\devkit\hands'; $s.IconLocation=$env:USERPROFILE+'\devkit\switch-app\devkit-switch.ico,0'; $s.Description='iPhone・PC・ブラウザの Claude 操作スイッチ'; $s.Save()"
+rem LIVE の窓（右下の「Claude が動いています」。Windows の起動のたびに動かす）
 taskkill /im claude-hands-live.exe /f >nul 2>&1
 timeout /t 1 >nul
 copy /y "%~dp0claude-hands-live.exe" "%H%\claude-hands-live.exe" >nul || echo LIVE の窓を置けませんでした
@@ -36,7 +42,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell
 powershell -NoProfile -Command "Get-Content -Encoding UTF8 -LiteralPath (Join-Path $env:TEMP 'claude-hands-protect.txt') -ErrorAction SilentlyContinue | Where-Object { $_ -match '^(OK|NG)' }"
 echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
-echo   スイッチの窓 %S%\devkit-switch.vbs（デスクトップの「Claude 操作スイッチ」。Claude が頼むと自動で出ます）
+echo   スイッチの窓 %H%\claude-hands-switch.exe（デスクトップの「Claude 操作スイッチ」。Claude が頼むと真ん中に出ます。右下の通知領域にも丸）
+echo   予備の窓 %S%\devkit-switch.vbs /old（今までの PowerShell の窓）
 echo   守りの場所 %ProgramData%\claude-hands（取り置き・毎日 12:00 の点検）
 echo   LIVE の窓 %USERPROFILE%\devkit\hands\claude-hands-live.exe（Claude が動いている間だけ右下に出る。スタートアップにも置いた）
 pause
