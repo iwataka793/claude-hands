@@ -234,7 +234,7 @@ func uniq(xs []string) []string {
 }
 
 func allowMsg(why string) string {
-	return fmt.Sprintf("カオルの許可が要ります（%s）。カオルに PC-ALLOW.bat を押してもらうと 10 分間使えます。Claude からは許可できません", why)
+	return fmt.Sprintf("カオルの許可が要ります（%s）。引数 why（この許可で何をするか）を付けて呼ぶと、カオルの PC に ALLOW の窓が出て、許可されれば 10 分間使えます。Claude からは許可できません", why)
 }
 
 // カオルの窓（スイッチ・許可の頼み・LIVE・DONE・前の PowerShell のスイッチ）：Claude の道具は押さない・打たない（許可があっても）

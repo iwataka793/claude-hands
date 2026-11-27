@@ -8,6 +8,8 @@
 - 署名：合言葉 `%ProgramData%\claude-hands\keys\request.key`（hands-protect.ps1 が無いときだけ作る。管理者が書く・カオルは読むだけ）。道具が HMAC-SHA256 で署名（中身：種類・WHAT・WHY・作業・道具・どこから・時刻）、窓が確かめる。署名の並びは道具と窓で同じ答えになるかを試験で比べる（TestSignSame）
 - 守り：pc_ui_do・pc_keys はカオルの窓（題名で見分ける）を押さない・打たない。位置で押すときは、その位置の窓（WindowFromPoint → いちばん上の親）の題名を見る
 - 入れるとき：守りの場所に keys を足すので pc-setup.bat（UAC）が要る
+- カオルの PC で確かめた（pc-37・mcp-23、21:22）：pc_status に「頼みの署名：あり」。Claude が手で置いた署名なしの頼み → 窓は出ずに捨て、asks.jsonl に「捨てた（署名が合わない）」、道具への返事は unsigned。pc_ui_do（名前で押す）・click_xy（位置で押す）・pc_keys でスイッチの窓を押そう・打とうとした → 3 つとも「カオルの窓です」で止まった。ついでに、文字の守りは「pc-allow.txt」という名前も allow.txt として止めた（頼みのファイルでも ALLOW の名前は Claude の台本から書けない）
+- 直し：許可が要るときの返事を「why を付けて呼ぶと ALLOW の窓が出る」に（PC-ALLOW.bat の古い言い方をやめた）。窓が自動で捨てた・時間切れの記録は by を「スイッチの窓（自動）」に
 
 ## 2026-11-27 作る順番 3-2：言い換えの表と説明（WHY）の受け付け（pc-36・mcp-22）
 

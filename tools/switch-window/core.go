@@ -338,8 +338,12 @@ func writeAnswer(kind, answer string) {
 
 // logAsk：許可・断る・時間切れを記録に残す（devkit\hands\asks.jsonl）
 func logAsk(p *pending, answer string) {
+	by := "カオル（スイッチの窓）"
+	if strings.HasPrefix(answer, "捨てた") || answer == "timeout" {
+		by = "スイッチの窓（自動）"
+	}
 	_ = os.MkdirAll(handsDir(), 0o755)
-	b, _ := json.Marshal(map[string]any{"t": time.Now(), "kind": p.Kind, "what": p.What, "why": p.Why, "task": p.Task, "tool": p.Tool, "from": p.From, "answer": answer, "by": "カオル（スイッチの窓）"})
+	b, _ := json.Marshal(map[string]any{"t": time.Now(), "kind": p.Kind, "what": p.What, "why": p.Why, "task": p.Task, "tool": p.Tool, "from": p.From, "answer": answer, "by": by})
 	f, err := os.OpenFile(filepath.Join(handsDir(), "asks.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
