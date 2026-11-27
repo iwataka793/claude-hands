@@ -292,13 +292,25 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 		params := map[string]any{"url": "about:blank"}
 		if b.profile == profClaude {
 			params["background"] = true // Claude 用の Chrome は、タブを開いても窓を前に出さない（カオルの窓のフォーカスを取らない）
-			if ps, _ := b.pages(ctx); len(ps) == 0 {
+			ps, _ := b.pages(ctx)
+			if len(ps) == 0 {
 				params["newWindow"] = true // 窓を全部閉じたあと（Chrome は窓なしで動き続ける）
 				defer func() { go sendBack(b.pid) }()
 			}
+			// 窓にまだ空のページ 1 枚しかないなら、それを使う（後ろで開いたタブは表に出ないので、空のページが表のままになる。2026-11-27）
+			if len(ps) == 1 && ps[0].URL == "about:blank" {
+				b.mu.Lock()
+				mine := b.opened[ps[0].TargetID]
+				b.mu.Unlock()
+				if !mine {
+					r.TargetID = ps[0].TargetID
+				}
+			}
 		}
-		if err := c.Call(ctx, "", "Target.createTarget", params, &r); err != nil {
-			return errText("タブを開けません：%v", err)
+		if r.TargetID == "" {
+			if err := c.Call(ctx, "", "Target.createTarget", params, &r); err != nil {
+				return errText("タブを開けません：%v", err)
+			}
 		}
 		b.mu.Lock()
 		b.opened[r.TargetID] = true
