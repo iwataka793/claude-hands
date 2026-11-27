@@ -2,6 +2,11 @@
 
 新しいものが上。
 
+## 2026-11-27 作る前の確かめ：全画面の上の窓（ASK 6）
+
+- Chrome の YouTube を全画面（3840x2160）にして、PowerShell ＋ WPF で右下に 300x64 の窓（最前面・ShowActivated=false・WS_EX_NOACTIVATE｜TOOLWINDOW｜TOPMOST）を 10 秒出した → **動画の上に出た**。前の窓（Chrome）は変わらず（フォーカスを取らない）、全画面も解けなかった。台本は `devkit\hands\tests\overlay-test.ps1`
+- 画面の大きさは 3840x2160（拡大 200% 相当。WPF の単位では 1920x1080）。窓の位置は SystemParameters で決めればよい
+
 ## 2026-11-27 iPhone の確かめ（作る前に確かめること：ASK 8・LINK 3・5）
 
 - **LINK 5 クリップボード**：PC → iPhone、iPhone → PC とも、Claude が入れて読めた（iPhone は iphone_clipboard で中から。WDA なし）。Apple のユニバーサル クリップボードは Windows には無いので、渡すのは Claude（あとで RECIPE の SEND に）
