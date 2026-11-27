@@ -237,5 +237,8 @@ func allowMsg(why string) string {
 	return fmt.Sprintf("カオルの許可が要ります（%s）。カオルに PC-ALLOW.bat を押してもらうと 10 分間使えます。Claude からは許可できません", why)
 }
 
+// カオルの窓（スイッチ・許可の頼み・LIVE・DONE・前の PowerShell のスイッチ）：Claude の道具は押さない・打たない（許可があっても）
+var handsWindowRe = regexp.MustCompile(`(?i)(claude-hands (switch|ask|live)|claude 操作スイッチ|claude からの頼み)`)
+
 // 画面の操作で許可が要る窓（題名・プログラム名で判断）
 var sensitiveWindowRe = regexp.MustCompile(`(?i)(bank|銀行|証券|paypay|楽天ペイ|ペイディ|クレジット|カード|wallet|ウォレット|crypto|bitcoin|password|パスワード|sign ?in|サインイン|ログイン|log ?in|credential|資格情報|1password|bitwarden|keepass|windows セキュリティ|windows security|defender|ファイアウォール|firewall|user account control|ユーザー アカウント制御|bitlocker|マイナ|e-?tax|確定申告|アカウント|account)`)

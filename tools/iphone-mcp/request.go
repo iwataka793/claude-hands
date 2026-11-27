@@ -6,6 +6,9 @@ package main
 // 中身の決まりは tools/pc-mcp/request.go と同じ（what は道具が作る・why は今の作業の名前・返事は <kind>.answer.json）。
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -27,6 +30,7 @@ type askRequest struct {
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
+	Sig  string    `json:"sig,omitempty"` // 署名（合言葉の HMAC-SHA256）
 }
 
 // curTool：いま動いている道具の名前（timeline.go の受け口で入れる。窓の WHAT に使う）
@@ -130,7 +134,9 @@ func askKaoru(kind, what string) bool {
 	}
 	_ = os.MkdirAll(requestDir(), 0o755)
 	_ = os.Remove(filepath.Join(requestDir(), kind+".answer.json"))
-	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: strings.TrimSpace(currentWhy()), Task: askTask(), Tool: currentTool(), From: "iphone-mcp " + version, At: time.Now()})
+	r := askRequest{Kind: kind, What: what, Why: strings.TrimSpace(currentWhy()), Task: askTask(), Tool: currentTool(), From: "iphone-mcp " + version, At: time.Now()}
+	r.sign()
+	b, _ := json.Marshal(r)
 	_ = os.WriteFile(filepath.Join(requestDir(), kind+".txt"), b, 0o644)
 	dk := filepath.Join(os.Getenv("USERPROFILE"), "devkit")
 	if exe := filepath.Join(dk, "hands", "claude-hands-switch.exe"); exists(exe) {
@@ -165,6 +171,8 @@ func waitKaoru(kind string, d time.Duration, ok func() bool) (bool, string) {
 		switch readAnswer(kind) {
 		case "deny":
 			return false, "カオルが断りました。同じ操作をやり直さず、チャットでカオルに聞いてください"
+		case "unsigned":
+			return false, "頼みの署名が確かめられず、窓が頼みを捨てました（道具の版が古いか、合言葉 request.key が読めない）。カオルに伝えてください"
 		case "timeout":
 			return false, "カオルの PC に「許可しますか？」の窓を出しましたが、返事がありませんでした（時間切れ）。チャットでカオルに聞いてください"
 		}
@@ -174,4 +182,35 @@ func waitKaoru(kind string, d time.Duration, ok func() bool) (bool, string) {
 		return true, ""
 	}
 	return false, "カオルの PC に「許可しますか？」の窓を出しましたが、" + strconv.Itoa(int(d.Seconds())) + " 秒で返事がありませんでした。チャットでカオルに聞いてください"
+}
+
+// ---- 頼みの署名（偽の頼みを窓に出させない） ----
+// 合言葉は %ProgramData%\claude-hands\keys\request.key（管理者が作る。カオルの権限では読むだけ。文字の守りで Claude の台本からは読ませない）。
+// 窓（tools/switch-window）は合言葉があれば、署名の合わない頼みを捨てる。
+
+func requestKeyFile() string {
+	if f := os.Getenv("HANDS_KEY_FILE"); f != "" {
+		return f
+	}
+	p := os.Getenv("ProgramData")
+	if p == "" {
+		p = `C:\ProgramData`
+	}
+	return filepath.Join(p, "claude-hands", "keys", "request.key")
+}
+
+// signText：署名する中身（窓の側と同じ並び）
+func (r askRequest) signText() string {
+	return strings.Join([]string{"claude-hands-request-v1", r.Kind, r.What, r.Why, r.Task, r.Tool, r.From, r.At.UTC().Format(time.RFC3339Nano)}, "\n")
+}
+
+func (r *askRequest) sign() {
+	key, err := os.ReadFile(requestKeyFile())
+	k := strings.TrimSpace(string(key))
+	if err != nil || k == "" {
+		return
+	}
+	m := hmac.New(sha256.New, []byte(k))
+	m.Write([]byte(r.signText()))
+	r.Sig = hex.EncodeToString(m.Sum(nil))
 }

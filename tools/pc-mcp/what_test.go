@@ -1,8 +1,10 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestScriptWhat(t *testing.T) {
@@ -58,5 +60,17 @@ func TestCheckWhy(t *testing.T) {
 	}
 	if whyOf(psIn2{whyArg: whyArg{Why: "せつめい"}}) != "せつめい" {
 		t.Error("whyOf")
+	}
+}
+
+// 署名の並びは窓（tools/switch-window）と同じ。どちらも同じ答えになること
+func TestSignSame(t *testing.T) {
+	f := t.TempDir() + "/request.key"
+	os.WriteFile(f, []byte("abc123\r\n"), 0o644)
+	os.Setenv("HANDS_KEY_FILE", f)
+	r := askRequest{Kind: "pc-allow", What: "インターネットとやりとりする（落とす・送る）", Why: "説明", Task: "作業", Tool: "pc_powershell", From: "pc-mcp t", At: time.Date(2026, 11, 27, 21, 0, 0, 0, time.FixedZone("JST", 9*3600))}
+	r.sign()
+	if r.Sig != "b1eaa42805d6556ec4d703d1eaed5f7f80e0d0b459c0e5f932a59bf02bf6e6e6" {
+		t.Fatal(r.Sig)
 	}
 }

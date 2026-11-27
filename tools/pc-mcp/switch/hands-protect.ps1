@@ -3,6 +3,7 @@
 #   %ProgramData%\claude-hands\status   毎日の点検の結果（読むだけ）
 #   %ProgramData%\claude-hands\bin      毎日の点検の台本（読むだけ）
 #   %ProgramData%\claude-hands\git      作業の前後の Git の記録（常駐役が書く）
+#   %ProgramData%\claude-hands\keys     頼みの署名の合言葉（request.key。管理者だけが作れる・カオルの権限では読むだけ）
 #   予定のタスク \claude-hands\RestorePoint（SYSTEM・毎日 12:00）：復元ポイント・30 日たった取り置きを消す・結果を status に書く
 param([Parameter(Mandatory)][string]$User)
 $ErrorActionPreference = 'Stop'
@@ -10,7 +11,7 @@ $log = Join-Path $env:TEMP 'claude-hands-protect.txt'
 Start-Transcript -Path $log -Force | Out-Null
 try {
   $H = Join-Path $env:ProgramData 'claude-hands'
-  foreach ($d in $H, "$H\holding", "$H\status", "$H\bin", "$H\git") { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+  foreach ($d in $H, "$H\holding", "$H\status", "$H\bin", "$H\git", "$H\keys") { New-Item -ItemType Directory -Force -Path $d | Out-Null }
   $sys = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
   $adm = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
   $own = New-Object System.Security.Principal.SecurityIdentifier('S-1-3-4')   # OWNER RIGHTS：作った人（持ち主）に自動で付く権限（権限の書き換え）を消す
@@ -29,6 +30,13 @@ try {
   Protect $H $read
   Protect "$H\status" $read
   Protect "$H\bin" $read
+  # 頼みの署名の合言葉：道具（PC・iPhone）が頼みに署名し、スイッチの窓が確かめる。無いときだけ作る（作り直すと古い頼みは通らない）
+  Protect "$H\keys" $read
+  $key = "$H\keys\request.key"
+  if (-not (Test-Path -LiteralPath $key)) {
+    $b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
+    [IO.File]::WriteAllText($key, (($b | ForEach-Object { $_.ToString('x2') }) -join ''))
+  }
   # Git の記録（作業の前後）：常駐役が書くので、カオルの権限で書き換えられる。文字の守りで Claude の台本からは触らせない
   Protect "$H\git" @((Rule $usr 'Modify' 'ContainerInherit,ObjectInherit' 'None'))
   Protect "$H\holding" @(

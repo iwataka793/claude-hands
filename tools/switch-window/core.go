@@ -5,6 +5,9 @@ package main
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -147,6 +150,57 @@ type askRequest struct {
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
+	Sig  string    `json:"sig,omitempty"`
+
+	Unsigned bool `json:"-"` // 合言葉が無くて署名を確かめられなかった
+}
+
+// ---- 頼みの署名 ----
+// 道具（tools/pc-mcp・iphone-mcp の request.go）が合言葉で署名する。合言葉があれば、署名の合わない頼みは捨てる（偽の頼み）。
+// 合言葉が無いとき（守りの場所をまだ作り直していない）は、署名を見ずに受け付けて、窓に「署名なし」と出す。
+
+func requestKeyFile() string {
+	if f := os.Getenv("HANDS_KEY_FILE"); f != "" {
+		return f
+	}
+	p := os.Getenv("ProgramData")
+	if p == "" {
+		p = `C:\ProgramData`
+	}
+	return filepath.Join(p, "claude-hands", "keys", "request.key")
+}
+
+func requestKey() string {
+	b, err := os.ReadFile(requestKeyFile())
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func (r askRequest) signText() string {
+	return strings.Join([]string{"claude-hands-request-v1", r.Kind, r.What, r.Why, r.Task, r.Tool, r.From, r.At.UTC().Format(time.RFC3339Nano)}, "\n")
+}
+
+func signWith(key string, r askRequest) string {
+	m := hmac.New(sha256.New, []byte(key))
+	m.Write([]byte(r.signText()))
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+// verify：署名が合うか。合言葉が無ければ "nokey"
+func verify(r askRequest) string {
+	key := requestKey()
+	if key == "" {
+		return "nokey"
+	}
+	if r.Sig == "" || !hmac.Equal([]byte(signWith(key, r)), []byte(r.Sig)) {
+		return "bad"
+	}
+	if d := time.Since(r.At); d > staleReq || d < -time.Minute {
+		return "bad"
+	}
+	return "ok"
 }
 
 // 頼みの種類：どの機器を・どこまで
@@ -220,6 +274,19 @@ func nextRequest() (*pending, int) {
 		txt := strings.TrimSpace(strings.TrimPrefix(string(b), "\ufeff"))
 		if json.Unmarshal([]byte(txt), &r) != nil {
 			r = askRequest{Why: txt} // 前の形（理由 1 行だけ）
+		}
+		mismatch := r.Kind != "" && r.Kind != kind // ファイルの名前と中身の種類が違う
+		if r.Kind == "" {
+			r.Kind = kind
+		}
+		switch v := verify(r); {
+		case v == "bad" || mismatch:
+			r.Kind = kind
+			logAsk(&pending{askRequest: r}, "捨てた（署名が合わない）")
+			writeAnswer(kind, "unsigned")
+			continue
+		case v == "nokey":
+			r.Unsigned = true
 		}
 		r.Kind = kind
 		total := askSecs
@@ -397,6 +464,7 @@ type AskView struct {
 	Secs   int    `json:"secs"`
 	Total  int    `json:"total"`
 	Others int    `json:"others"`
+	NoSig  bool   `json:"noSig"` // 署名を確かめられなかった（合言葉が無い）
 }
 
 type View struct {
@@ -433,7 +501,7 @@ func askView(p *pending, others int) *AskView {
 		secs = 0
 	}
 	return &AskView{Kind: p.Kind, Head: strings.ToUpper(k.Mode), Target: d.Name, What: p.What, Why: p.Why, Task: p.Task, If: ifAllowed(p.Kind),
-		Secs: secs, Total: p.Total, Others: others}
+		Secs: secs, Total: p.Total, Others: others, NoSig: p.Unsigned}
 }
 
 // trayTip：通知領域の文字（63 字まで）

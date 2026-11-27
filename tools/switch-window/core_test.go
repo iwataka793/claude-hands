@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -60,3 +62,58 @@ func TestRequests(t *testing.T) {
 }
 
 func p2() *pending { return &pending{askRequest: askRequest{Kind: "pc-allow"}} }
+
+func TestSign(t *testing.T) {
+	h := t.TempDir()
+	os.Setenv("HANDS_HOME", h)
+	kf := filepath.Join(h, "request.key")
+	os.Setenv("HANDS_KEY_FILE", kf)
+	rd := requestDir()
+	os.MkdirAll(rd, 0o755)
+	put := func(name string, r askRequest) {
+		b, _ := json.Marshal(r)
+		os.WriteFile(filepath.Join(rd, name), b, 0o644)
+	}
+	r := askRequest{Kind: "pc-operate", What: "PC を操作する", Why: "説明", Task: "作業", Tool: "pc_ui_do", From: "t", At: time.Now()}
+	// 合言葉なし：受け付けて「署名なし」
+	put("pc-operate.txt", r)
+	p, _ := nextRequest()
+	if p == nil || !p.Unsigned {
+		t.Fatalf("nokey: %+v", p)
+	}
+	os.WriteFile(kf, []byte("abc123\r\n"), 0o644)
+	// 正しい署名
+	r.Sig = signWith("abc123", r)
+	put("pc-operate.txt", r)
+	if p, _ := nextRequest(); p == nil || p.Unsigned || p.Why != "説明" {
+		t.Fatalf("ok: %+v", p)
+	}
+	// 書き換えた頼み（署名が合わない）
+	r2 := r
+	r2.Why = "ちがう説明"
+	put("pc-operate.txt", r2)
+	if p, _ := nextRequest(); p != nil {
+		t.Fatalf("bad: %+v", p)
+	}
+	if b, _ := os.ReadFile(filepath.Join(rd, "pc-operate.answer.json")); !strings.Contains(string(b), "unsigned") {
+		t.Fatalf("answer %s", b)
+	}
+	// 署名なし（前の形）
+	os.WriteFile(filepath.Join(rd, "pc-allow.txt"), []byte("理由だけ"), 0o644)
+	if p, _ := nextRequest(); p != nil {
+		t.Fatal("plain accepted with key")
+	}
+	// 名前と中身の種類が違う
+	put("pc-allow.txt", r)
+	if p, _ := nextRequest(); p != nil {
+		t.Fatal("mismatch accepted")
+	}
+}
+
+// 署名の並びは道具（tools/pc-mcp・iphone-mcp）と同じ。どちらも同じ答えになること
+func TestSignSame(t *testing.T) {
+	r := askRequest{Kind: "pc-allow", What: "インターネットとやりとりする（落とす・送る）", Why: "説明", Task: "作業", Tool: "pc_powershell", From: "pc-mcp t", At: time.Date(2026, 11, 27, 21, 0, 0, 0, time.FixedZone("JST", 9*3600))}
+	if s := signWith("abc123", r); s != "b1eaa42805d6556ec4d703d1eaed5f7f80e0d0b459c0e5f932a59bf02bf6e6e6" {
+		t.Fatal(s)
+	}
+}

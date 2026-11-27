@@ -11,6 +11,9 @@ package main
 // 窓の返事は requests\<kind>.answer.json（allow・deny・timeout）。断られたら待たずに Claude に返す。
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -30,6 +33,7 @@ type askRequest struct {
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
+	Sig  string    `json:"sig,omitempty"` // 署名（合言葉の HMAC-SHA256）
 }
 
 type askAnswer struct {
@@ -87,7 +91,9 @@ func askKaoru(kind, tool, what, why string) bool {
 	}
 	_ = os.MkdirAll(requestDir(), 0o755)
 	_ = os.Remove(filepath.Join(requestDir(), kind+".answer.json")) // 前の返事は捨てる
-	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: why, Task: askTask(), Tool: tool, From: "pc-mcp " + version, At: time.Now()})
+	r := askRequest{Kind: kind, What: what, Why: why, Task: askTask(), Tool: tool, From: "pc-mcp " + version, At: time.Now()}
+	r.sign()
+	b, _ := json.Marshal(r)
 	_ = os.WriteFile(filepath.Join(requestDir(), kind+".txt"), b, 0o644)
 	startSwitchWindow()
 	return true
@@ -133,6 +139,8 @@ func waitKaoru(kind string, d time.Duration, ok func() bool) (bool, string) {
 		switch readAnswer(kind) {
 		case "deny":
 			return false, deniedMsg
+		case "unsigned":
+			return false, "頼みの署名が確かめられず、窓が頼みを捨てました（道具の版が古いか、合言葉 request.key が読めない）。カオルに伝えてください"
 		case "timeout":
 			return false, "カオルの PC に「許可しますか？」の窓を出しましたが、返事がありませんでした（時間切れ）。チャットでカオルに聞いてください"
 		case "allow":
@@ -177,4 +185,35 @@ func actionOf(tool string) string {
 		return s
 	}
 	return "よく分からない操作（" + tool + "）"
+}
+
+// ---- 頼みの署名（偽の頼みを窓に出させない） ----
+// 合言葉は %ProgramData%\claude-hands\keys\request.key（管理者が作る。カオルの権限では読むだけ。文字の守りで Claude の台本からは読ませない）。
+// 窓（tools/switch-window）は合言葉があれば、署名の合わない頼みを捨てる。
+
+func requestKeyFile() string {
+	if f := os.Getenv("HANDS_KEY_FILE"); f != "" {
+		return f
+	}
+	p := os.Getenv("ProgramData")
+	if p == "" {
+		p = `C:\ProgramData`
+	}
+	return filepath.Join(p, "claude-hands", "keys", "request.key")
+}
+
+// signText：署名する中身（窓の側と同じ並び）
+func (r askRequest) signText() string {
+	return strings.Join([]string{"claude-hands-request-v1", r.Kind, r.What, r.Why, r.Task, r.Tool, r.From, r.At.UTC().Format(time.RFC3339Nano)}, "\n")
+}
+
+func (r *askRequest) sign() {
+	key, err := os.ReadFile(requestKeyFile())
+	k := strings.TrimSpace(string(key))
+	if err != nil || k == "" {
+		return
+	}
+	m := hmac.New(sha256.New, []byte(k))
+	m.Write([]byte(r.signText()))
+	r.Sig = hex.EncodeToString(m.Sum(nil))
 }

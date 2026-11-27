@@ -255,7 +255,7 @@ function renderAsk(a) {
   $('askico').innerHTML = MICON[mode] || MICON.allow;
   $('askico').style.color = COL[mode] || COL.allow;
   $('askhead').textContent = a.head;
-  $('asktarget').textContent = 'Claude からの頼み · ' + (a.target === 'WEB' ? 'ブラウザ（Chrome）' : a.target);
+  $('asktarget').textContent = 'Claude からの頼み · ' + (a.target === 'WEB' ? 'ブラウザ（Chrome）' : a.target) + (a.noSig ? ' · 署名なし' : '');
   $('what').textContent = a.what;
   const why = $('why');
   why.textContent = a.why || '説明がありません';

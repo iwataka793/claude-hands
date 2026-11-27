@@ -149,6 +149,11 @@ func guardLines() []string {
 			ls = append(ls, fmt.Sprintf("  %s %s ← %s", it.when.Format("01-02 15:04"), gb(it.bytes), it.from))
 		}
 	}
+	if k, err := os.ReadFile(requestKeyFile()); err == nil && len(strings.TrimSpace(string(k))) >= 32 {
+		ls = append(ls, "頼みの署名：あり（窓は署名の合わない頼みを捨てる）")
+	} else {
+		ls = append(ls, "頼みの署名：合言葉がまだ無い（カオルに pc-setup.bat を動かしてもらう。UAC あり）")
+	}
 	if b, err := os.ReadFile(filepath.Join(handsDir(), "status", "daily.txt")); err == nil {
 		for _, l := range strings.Split(strings.ReplaceAll(strings.TrimPrefix(string(b), "\ufeff"), "\r\n", "\n"), "\n") {
 			if strings.HasPrefix(l, "時刻：") || strings.HasPrefix(l, "最後の復元ポイント：") || strings.HasPrefix(l, "期限で消した") {

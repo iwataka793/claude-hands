@@ -251,6 +251,10 @@ func (a *Agent) checkWindow(ctx context.Context, window string) *Reply {
 			}
 		}
 	}
+	if m := handsWindowRe.FindString(name); m != "" {
+		r := errText("窓「%s」はカオルの窓です。スイッチ・許可・LIVE・DONE の窓は Claude からは押せない・打てない（押すのはカオルだけ。許可があっても）", strings.TrimSpace(name))
+		return &r
+	}
 	if m := sensitiveWindowRe.FindString(name); m != "" {
 		if ok, _ := a.st.Allowed(); !ok {
 			r := errText("窓「%s」：%s", strings.TrimSpace(name), allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓（"+m+"）")).needs(windowWhat(m, "押す・打つ"))
@@ -278,6 +282,13 @@ func (a *Agent) uiDo(ctx context.Context, raw json.RawMessage) Reply {
 		y, _ := in["y"].(float64)
 		in["x"] = float64(s.Left) + x*float64(s.Factor)
 		in["y"] = float64(s.Top) + y*float64(s.Factor)
+	}
+	if act, _ := in["action"].(string); strings.HasSuffix(strings.ToLower(act), "_xy") {
+		x, _ := in["x"].(float64)
+		y, _ := in["y"].(float64)
+		if t := windowTitleAt(int(x), int(y)); handsWindowRe.MatchString(t) {
+			return errText("そこはカオルの窓（%s）です。スイッチ・許可・LIVE・DONE の窓は Claude からは押せません（押すのはカオルだけ）", t)
+		}
 	}
 	return psReply(a.ps.Run(ctx, uiScript("uido.ps1"), in, 60*time.Second))
 }
