@@ -21,7 +21,7 @@ const (
 	smallW = 112
 	smallH = 40
 	doneW  = 380
-	doneH  = 150
+	doneH  = 172
 	openH  = 340 // DONE を「詳しく」で開いたとき
 )
 

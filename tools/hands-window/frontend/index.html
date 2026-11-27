@@ -37,8 +37,11 @@
   .dreport { display:none; flex:1; overflow:auto; font-size:11px; color:var(--text); white-space:pre-wrap; line-height:1.5;
     border-top:1px solid var(--line); padding-top:6px; }
   body.open .dreport { display:block; }
+  .dhead, .dtitle, .dsum, .dmsg, .dbtns { flex-shrink:0; }
+  .dreport { min-height:0; }
   .dbtns { display:flex; gap:6px; margin-top:auto; }
   .dbtns button { border-color:var(--line); color:var(--text); padding:6px 9px; }
+  .dbtns button span { display:inline; margin:0 0 0 5px; font-size:10px; }
   .dbtns button.undo { border-color:var(--undo); color:var(--undo); }
   .dbtns button.undo.armed { background:rgba(167,139,250,.18); }
   .dmsg { font-size:11px; color:var(--undo); white-space:pre-wrap; }
