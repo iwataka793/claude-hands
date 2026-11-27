@@ -116,7 +116,7 @@ jobs:
           foreach ($n in 'hands-protect.ps1','hands-daily.ps1') {
             $f = (Resolve-Path "tools/pc-mcp/switch/$n").Path
             $b = [IO.File]::ReadAllBytes($f)
-            if (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { "BOM がない: $n"; exit 1 }
+            if (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { "no BOM: $n"; exit 1 }
             $tok = $null; $err = $null
             [void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$tok, [ref]$err)
             if ($err.Count) { $err | ForEach-Object { $_.ToString() }; exit 1 }
