@@ -67,9 +67,15 @@ func main() {
 	}
 	slog.Info("start", "version", version, "state", stateDir, "pair", pairDir)
 
+	// WDA は使わなくなって wdaIdle たったら止める（スイッチが入っていても）
+	wdaIdleMin, _ := strconv.Atoi(env("IPHONE_MCP_WDA_IDLE_MINUTES", "5"))
+	if wdaIdleMin <= 0 {
+		wdaIdleMin = 5
+	}
 	// 見張り：スイッチがオフになった／しばらく使われていない → 全部切る
 	go func() {
 		for range time.Tick(15 * time.Second) {
+			a.phone.StopWDAIfIdle(time.Duration(wdaIdleMin) * time.Minute)
 			if a.sw.IdleExpired() || a.sw.Current() == ModeOff {
 				if a.phone.Connected() {
 					a.phone.Disconnect()

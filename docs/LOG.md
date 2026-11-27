@@ -7,7 +7,8 @@
 - **LINK 5 クリップボード**：PC → iPhone、iPhone → PC とも、Claude が入れて読めた（iPhone は iphone_clipboard で中から。WDA なし）。Apple のユニバーサル クリップボードは Windows には無いので、渡すのは Claude（あとで RECIPE の SEND に）
 - **LINK 3 Pythonista**：`pythonista3://` で Pythonista が開いた（WDA なし）。決まった台本を動かす形（`?action=run`）は、動かしてよい台本を決めてから
 - **ASK 8 WDA の届く範囲**：**家のネットワークの PC（有線 100.64.1.15）から iPhone の Wi-Fi のアドレスの 8100 番に届いた**（WDA が動いている間。62078 番も届く）。WDA は合言葉なしで画面を動かせるので、同じ Wi-Fi の機器から iPhone を操作できてしまう。ping は届かない。直し方はまだ決めていない（下の「これから」）
-- これから（ASK 8 の直し方の候補）：①WDA を使うときだけ動かし、使い終わったら止める（今は動かしっぱなし）②自分で組み立てている WDA（wda.yml）を、Wi-Fi の口では待たないように直す（go-ios のトンネルの口だけで待つ。できるかを調べる）③iPhone の Wi-Fi 側で 8100 番を止める手段は iOS には無い
+- 直し（mcp-19）：WDA には待つ口を決める環境 `USE_IP` があった（appium/WebDriverAgent の FBConfiguration）。iPhone の道具は WDA に USB の経路（usbmux。iPhone の中の 127.0.0.1 につながる）で話すので、`USE_IP=127.0.0.1` で Wi-Fi の口では待たなくなるはず。あわせて、WDA を 5 分使わなければ止める（今まではスイッチがオフになるまで動きっぱなし）。go.ps1 の runwda にも `--env=USE_IP=127.0.0.1` を付けた
+- **ASK 9（古い道の転送）**：go-ios v1.3.2 の `ios forward` は PC の 0.0.0.0 で待つ作りで、場所を決める指定が無い。しかも PC のファイアウォールに **ios.exe の外からの接続を「許可」する決まりが 2 つ**（パブリック）あった（前に Windows の「許可しますか？」で許可したもの）。go.ps1 を動かしている間は、家のネットワークから PC の 8100 番 → iPhone の WDA に届く形だった。直し方：この 2 つの決まりを消す（go.ps1 は PC の中からしか使わないので困らない）。ファイアウォールの変更なのでカオルの OK を待つ。WDA 側の USE_IP があれば、届いても WDA は答えない
 
 ## 2026-11-27 作る順番 2：TIMELINE・DONE・まとめて戻す・Git（pc-22・mcp-18 を入れた）
 

@@ -59,6 +59,7 @@ type Phone struct {
 	logs  []logLine
 
 	wdaRunning bool
+	wdaUsed    time.Time // 最後に WDA を使った時刻（しばらく使わなければ止める）
 	wdaErr     string
 	wdaBundle  string
 	session    string
@@ -431,7 +432,7 @@ func (p *Phone) EnsureWDA(ctx context.Context) error {
 			BundleId:           bundle,
 			TestRunnerBundleId: bundle,
 			XctestConfigName:   test,
-			Env:                map[string]any{},
+			Env:                wdaEnv(),
 			Device:             rsd,
 			Listener:           testmanagerd.NewTestListener(io.Discard, io.Discard, os.TempDir()),
 		})
@@ -483,6 +484,7 @@ func (p *Phone) EnsureWDA(ctx context.Context) error {
 	if p.session == "" {
 		return fmt.Errorf("セッションの番号を取れません")
 	}
+	p.wdaUsed = time.Now()
 	return nil
 }
 
@@ -516,6 +518,33 @@ func (p *Phone) wdaCallLocked(method, path string, body any) ([]byte, error) {
 	return b, nil
 }
 
+// wdaEnv：WebDriverAgent に渡す環境。USE_IP で待つ口を iPhone の中（127.0.0.1）だけにする。
+// PC からは USB の経路（usbmux）で iPhone の中の 127.0.0.1:8100 につなぐので、これで足りる。
+// 何もしないと Wi-Fi の口でも待ち、同じネットワークの機器から合言葉なしで操作できてしまう（2026-11-27 に確かめた）。
+// IPHONE_MCP_WDA_IP=- で前の形（全部の口）に戻せる
+func wdaEnv() map[string]any {
+	ip := env("IPHONE_MCP_WDA_IP", "127.0.0.1")
+	if ip == "-" {
+		return map[string]any{}
+	}
+	return map[string]any{"USE_IP": ip}
+}
+
+// StopWDAIfIdle：WDA を idle のあいだ使っていなければ止める（動かしっぱなしにしない。つながり・ログはそのまま）
+func (p *Phone) StopWDAIfIdle(idle time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.wdaRunning || p.wdaUsed.IsZero() || time.Since(p.wdaUsed) < idle {
+		return
+	}
+	if p.wdaCancel != nil {
+		p.wdaCancel()
+		p.wdaCancel = nil
+	}
+	p.wdaRunning, p.session = false, ""
+	slog.Info("wda stopped (idle)", "idle", idle.String())
+}
+
 // WDA はセッション付きの呼び出し。path の {s} をセッション番号に置き換える。
 func (p *Phone) WDA(ctx context.Context, method, path string, body any) ([]byte, error) {
 	if err := p.EnsureWDA(ctx); err != nil {
@@ -523,6 +552,7 @@ func (p *Phone) WDA(ctx context.Context, method, path string, body any) ([]byte,
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.wdaUsed = time.Now()
 	return p.wdaCallLocked(method, strings.ReplaceAll(path, "{s}", p.session), body)
 }
 
@@ -536,6 +566,7 @@ func (p *Phone) Status() map[string]any {
 		"つながっている":        p.hasRSD,
 		"WebDriverAgent": p.wdaRunning && p.session != "",
 		"WDA の最後のエラー":    p.wdaErr,
+		"WDA の待つ口":       fmt.Sprint(wdaEnv()["USE_IP"]),
 		"覚えているログの行数":     n,
 		"LiveContainer":  p.lcBundle != "",
 	}

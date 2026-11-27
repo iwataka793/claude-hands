@@ -157,7 +157,8 @@ try {
         $bid = ($line -split " ")[0]
         if (-not $bid) { throw "WebDriverAgent が iPhone に見つかりません（SideStore で WebDriverAgentRunner-ss.ipa を入れる）" }
         S "   WDA: $bid / テスト本体: $($DevkitConfig.WdaTestName)"
-        $w = Bg "runwda" @("runwda","--bundleid=$bid","--testrunnerbundleid=$bid","--xctestconfig=$($DevkitConfig.WdaTestName)","--log-output=$(Join-Path $runDir 'wda-testlog.txt')")
+        # USE_IP：WDA は iPhone の中（127.0.0.1）だけで待つ（Wi-Fi から届かないように。forward は USB の経路で iPhone の中につなぐ）
+        $w = Bg "runwda" @("runwda","--bundleid=$bid","--testrunnerbundleid=$bid","--xctestconfig=$($DevkitConfig.WdaTestName)","--env=USE_IP=127.0.0.1","--log-output=$(Join-Path $runDir 'wda-testlog.txt')")
         Bg "forward" @("forward","8100","8100") | Out-Null
         $ok = $false
         for ($i = 0; $i -lt 18; $i++) {
