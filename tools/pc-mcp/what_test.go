@@ -74,3 +74,27 @@ func TestSignSame(t *testing.T) {
 		t.Fatal(r.Sig)
 	}
 }
+
+func TestLane(t *testing.T) {
+	yes := []string{"送信", "送信する", "購入手続きへ", "ログイン", "Sign in", "Log in", "Submit", "Place your order", "Post", "投稿する", "支払う"}
+	no := []string{"検索", "次へ", "キャンセル", "Postal code", "保存", "閉じる", "このページについてのとても長い説明文で、ログインの話も出てくるけれどボタンではないもの"}
+	for _, s := range yes {
+		if finalWord(s) == "" {
+			t.Errorf("E にならない：%q", s)
+		}
+	}
+	for _, s := range no {
+		if finalWord(s) != "" {
+			t.Errorf("E になった：%q", s)
+		}
+	}
+	if !sendKeys("{ENTER}", "", false) || !sendKeys("", "a\nb", false) || !sendKeys("", "", true) || sendKeys("^s", "abc", false) {
+		t.Error("sendKeys")
+	}
+	if !sendAppRe.MatchString("「Claude」 claude（pid 1）") || sendAppRe.MatchString("「メモ帳」 notepad（pid 2）") {
+		t.Error("sendAppRe")
+	}
+	if laneOf("pc_files", nil) != "A" || laneOf("pc_trash", nil) != "D" || laneOf("browser_tabs", map[string]any{"action": "new"}) != "D" {
+		t.Error("laneOf")
+	}
+}

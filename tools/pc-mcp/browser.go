@@ -711,6 +711,10 @@ func (a *Agent) brDo(ctx context.Context, raw json.RawMessage) Reply {
 			if errors.As(err, &na) {
 				r.What = na.what
 			}
+			var ee eErr
+			if errors.As(err, &ee) {
+				r.Lane = "E"
+			}
 			return r
 		}
 		log = append(log, fmt.Sprintf("%d. %s", i+1, msg))
@@ -757,6 +761,9 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 		if err := evalIn(ctx, c, sid, dkLib+`((t)=>{const e=DK.resolve(t); e.scrollIntoView({block:'center',inline:'center',behavior:'instant'}); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2,name:DK.nm(e),role:DK.role(e),sens:DK.sens(e)};})(`+ref+`)`, &p); err != nil {
 			return "", err
 		}
+		if w := finalWord(p.Name); w != "" {
+			return "", eErr{"ページの「" + shortTitle(p.Name, 30) + "」", w}
+		}
 		n := 1
 		if kind != "click" {
 			n = 2
@@ -772,6 +779,11 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 		}
 		x, _ := xy[0].(float64)
 		y, _ := xy[1].(float64)
+		var nm string
+		_ = evalIn(ctx, c, sid, dkLib+fmt.Sprintf(`(()=>{let e=document.elementFromPoint(%g,%g); while(e&&!/^(BUTTON|A|INPUT)$/.test(e.tagName)&&e.getAttribute&&e.getAttribute('role')!=='button') e=e.parentElement; return e?DK.nm(e):'';})()`, x, y), &nm)
+		if w := finalWord(nm); w != "" {
+			return "", eErr{"ページの「" + shortTitle(nm, 30) + "」", w}
+		}
 		if err := mouseClick(ctx, c, sid, x, y, 1); err != nil {
 			return "", err
 		}
@@ -803,6 +815,11 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 		}
 		if p.Sens {
 			return "", fmt.Errorf("「%s」はパスワード・カードの欄なので打ちません（カオルが入れる決まり）", p.Name)
+		}
+		if enter {
+			if w := a.enterRisk(ctx, c, sid); w != "" {
+				return "", eErr{"この欄での Enter（" + w + "）", "Enter"}
+			}
 		}
 		if text == "" && clear {
 			if err := pressKey(ctx, c, sid, "Backspace"); err != nil {
@@ -842,6 +859,11 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 		_ = evalIn(ctx, c, sid, dkLib+`DK.sens(document.activeElement)`, &sens)
 		if sens && !safeKeyRe.MatchString(k) {
 			return "", fmt.Errorf("いまの欄はパスワード・カードの欄なので、%s は押しません（Tab・Enter・Esc・矢印だけ）", k)
+		}
+		if strings.Contains(strings.ToLower(k), "enter") {
+			if w := a.enterRisk(ctx, c, sid); w != "" {
+				return "", eErr{"この欄での Enter（" + w + "）", "Enter"}
+			}
 		}
 		if err := pressKey(ctx, c, sid, k); err != nil {
 			return "", err
@@ -1014,4 +1036,14 @@ func (a *Agent) brShot(ctx context.Context, raw json.RawMessage) Reply {
 	txt := fmt.Sprintf("%s — %s\n画像は %.0f×%.0f（縮め %.3f）。画像の座標 (ix, iy) → ページの見えている所の座標は (%.1f + ix ÷ %.3f, %.1f + iy ÷ %.3f)。click_xy にはこちらを使う",
 		shortTitle(t.Title, 40), shortTitle(t.URL, 80), box.W*scale, box.H*scale, scale, box.X, scale, box.Y, scale)
 	return okText(txt).withImage(img, "image/jpeg")
+}
+
+// enterRisk：いまの欄で Enter を押すと送ってしまいそうか（チャットの欄・「送信」などのボタンがある form）。そうなら理由
+func (a *Agent) enterRisk(ctx context.Context, c *CDP, sid string) string {
+	var w string
+	js := dkLib + `(()=>{const F=` + finalJS() + `; const e=document.activeElement; if(!e||e===document.body) return ''; if(e.isContentEditable||e.tagName==='TEXTAREA') return 'チャット・文章の欄'; const f=e.form; if(f){ for(const b of f.querySelectorAll('button,input[type=submit],input[type=image],[role=button]')){ const n=DK.nm(b); if(n&&n.length<=30&&F.test(n)) return '「'+n+'」のボタンがある入力欄'; } } return '';})()`
+	if err := evalIn(ctx, c, sid, js, &w); err != nil {
+		return ""
+	}
+	return w
 }

@@ -411,6 +411,9 @@ func (a *app) register(s *mcp.Server) {
 			if r := a.gate(ModeOperate); r != nil {
 				return r, nil, nil
 			}
+			if w := finalWord(in.Text); w != "" { // E：戻せない操作の最後のボタン
+				return fail("E（戻せない操作の最後の一押し）：iPhone の「%s」は Claude は押しません（「%s」）。ここまで進めた画面をカオルに見せて、押すのはカオル", in.Text, w), nil, nil
+			}
 			return a.act(ctx, afterOpts{Show: in.Show, Log: in.Log}, func() (string, error) {
 				return a.opTapText(ctx, in.Text, in.Index, in.Partial, in.Count, in.Hold)
 			}), nil, nil

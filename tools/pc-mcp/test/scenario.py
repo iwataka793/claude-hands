@@ -197,6 +197,35 @@ if WIN:
         fails.append("消したものが取り置きから戻っていない")
     check("取り置きは消えていない（戻すのは写す）", "pc_status", {}, False, "取り置き：")
 
+if WIN:
+    print("=== 3c. 作業の道（A〜E）")
+    check("C：変える台本には確かめが付く", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ok.txt'}' -Value 'ok' -NoNewline; 'done'"}, False, "C（変更）の確かめ")
+    check("C：エラーが出たら決まったフォルダの変更を自動で戻す", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ng.txt'}' -Value 'ng' -NoNewline; Write-Error 'わざとのエラー'"}, True, "自動で戻した")
+    if (GT / "c-ng.txt").exists():
+        fails.append("C：エラーのあと、作ったファイルが残っている")
+    if not (GT / "c-ok.txt").exists():
+        fails.append("C：エラーの無い変更まで戻した")
+    check("C：黙らせたエラーは数えない", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-quiet.txt'}' -Value 'q' -NoNewline; Get-Item 'C:\\no-such-file' -ErrorAction SilentlyContinue; 'done'"}, False, "黙らせたもの")
+    if not (GT / "c-quiet.txt").exists():
+        fails.append("C：黙らせたエラーで戻した")
+    err, text, _, _ = call("pc_powershell", {"script": "1+2"})
+    if err or "C（変更）" in text:
+        fails.append("A：読むだけの台本に C の確かめが付いた")
+    check("E：「送信」のボタンは押さない", "pc_ui_do", {"action": "click", "target": "送信", "window": "notepad"}, True, "E（")
+    check("E：「Sign in」のボタンは押さない", "pc_ui_do", {"action": "click", "target": "Sign in"}, True, "E（")
+    tl = HU / "timeline"
+    lanes = set()
+    for f in tl.glob("*.jsonl"):
+        for l in f.read_text(encoding="utf-8").splitlines():
+            try:
+                lanes.add(json.loads(l).get("lane", ""))
+            except Exception:
+                pass
+    print("    TIMELINE の道：", sorted(lanes))
+    for want in ("A", "C", "D", "E"):
+        if want not in lanes:
+            fails.append("TIMELINE に道 " + want + " が無い")
+
 print("=== 4. 許可（ALLOW）")
 (AD / "allow.txt").write_text("allow\r\n")
 check("状態（許可あり）", "pc_status", {}, False, "あり")

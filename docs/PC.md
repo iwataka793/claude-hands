@@ -161,6 +161,22 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - **Git**：記録するフォルダは `devkit\hands\git-folders.txt`（ユーザーフォルダからの場所。既定 `devkit/setup`）。記録の置き場所は `%ProgramData%\claude-hands\git`（pc-setup.bat が作る。GitHub には上げない）。画像・zip・exe・ログ・plist などは記録しない
 - `hands action=log` で、今の作業・終わった作業（新しい 5 つ）・最近の TIMELINE
 
+## 作業の道 A〜E（2026-11-27 から。pc-38・mcp-24）
+
+道具が呼び出しごとに道を決め、TIMELINE（lane）と DONE の報告（「道：A 読む 5・C 変更（控えあり）1・D 小さな変更 3・E 止めた 1」）に残す。設計は ASK-DESIGN.md の 2。
+
+| 道 | 何が入るか | 道具がすること |
+| --- | --- | --- |
+| A 読む | 見るだけの道具、読むだけの PowerShell | そのまま |
+| B 箱で試す | （箱は 5 番で作る。それまでは C） | |
+| C 変更（控えあり） | 何かを変える PowerShell | 先に決まったフォルダ（git-folders.txt）を Git に控える → 本物でやる → 確かめる：画面に出たエラー（FullyQualifiedErrorId）・台本が止まった／時間切れ、Windows のエラーの記録（Application・System のエラー以上）がこの間に増えたか、決まったフォルダの変更。**エラーが出て決まったフォルダが変わっていたら、自動で控えに戻す**（作ったファイルは取り置きへ）。-ErrorAction SilentlyContinue で黙らせたエラーは数えない。返事の最後に「C（変更）の確かめ」 |
+| D 小さな変更 | ごみ箱へ（取り置き）・開く・窓の部品を押す・打つ・ページの操作・タブ・iPhone の操作 | そのまま（記録と取り置き） |
+| E 止めた | 戻せない操作の最後の一押し | Claude は押さずに止まり、「E（戻せない操作の最後の一押し）」と返す。押すのはカオル |
+
+- E の見分け方：ボタンの名前（30 字まで）に「送信・送る・購入・注文する・支払う・決済・ログイン・サインイン・投稿・公開する・ツイート・send・submit・buy・purchase・place order・pay・checkout・log in・sign in・post・publish・tweet」がある（lane.go の finalRe）。pc_ui_do（名前で・位置で）、browser_do（番号・文字・位置で押す）、iphone_tap_text で見る
+- Enter：ブラウザ・チャット・メール・Claude の窓（chrome・edge・LINE・Slack・Teams・Discord・Outlook など）では、pc_keys で Enter（送信に当たるキー・改行入りの文字）を打たない。ブラウザの中では、チャット・文章の欄（textarea・contenteditable）か、「送信」などのボタンがある入力欄では Enter を押さない（検索の欄などは押す）
+- E で止まったら、Claude はチャットで「〜を押してください」とカオルに伝える。ALLOW があっても E は押さない
+
 ## LIVE の窓（2026-11-27 から。pc-26）
 
 - 形（pc-33〜）：幅 340・高さ 84。1 行目に「LIVE」と、入っているスイッチの色の札（VIEW 灰・OPERATE 緑）。2 行目に作業の名前、3 行目に最後の操作。右に［STOP］。スイッチの窓（claude-hands SWITCH）が見えている間は隠れる（DONE は閉じるまで取っておく）

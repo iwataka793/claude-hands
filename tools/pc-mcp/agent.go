@@ -24,6 +24,7 @@ type Reply struct {
 	Images  []Image `json:"images,omitempty"`
 	IsError bool    `json:"isError,omitempty"`
 	What    string  `json:"what,omitempty"` // 許可が要るとき：しようとしていること（ふつうの言葉。許可の窓の WHAT）
+	Lane    string  `json:"lane,omitempty"` // 作業の道 A〜E（lane.go）
 }
 
 // needs：許可が要る返事に、窓の WHAT を付ける

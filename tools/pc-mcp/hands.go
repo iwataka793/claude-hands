@@ -48,6 +48,7 @@ type tlEntry struct {
 	Res  string     `json:"res,omitempty"`
 	Ms   int64      `json:"ms"`
 	Task string     `json:"task,omitempty"`
+	Lane string     `json:"lane,omitempty"` // 作業の道 A〜E（lane.go）
 	Undo []undoItem `json:"undo,omitempty"`
 }
 
@@ -109,6 +110,12 @@ func recordCall(tool string, args json.RawMessage, rep Reply, d time.Duration) {
 		hand = "browser"
 	}
 	e := tlEntry{T: time.Now(), Hand: hand, Tool: tool, Args: oneLine(string(args), 300), OK: !rep.IsError, Res: oneLine(strings.SplitN(rep.Text, "\n", 2)[0], 160), Ms: d.Milliseconds()}
+	e.Lane = rep.Lane
+	if e.Lane == "" {
+		var m map[string]any
+		_ = json.Unmarshal(args, &m)
+		e.Lane = laneOf(tool, m)
+	}
 	if tool == "pc_trash" {
 		for _, m := range trashHeldRe.FindAllStringSubmatch(rep.Text, -1) {
 			e.Undo = append(e.Undo, undoItem{Kind: "trash", From: m[1], Held: m[2]})
@@ -363,9 +370,13 @@ func (a *Agent) report(ctx context.Context, t *handsTask) string {
 	var hands = map[string]int{}
 	ng := 0
 	var held []undoItem
+	lanes := map[string]int{}
 	for _, e := range es {
 		if e.Tool == "hands" {
 			continue
+		}
+		if e.Lane != "" {
+			lanes[e.Lane]++
 		}
 		count[e.Tool]++
 		hands[e.Hand]++
@@ -377,6 +388,15 @@ func (a *Agent) report(ctx context.Context, t *handsTask) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "DONE：%s（%s〜%s）\n", t.Title, t.Start.Format("15:04"), t.End.Format("15:04"))
 	fmt.Fprintf(&b, "手の数：PC %d・ブラウザ %d・iPhone %d（うまくいかなかった %d）\n", hands["pc"], hands["browser"], hands["iphone"], ng)
+	if len(lanes) > 0 {
+		var ls []string
+		for _, k := range []string{"A", "B", "C", "D", "E"} {
+			if lanes[k] > 0 {
+				ls = append(ls, fmt.Sprintf("%s %s %d", k, laneWord[k], lanes[k]))
+			}
+		}
+		fmt.Fprintf(&b, "道：%s\n", strings.Join(ls, "・"))
+	}
 	if t.Before != "" && t.After != "" {
 		cs, err := gitChanges(ctx, t.Before, t.After)
 		if err != nil {
@@ -481,45 +501,7 @@ func (a *Agent) handsUndo(ctx context.Context, id string) Reply {
 	out = append(out, fmt.Sprintf("まとめて戻す：%s（%s〜%s）", t.Title, t.Start.Format("01-02 15:04"), t.End.Format("15:04")))
 	// 1) 文字のファイル（Git）
 	if t.Before != "" && t.After != "" {
-		cs, err := gitChanges(ctx, t.Before, t.After)
-		if err != nil {
-			out = append(out, "Git：読めなかった（"+err.Error()+"）")
-		}
-		var toTrash []string
-		for _, c := range cs {
-			cur := filepath.Join(homeDir(), filepath.FromSlash(c.path))
-			now := ""
-			if _, err := os.Stat(cur); err == nil {
-				now, _ = gitText(ctx, "hash-object", "--", cur)
-			}
-			after := ""
-			if c.st != "D" {
-				after, _ = gitText(ctx, "rev-parse", t.After+":"+c.path)
-			}
-			if now != after {
-				out = append(out, "  戻さなかった（あとで変わっている）："+c.path)
-				continue
-			}
-			switch c.st {
-			case "M", "D":
-				b, err := gitRaw(ctx, "show", t.Before+":"+c.path)
-				if err == nil {
-					_ = os.MkdirAll(filepath.Dir(cur), 0o755)
-					err = os.WriteFile(cur, b, 0o644)
-				}
-				if err != nil {
-					out = append(out, "  戻せなかった："+c.path+"（"+err.Error()+"）")
-				} else {
-					out = append(out, "  戻した（"+stWord[c.st]+"のを元に）："+c.path)
-				}
-			case "A":
-				toTrash = append(toTrash, cur)
-			}
-		}
-		if len(toTrash) > 0 { // Claude が作ったファイルは、消さずに取り置きへ
-			r := a.trash(ctx, mustJSON(map[string]any{"paths": toTrash}))
-			out = append(out, "  作ったファイルを取り置きへ："+oneLine(r.Text, 400))
-		}
+		out = append(out, a.restoreGit(ctx, t.Before, t.After)...)
 	}
 	// 2) 消したもの（取り置きから元の場所へ写す）
 	for _, e := range entries(t.Start, t.End, t.ID) {
@@ -596,4 +578,49 @@ func copyFile(src, dst string, fi os.FileInfo) error {
 		return err
 	}
 	return os.Chtimes(dst, fi.ModTime(), fi.ModTime())
+}
+
+// restoreGit：Git の記録 before〜after の間に変わった決まったフォルダのファイルを、before に戻す（あとで変わったものは戻さない。作ったファイルは取り置きへ）
+func (a *Agent) restoreGit(ctx context.Context, before, after string) []string {
+	var out []string
+	cs, err := gitChanges(ctx, before, after)
+	if err != nil {
+		out = append(out, "Git：読めなかった（"+err.Error()+"）")
+	}
+	var toTrash []string
+	for _, c := range cs {
+		cur := filepath.Join(homeDir(), filepath.FromSlash(c.path))
+		now := ""
+		if _, err := os.Stat(cur); err == nil {
+			now, _ = gitText(ctx, "hash-object", "--", cur)
+		}
+		want := ""
+		if c.st != "D" {
+			want, _ = gitText(ctx, "rev-parse", after+":"+c.path)
+		}
+		if now != want {
+			out = append(out, "  戻さなかった（あとで変わっている）："+c.path)
+			continue
+		}
+		switch c.st {
+		case "M", "D":
+			b, err := gitRaw(ctx, "show", before+":"+c.path)
+			if err == nil {
+				_ = os.MkdirAll(filepath.Dir(cur), 0o755)
+				err = os.WriteFile(cur, b, 0o644)
+			}
+			if err != nil {
+				out = append(out, "  戻せなかった："+c.path+"（"+err.Error()+"）")
+			} else {
+				out = append(out, "  戻した（"+stWord[c.st]+"のを元に）："+c.path)
+			}
+		case "A":
+			toTrash = append(toTrash, cur)
+		}
+	}
+	if len(toTrash) > 0 { // Claude が作ったファイルは、消さずに取り置きへ
+		r := a.trash(ctx, mustJSON(map[string]any{"paths": toTrash}))
+		out = append(out, "  作ったファイルを取り置きへ："+oneLine(r.Text, 400))
+	}
+	return out
 }

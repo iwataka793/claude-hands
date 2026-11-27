@@ -8,9 +8,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -24,6 +26,7 @@ type tlEntry struct {
 	Res  string    `json:"res,omitempty"`
 	Ms   int64     `json:"ms"`
 	Task string    `json:"task,omitempty"`
+	Lane string    `json:"lane,omitempty"` // 作業の道 A〜E（tools/pc-mcp/lane.go と同じ）
 }
 
 var tlMu sync.Mutex
@@ -83,8 +86,17 @@ func timelineMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 			return res, err
 		}
 		e := tlEntry{T: start, Hand: "iphone", Tool: p.Name, Args: oneLine(string(p.Arguments), 300), OK: err == nil, Ms: time.Since(start).Milliseconds()}
+		e.Lane = "D"
+		if iphoneViewTools[p.Name] {
+			e.Lane = "A"
+		}
 		if r, ok := res.(*mcp.CallToolResult); ok && r != nil {
 			e.OK = e.OK && !r.IsError
+			if r.IsError && len(r.Content) > 0 {
+				if t, ok := r.Content[0].(*mcp.TextContent); ok && strings.HasPrefix(t.Text, "E（") {
+					e.Lane = "E"
+				}
+			}
 			for _, c := range r.Content {
 				if t, ok := c.(*mcp.TextContent); ok {
 					e.Res = oneLine(strings.SplitN(t.Text, "\n", 2)[0], 160)
@@ -98,4 +110,18 @@ func timelineMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 		appendTimeline(e)
 		return res, err
 	}
+}
+
+// iphoneViewTools：見るだけの道具（道 A）。ほかは D
+var iphoneViewTools = map[string]bool{"iphone_screenshot": true, "iphone_elements": true, "iphone_info": true, "iphone_logs": true, "iphone_wait": true}
+
+// finalRe：戻せない操作の最後のボタンの名前（tools/pc-mcp/lane.go と同じ）
+var finalRe = regexp.MustCompile(`(?i)(送信|送る|購入|注文を確定|注文する|ご注文|支払う|支払い|お支払い|決済|ログイン|サインイン|投稿|公開する|ツイート|ポストする|\bsend\b|\bsubmit\b|\bbuy\b|\bpurchase\b|place (your )?order|\bpay\b|checkout|check out|\blog ?in\b|\bsign ?in\b|\bpost\b|\bpublish\b|\btweet\b)`)
+
+func finalWord(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" || utf8.RuneCountInString(name) > 30 {
+		return ""
+	}
+	return finalRe.FindString(name)
 }

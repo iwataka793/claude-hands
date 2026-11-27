@@ -38,7 +38,7 @@ jobs:
       - name: 確かめる（vet）
         run: GOOS=windows GOARCH=amd64 go vet ./...
       - name: 言い換えの表と説明の受け付けの試験
-        run: go test -run 'TestScriptWhat|TestPathWhat|TestCheckWhy|TestSignSame' -v .
+        run: go test -run 'TestScriptWhat|TestPathWhat|TestCheckWhy|TestSignSame|TestLane' -v .
       - name: 起動の試験（Linux。常駐役なし＝オフ）
         run: |
           go build -o /tmp/pc-linux .

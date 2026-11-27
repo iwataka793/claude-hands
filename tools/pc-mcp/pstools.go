@@ -197,17 +197,98 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 	if in.Max <= 0 {
 		in.Max = 30000
 	}
+	// 道：読むだけの台本は A。何かを変える台本は C（先に控え → 本物でやる → 確かめる → だめなら戻す）
+	lane := "A"
+	if viewNG != "" {
+		lane = "C"
+	}
+	var c *cRun
+	if lane == "C" {
+		c = a.beginC(ctx, in.Script)
+	}
 	out, err := a.ps.Run(ctx, in.Script, nil, time.Duration(in.Seconds)*time.Second)
 	if r := []rune(out); len(r) > in.Max {
 		out = string(r[:in.Max]) + fmt.Sprintf("\n（出力が長いので %d 文字で切った。全部で %d 文字）", in.Max, len(r))
 	}
+	var tail string
+	reverted := false
+	if c != nil {
+		tail, reverted = a.endC(ctx, c, out, err)
+	}
 	if err != nil {
-		return errText("%v\n%s", err, out)
+		r := errText("%v\n%s%s", err, out, tail)
+		r.Lane = lane
+		return r
 	}
 	if strings.TrimSpace(out) == "" {
 		out = "（出力なし）"
 	}
-	return okText(out)
+	r := okText(out + tail)
+	r.Lane = lane
+	r.IsError = reverted
+	return r
+}
+
+// ---- C：控えを取ってから変える ----
+
+type cRun struct {
+	snap  string
+	start time.Time
+}
+
+func (a *Agent) beginC(ctx context.Context, script string) *cRun {
+	c := &cRun{start: time.Now()}
+	if s, err := gitSnapshot(ctx, "C の前："+oneLine(script, 80)); err == nil {
+		c.snap = s
+	}
+	_, _ = a.ps.Run(ctx, "$Error.Clear()", nil, 10*time.Second)
+	return c
+}
+
+// endC：確かめる（エラーが出たか・Windows のエラーの記録が増えたか・決まったフォルダの変更）。エラーが出て決まったフォルダが変わっていたら戻す。
+// 「エラーが出た」は、台本が止まった・時間切れ、か、画面に出たエラー（FullyQualifiedErrorId の行）があるとき。
+// -ErrorAction SilentlyContinue で黙らせたエラーは数えない（わざと無視したもの）。
+func (a *Agent) endC(ctx context.Context, c *cRun, out string, runErr error) (string, bool) {
+	var ls []string
+	shown := strings.Count(out, "FullyQualifiedErrorId")
+	all := 0
+	if o, err := a.ps.Run(ctx, "$Error.Count", nil, 10*time.Second); err == nil {
+		fmt.Sscanf(strings.TrimSpace(o), "%d", &all)
+	}
+	failed := runErr != nil || shown > 0
+	switch {
+	case runErr != nil:
+		ls = append(ls, "エラー：台本が止まった（"+oneLine(runErr.Error(), 80)+"）")
+	case shown > 0:
+		ls = append(ls, fmt.Sprintf("エラー：%d 件（画面に出たもの）", shown))
+	case all > 0:
+		ls = append(ls, fmt.Sprintf("エラー：なし（黙らせたもの %d 件は数えない）", all))
+	default:
+		ls = append(ls, "エラー：なし")
+	}
+	ev, _ := a.ps.Run(ctx, `$s = [datetime]::Parse($A.since); $e = @(Get-WinEvent -FilterHashtable @{LogName='Application','System'; Level=1,2; StartTime=$s} -ErrorAction SilentlyContinue); if ($e.Count) { "{0} 件（{1}）" -f $e.Count, (($e | Select-Object -ExpandProperty ProviderName -Unique | Select-Object -First 3) -join '・') } else { 'なし' }`,
+		map[string]any{"since": c.start.Add(-time.Second).Format(time.RFC3339)}, 20*time.Second)
+	if ev = strings.TrimSpace(ev); ev != "" {
+		ls = append(ls, "Windows のエラーの記録（この間に増えた分）："+ev)
+	}
+	reverted := false
+	if c.snap == "" {
+		ls = append(ls, "控え：取れなかった（決まったフォルダを Git で記録できない）")
+	} else if after, err := gitSnapshot(ctx, "C の後"); err == nil {
+		cs, _ := gitChanges(ctx, c.snap, after)
+		switch {
+		case len(cs) == 0:
+			ls = append(ls, "決まったフォルダ（"+strings.Join(gitPaths(), "・")+"）の変更：なし")
+		case failed:
+			ls = append(ls, fmt.Sprintf("エラーが出たので、決まったフォルダの変更 %d 件を自動で戻した：", len(cs)))
+			ls = append(ls, a.restoreGit(ctx, c.snap, after)...)
+			_, _ = gitSnapshot(ctx, "C を戻した")
+			reverted = true
+		default:
+			ls = append(ls, fmt.Sprintf("決まったフォルダの変更：%d 件（DONE の［まとめて戻す］で戻せる）", len(cs)))
+		}
+	}
+	return "\n—— C（変更）の確かめ ——\n" + strings.Join(ls, "\n"), reverted
 }
 
 // ---- 動かす ----
@@ -283,11 +364,22 @@ func (a *Agent) uiDo(ctx context.Context, raw json.RawMessage) Reply {
 		in["x"] = float64(s.Left) + x*float64(s.Factor)
 		in["y"] = float64(s.Top) + y*float64(s.Factor)
 	}
-	if act, _ := in["action"].(string); strings.HasSuffix(strings.ToLower(act), "_xy") {
+	act, _ := in["action"].(string)
+	act = strings.ToLower(act)
+	if strings.HasSuffix(act, "_xy") {
 		x, _ := in["x"].(float64)
 		y, _ := in["y"].(float64)
 		if t := windowTitleAt(int(x), int(y)); handsWindowRe.MatchString(t) {
 			return errText("そこはカオルの窓（%s）です。スイッチ・許可・LIVE・DONE の窓は Claude からは押せません（押すのはカオルだけ）", t)
+		}
+		// E：その位置の部品の名前が「送信」などなら押さない
+		if name := a.nameAt(ctx, x, y); finalWord(name) != "" {
+			return stopE("その位置のボタン「"+oneLine(name, 30)+"」", finalWord(name))
+		}
+	}
+	if act == "click" || act == "double" || act == "toggle" || act == "select" {
+		if t, _ := in["target"].(string); finalWord(t) != "" {
+			return stopE("ボタン「"+oneLine(t, 30)+"」", finalWord(t))
 		}
 	}
 	return psReply(a.ps.Run(ctx, uiScript("uido.ps1"), in, 60*time.Second))
@@ -299,6 +391,15 @@ func (a *Agent) keys(ctx context.Context, raw json.RawMessage) Reply {
 	w, _ := in["window"].(string)
 	if r := a.checkWindow(ctx, w); r != nil {
 		return *r
+	}
+	// E：ブラウザ・チャット・メールの窓で、送信に当たるキー（Enter）を打たない（Enter だけで送られる）
+	k, _ := in["keys"].(string)
+	tx, _ := in["text"].(string)
+	en, _ := in["enter"].(bool)
+	if sendKeys(k, tx, en) {
+		if line := a.windowLine(ctx, w); sendAppRe.MatchString(line) {
+			return stopE("この窓（"+oneLine(strings.TrimSpace(strings.TrimSuffix(line, "← いま前")), 60)+"）での Enter（送信に当たるキー）", "Enter")
+		}
 	}
 	return psReply(a.ps.Run(ctx, uiScript("keys.ps1"), in, 60*time.Second))
 }
@@ -328,4 +429,33 @@ func (a *Agent) trash(ctx context.Context, raw json.RawMessage) Reply {
 		"paths": ps, "recycle": in.Recycle, "ready": hi.ready, "holding": holdingDir(),
 		"used": hi.bytes, "cap": capB, "capWhy": why,
 	}, 600*time.Second))
+}
+
+// nameAt：画面の (x, y) にある部品の名前（UI オートメーション）
+func (a *Agent) nameAt(ctx context.Context, x, y float64) string {
+	out, err := a.ps.Run(ctx, `Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase
+try { $e = [System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point ([double]$A.x), ([double]$A.y))); $e.Current.Name } catch { '' }`,
+		map[string]any{"x": x, "y": y}, 20*time.Second)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// windowLine：pc_windows の一覧から、spec（題名の一部・プログラム名・pid）に合う窓の行。spec が空ならいま前の窓
+func (a *Agent) windowLine(ctx context.Context, spec string) string {
+	out, err := a.ps.Run(ctx, uiScript("windows.ps1"), map[string]any{}, 30*time.Second)
+	if err != nil {
+		return ""
+	}
+	spec = strings.ToLower(strings.TrimSpace(spec))
+	for _, l := range strings.Split(out, "\n") {
+		if spec == "" && strings.Contains(l, "← いま前") {
+			return l
+		}
+		if spec != "" && strings.Contains(strings.ToLower(l), spec) {
+			return l
+		}
+	}
+	return ""
 }
