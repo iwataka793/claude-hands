@@ -16,6 +16,8 @@ const (
 	panelH = 530
 	askW   = 440
 	askH   = 540
+
+	liveRoom = 76 + 12 // 右下の LIVE の窓の高さとすき間（スイッチの窓はその上に置く）
 )
 
 type App struct {
