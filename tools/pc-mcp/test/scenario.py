@@ -23,6 +23,12 @@ BD = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-browser-switch"
 shutil.rmtree(BD, ignore_errors=True)
 BD.mkdir(parents=True, exist_ok=True)
 os.environ["PC_BROWSER_DIR"] = str(BD)
+# 取り置き（試験では守りの権限なしの一時フォルダ）
+HD = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-hands"
+shutil.rmtree(HD, ignore_errors=True)
+(HD / "holding").mkdir(parents=True, exist_ok=True)
+os.environ["PC_HANDS_DIR"] = str(HD)
+os.environ["PC_HANDS_FREE_GB"] = "200"  # 試験の機械の C は空きが少ないので
 
 
 def call(name, args=None, timeout=300):
@@ -130,10 +136,25 @@ check("スイッチの置き場所は触れない", "pc_powershell", {"script": 
 check("許可の置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{AD / 'allow.txt'}' x"}, True, "置き場所")
 check("鍵の場所の中身は許可が要る", "pc_files", {"action": "read", "path": "~/.ssh/id_rsa"}, True, "許可")
 if WIN:
-    check("ごみ箱へ送る", "pc_trash", {"paths": [str(f)]}, False, "ごみ箱へ")
+    check("取り置きに写してからごみ箱へ送る", "pc_trash", {"paths": [str(f)]}, False, "取り置き 30 日")
     print("    残っているか：", f.exists())
     if f.exists():
         fails.append("ごみ箱へ送ったのに残っている")
+    held = list((HD / "holding").glob("*/trash-me.txt"))
+    print("    取り置きの中：", held)
+    if not held or held[0].read_text().strip() != "test":
+        fails.append("取り置きに写っていない")
+    d = tmp / "trash-dir"
+    (d / "sub").mkdir(parents=True, exist_ok=True)
+    (d / "sub" / "x.txt").write_text("xyz")
+    check("フォルダも取り置きへ", "pc_trash", {"paths": [str(d)]}, False, "取り置き 30 日")
+    if not list((HD / "holding").glob("*/trash-dir/sub/x.txt")):
+        fails.append("フォルダが取り置きに写っていない")
+    g = tmp / "recycle-only.txt"
+    g.write_text("r")
+    check("recycle: true はごみ箱だけ", "pc_trash", {"paths": [str(g)], "recycle": True}, False, "取り置きなし")
+    check("状態に取り置きが出る", "pc_status", {}, False, "取り置き：2 件")
+    check("取り置きの場所は触れない", "pc_powershell", {"script": f"Get-ChildItem '{HD / 'holding'}'"}, True, "置き場所")
     check("Windows 本体はごみ箱にも送れない", "pc_trash", {"paths": [r"C:\Windows\notepad.exe"]}, True, "許可")
 
 print("=== 4. 許可（ALLOW）")

@@ -277,12 +277,13 @@ type keysIn struct {
 }
 
 type trashIn struct {
-	Paths []string `json:"paths" jsonschema:"ごみ箱に送るファイル・フォルダ（完全には消さない）"`
+	Paths   []string `json:"paths" jsonschema:"消すファイル・フォルダ（取り置きに写してからごみ箱へ。完全には消さない）"`
+	Recycle bool     `json:"recycle,omitempty" jsonschema:"true なら取り置きに写さず、ごみ箱だけに送る（取り置きに入らない大きいもの。先にカオルに聞いてから）"`
 }
 
 func runMCP() {
 	s := mcp.NewServer(&mcp.Implementation{Name: "pc", Version: version}, nil)
-	mcp.AddTool(s, &mcp.Tool{Name: "pc_status", Description: "PC の道具の様子：常駐役が動いているか・スイッチ（オフ・見るだけ・操作も可）・許可（ALLOW）・最近の記録。いつでも使える"}, forward[noIn]("pc_status", 15*time.Second))
+	mcp.AddTool(s, &mcp.Tool{Name: "pc_status", Description: "PC の道具の様子：常駐役が動いているか・スイッチ（オフ・見るだけ・操作も可）・許可（ALLOW）・C の空き・取り置き・毎日の点検（復元ポイント）・OneDrive への写し・最近の記録。いつでも使える"}, forward[noIn]("pc_status", 15*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_disk", Description: "容量を調べる：ドライブの空き、フォルダの中の大きい順、大きいファイル、膨らみやすい場所（一時ファイル・キャッシュ・Windows Update・iPhone のバックアップ・Docker/WSL など）。見るだけで使える"}, forward[diskIn2]("pc_disk", 11*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_problems", Description: "アプリや Windows の不具合の記録を集める：イベントログのエラー、落ちた・固まったアプリの回数、エラー報告（WER）、クラッシュのダンプ、信頼性モニター。見るだけで使える"}, forward[problemsIn]("pc_problems", 4*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_processes", Description: "動いているプログラムをメモリか CPU の重い順に。見るだけで使える"}, forward[processesIn]("pc_processes", 2*time.Minute))
@@ -295,7 +296,7 @@ func runMCP() {
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_open", Description: "アプリ・ファイル・フォルダ・URL を開く。操作も可のときだけ"}, forward[openIn]("pc_open", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_ui_do", Description: "窓の部品を名前で探して押す・文字を入れる・切り替える・開く（UI オートメーション）。位置で押す（click_xy、pc_screenshot の画像の座標でもよい）もできる。操作も可のときだけ"}, forward[uiDoIn]("pc_ui_do", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_keys", Description: "キーボードで打つ（文字・特別なキー・Enter）。window で先に窓を前に出せる。操作も可のときだけ"}, forward[keysIn]("pc_keys", 90*time.Second))
-	mcp.AddTool(s, &mcp.Tool{Name: "pc_trash", Description: "ファイル・フォルダをごみ箱に送る（完全には消さない。元に戻せる）。Windows 本体・パスワードなどの場所はカオルの許可が要る。消す前にカオルに確かめる決まり。操作も可のときだけ"}, forward[trashIn]("pc_trash", 6*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "pc_trash", Description: "ファイル・フォルダを消す（完全には消さない）：取り置き（30 日。Claude には取り出せない・消せない。戻すのはカオル）に写してから、元をごみ箱へ。取り置きに入らない大きいものは止まるので、カオルに聞いてから recycle: true。Windows 本体・パスワードなどの場所はカオルの許可が要る。消す前にカオルに確かめる決まり。操作も可のときだけ"}, forward[trashIn]("pc_trash", 6*time.Minute))
 	// ブラウザ（カオルのいつもの Chrome。画面を撮らずに文字と番号で読んで動かす）
 	mcp.AddTool(s, &mcp.Tool{Name: "browser_tabs", Description: "Chrome のタブの一覧（番号・題名・URL）。action=new で URL を新しいタブで開く・select で前に出す・close で Claude が開いたタブを閉じる（一覧は見るだけで使える、ほかは操作も可）。初めて使うとき、Chrome が「許可しますか？」を出すのでカオルに押してもらう"}, forward[brTabsIn]("browser_tabs", 2*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "browser_read", Description: "Chrome のページを文字で読む（画像より速く正確）：押せる部品（ボタン・リンク・入力欄）に番号を付けた一覧と、ページの文字。filter で絞れる。番号は browser_do で使う。見るだけで使える"}, forward[brReadIn]("browser_read", 2*time.Minute))

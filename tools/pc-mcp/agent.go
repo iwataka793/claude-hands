@@ -235,6 +235,8 @@ func (a *Agent) status() Reply {
 		"記録：" + a.st.path("audit.log"),
 		"最近の記録：",
 	}
+	lines = append(lines[:len(lines)-1], guardLines()...)
+	lines = append(lines, "最近の記録：")
 	for _, l := range a.st.AuditTail(8) {
 		lines = append(lines, "  "+l)
 	}

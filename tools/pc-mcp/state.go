@@ -127,6 +127,7 @@ func (s *State) IdleExpired() bool {
 func (s *State) Audit(tool, detail, result string, d time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.rotateAudit()
 	f, err := os.OpenFile(s.path("audit.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
@@ -144,13 +145,28 @@ func (s *State) Audit(tool, detail, result string, d time.Duration) {
 	fmt.Fprintf(f, "%s [%s%s] %s %s → %s（%.1f 秒）\r\n", time.Now().Format("2006-01-02 15:04:05"), s.Mode(), a, tool, detail, result, d.Seconds())
 }
 
-// AuditTail は記録の最後の n 行。
+// auditMax を超えたら audit.log を audit.1.log に回す（5 つまで残す。ASK-DESIGN.md の「容量の決まり」）
+const auditMax = 10 << 20
+
+func (s *State) rotateAudit() {
+	st, err := os.Stat(s.path("audit.log"))
+	if err != nil || st.Size() < auditMax {
+		return
+	}
+	_ = os.Remove(s.path("audit.5.log"))
+	for i := 4; i >= 1; i-- {
+		_ = os.Rename(s.path(fmt.Sprintf("audit.%d.log", i)), s.path(fmt.Sprintf("audit.%d.log", i+1)))
+	}
+	_ = os.Rename(s.path("audit.log"), s.path("audit.1.log"))
+}
+
+// AuditTail は記録の最後の n 行（ファイルの最後の方だけ読む）。
 func (s *State) AuditTail(n int) []string {
-	b, err := os.ReadFile(s.path("audit.log"))
-	if err != nil {
+	b := readTail(s.path("audit.log"), 64<<10)
+	if b == "" {
 		return nil
 	}
-	lines := strings.Split(strings.TrimRight(strings.ReplaceAll(string(b), "\r\n", "\n"), "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(strings.ReplaceAll(b, "\r\n", "\n"), "\n"), "\n")
 	if len(lines) > n {
 		lines = lines[len(lines)-n:]
 	}

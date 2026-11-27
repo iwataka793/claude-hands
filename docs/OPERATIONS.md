@@ -57,7 +57,8 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `devkit\pc-agent\` | PC の道具の常駐役（pc-agent.exe）・スイッチ（mode.txt）・合言葉（token.txt）・記録（audit.log・agent.log） | 消さない |
 | `%ProgramData%\pc-agent\allow.txt` | 10 分の許可（管理者しか書けない場所） | 触らない |
 | `devkit\backup\` | バックアップの台本と結果（2026-11-27）：setup-restore.ps1（システムの保護の設定。管理者で 1 回）・onedrive-policy.ps1（OneDrive のフォルダの移動を止めるポリシー。管理者で 1 回）・copy-onedrive.ps1（OneDrive\PC-Backup へ写す。毎時）・restore-test.ps1（戻す練習。管理者で読むだけ）と、それぞれの結果の .txt / .log | 消さない |
-| 予定のタスク `\claude-hands\` | RestorePoint（SYSTEM・毎日 12:00 に復元ポイント）・CopyToOneDrive（カオル・毎時とサインイン時に OneDrive へ写す） | 消さない |
+| `%ProgramData%\claude-hands\` | 守りの場所（pc-15 から。pc-setup.bat が UAC で作る）：holding（取り置き。Claude は入れるだけ）・status（毎日の点検の結果）・bin（点検の台本） | 触らない（取り置きから戻すのはカオル） |
+| 予定のタスク `\claude-hands\` | RestorePoint（SYSTEM・毎日 12:00 に復元ポイント・30 日たった取り置きを消す・status\daily.txt に結果。pc-15 から台本は bin\hands-daily.ps1）・CopyToOneDrive（カオル・毎時とサインイン時に OneDrive へ写す） | 消さない |
 | `OneDrive\PC-Backup\` | デスクトップ・ドキュメント・ピクチャ・ビデオ・ミュージックの写し（元の場所はそのまま）。「常に保持」の印つき | 消さない（中身は毎時作り直す） |
 | `OneDrive\デスクトップ` ほか | 2026-06-10 に OneDrive のフォルダのバックアップが止まったときに残った前のデスクトップなど（クラウドだけ） | カオルが決める |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |

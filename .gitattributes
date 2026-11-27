@@ -2,4 +2,5 @@ scripts/pc/*.ps1 text eol=crlf
 scripts/pc/*.bat text eol=crlf
 tools/iphone-mcp/switch/*.bat -text
 tools/pc-mcp/switch/*.bat -text
+tools/pc-mcp/switch/*.ps1 -text
 tools/switch-app/* -text

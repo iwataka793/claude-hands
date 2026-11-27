@@ -65,7 +65,7 @@ jobs:
           mkdir -p pkg/server sw
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$V" -o pkg/server/pc-mcp.exe .
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H windowsgui -X main.version=$V" -o sw/pc-agent.exe .
-          cp switch/*.bat sw/
+          cp switch/*.bat switch/*.ps1 sw/
           cp ../switch-app/devkit-switch.ps1 ../switch-app/devkit-switch.vbs ../switch-app/devkit-switch.ico sw/
           ls -la pkg/server sw
       - name: 拡張機能（.mcpb）とスイッチにまとめる
@@ -110,6 +110,18 @@ jobs:
           $ms = [regex]::Matches($src, "(?s)\[xml\]\`$\w+ = @'\r?\n(.*?)\r?\n'@")
           foreach ($m in $ms) { $x = [xml]$m.Groups[1].Value; $w = [Windows.Markup.XamlReader]::Load((New-Object System.Xml.XmlNodeReader $x)); "XAML OK: $($w.GetType().Name) $($w.Title)" }
           if ($ms.Count -lt 2) { "XAML not found"; exit 1 }
+      - name: 守りの場所の台本が読めるか（UTF-8 の BOM 付き）
+        shell: powershell
+        run: |
+          foreach ($n in 'hands-protect.ps1','hands-daily.ps1') {
+            $f = (Resolve-Path "tools/pc-mcp/switch/$n").Path
+            $b = [IO.File]::ReadAllBytes($f)
+            if (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { "BOM がない: $n"; exit 1 }
+            $tok = $null; $err = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f, [ref]$tok, [ref]$err)
+            if ($err.Count) { $err | ForEach-Object { $_.ToString() }; exit 1 }
+            "OK: $n"
+          }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
         run: |

@@ -74,7 +74,7 @@ func isSwitchPlace(s string) bool {
 		return true
 	}
 	low := strings.ToLower(matchForm(s))
-	for _, d := range []string{stateDir(), allowDir(), browserDir()} {
+	for _, d := range []string{stateDir(), allowDir(), browserDir(), handsDir()} {
 		if d != "" && strings.Contains(low, strings.ToLower(matchForm(d))) {
 			return true
 		}
@@ -87,7 +87,7 @@ func pathClass(p string) (string, string) {
 	n := matchForm(normPath(p))
 	switch {
 	case isSwitchPlace(n):
-		return "switch", "スイッチの置き場所"
+		return "switch", "スイッチ・許可・守り（取り置き）の置き場所"
 	case sensitivePathRe.MatchString(n):
 		return "sensitive", "パスワード・セキュリティ・お金にかかわる場所（" + sensitivePathRe.FindString(n) + "）"
 	case systemPathRe.MatchString(n):
@@ -154,7 +154,7 @@ var textAllowRe = regexp.MustCompile(`(?i)(-verb\s+['"]?runas|hklm:|hkey_local_m
 func checkScript(info scriptInfo, src string) (block, needAllow, viewNG string) {
 	text := strings.ReplaceAll(src, "/", `\`)
 	if isSwitchPlace(text) {
-		return "スイッチ・許可の置き場所は触れません", "", ""
+		return "スイッチ・許可・守り（取り置き）の置き場所は触れません", "", ""
 	}
 	if len(info.Errors) > 0 {
 		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", ""

@@ -62,7 +62,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 | 道具 | スイッチ | 中身 |
 | --- | --- | --- |
-| pc_status | いつでも | 常駐役・スイッチ・許可・最近の記録 8 行 |
+| pc_status | いつでも | 常駐役・スイッチ・許可・C の空き（100 GB・50 GB の決まり）・取り置き（件数・大きさ・新しい 3 つ）・毎日の点検（最後の復元ポイント）・OneDrive への最後の写し・最近の記録 8 行 |
 | pc_disk | 見るだけ〜 | ドライブの空き。`path` の中を大きい順（`files` で 50 MB 以上のファイルも）。膨らみやすい場所の大きさ（path を省いたとき） |
 | pc_problems | 見るだけ〜 | イベントログのエラー（`warnings` で警告も）、落ちた・固まったアプリの回数、エラー報告（WER）、クラッシュのダンプ、`reliability` で信頼性モニター。`app` で絞る |
 | pc_processes | 見るだけ〜 | メモリの重い順（同じ名前はまとめる）か、`sort: cpu` で CPU（1 秒測る） |
@@ -75,7 +75,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | pc_open | 操作も可 | アプリ・ファイル・フォルダ・URL を開く |
 | pc_ui_do | 操作も可 | 部品を名前か id で探して click・set_value・toggle・expand・select など。位置で押す click_xy（`from_image` で画像の座標のまま） |
 | pc_keys | 操作も可 | 打つ（`text`、日本語は `paste: true` が確実）・特別なキー（`keys`：^s・%{F4}・{TAB} など）・`enter`。`window` を前に出せなければ打たない |
-| pc_trash | 操作も可 | ごみ箱へ送る（元に戻せる）。消す前にカオルに確かめる決まり |
+| pc_trash | 操作も可 | 消す（完全には消さない）：**取り置き**（30 日）に写してから、元をごみ箱へ。取り置きに入らない大きいもの・C の空きが少ないときは止まる → カオルに聞いてから `recycle: true`（ごみ箱だけ）。消す前にカオルに確かめる決まり（下の「取り置き」） |
 
 ## ブラウザ（2026-11-26 から。browser_ で始まる道具）
 
@@ -136,6 +136,16 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 次の手が読めるときは 1 回の browser_do にまとめる（開く → 打つ → 押す → 待つ → 読む）
 - 読む量を絞る（`filter`・`max`）。画像は最後
 - 毎回同じ手順なら、browser_js に台本をまとめるか、PC に置くプログラムにする
+
+## 取り置き（2026-11-27 から）
+
+- 場所：`%ProgramData%\claude-hands\holding\<日時>\`（中に元の名前のファイル・フォルダと「元の場所.txt」）。作るのは pc-setup.bat（UAC。`hands-protect.ps1`）
+- **Windows の権限で守る**：カオルの普通の権限（＝常駐役・Claude の PowerShell）は「入れる」ことだけできる。消す・書き換える・名前を変える・取り出す（移す）はできない。文字の守りでも、この場所は読むのも止める
+- **戻すのはカオル**：エクスプローラーで取り置きを開き、元の場所へコピーする（UAC の「続行」が出る）。Claude は場所と「元の場所」を伝えるだけ（pc_status に新しい 3 つが出る）
+- 上限 10 GB（C の空きが 100 GB を切ったら 5 GB、50 GB を切ったら止める）。入らないものは pc_trash が止まるので、カオルに聞いてから `recycle: true`
+- 30 日たったものは、毎日 12:00 の点検（予定のタスク `\claude-hands\RestorePoint`。SYSTEM。`%ProgramData%\claude-hands\bin\hands-daily.ps1`）が消す。同じ点検で復元ポイントを作り、結果を `status\daily.txt` に書く（pc_status に出る）
+- OneDrive のクラウドだけのファイルを消すと、写すために一度落とす
+- 写すのに失敗したら、元は消さない。途中でできた空の日時フォルダは消せないまま残る（30 日で点検が消す）
 
 ## よく使う流れ
 

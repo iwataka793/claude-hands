@@ -290,11 +290,12 @@ func (a *Agent) keys(ctx context.Context, raw json.RawMessage) Reply {
 
 func (a *Agent) trash(ctx context.Context, raw json.RawMessage) Reply {
 	var in struct {
-		Paths []string `json:"paths"`
+		Paths   []string `json:"paths"`
+		Recycle bool     `json:"recycle"`
 	}
 	_ = json.Unmarshal(raw, &in)
 	if len(in.Paths) == 0 {
-		return errText("paths（ごみ箱に送るファイル・フォルダ）を指定してください")
+		return errText("paths（消すファイル・フォルダ）を指定してください")
 	}
 	var ps []string
 	for _, p := range in.Paths {
@@ -304,5 +305,12 @@ func (a *Agent) trash(ctx context.Context, raw json.RawMessage) Reply {
 		}
 		ps = append(ps, n)
 	}
-	return psReply(a.ps.Run(ctx, script("trash.ps1"), map[string]any{"paths": ps}, 300*time.Second))
+	// 取り置き（30 日・Claude には消せない場所）に写してから、元をごみ箱へ。
+	// 取り置きに入らない（大きい・C の空きが少ない）ものは止める。カオルに聞いてから recycle: true でごみ箱だけに送る
+	hi := scanHolding()
+	capB, why := holdCap(cFree())
+	return psReply(a.ps.Run(ctx, script("trash.ps1"), map[string]any{
+		"paths": ps, "recycle": in.Recycle, "ready": hi.ready, "holding": holdingDir(),
+		"used": hi.bytes, "cap": capB, "capWhy": why,
+	}, 600*time.Second))
 }
