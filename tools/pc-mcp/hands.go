@@ -230,6 +230,7 @@ func gitRaw(ctx context.Context, args ...string) ([]byte, error) {
 	base := []string{"--git-dir=" + gitDir(), "--work-tree=" + homeDir(), "-c", "safe.directory=*", "-c", "core.autocrlf=false", "-c", "core.quotepath=false",
 		"-c", "user.name=claude-hands", "-c", "user.email=hands@localhost", "-c", "gc.auto=0"}
 	cmd := exec.CommandContext(ctx, exe, append(base, args...)...)
+	cmd.Dir = homeDir() // 場所はユーザーフォルダから数える（常駐役は devkit\switch-app から起動されるので、そのままだとそこからの場所になる）
 	hideWindow(cmd)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb

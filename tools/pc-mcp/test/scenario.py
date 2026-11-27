@@ -38,6 +38,11 @@ shutil.rmtree(GT, ignore_errors=True)
 GT.mkdir(parents=True, exist_ok=True)
 (GT / "keep.txt").write_text("before\n")
 (HU / "git-folders.txt").write_text("pc-mcp-hands-test\n")
+# 常駐役はカオルの PC では devkit\switch-app（ホームの中）から起動される。試験でもホームの中のフォルダから起動する
+HERE = pathlib.Path(__file__).resolve().parent  # chdir の前に
+AGENT_CWD = pathlib.Path.home() / "pc-mcp-agent-cwd"
+AGENT_CWD.mkdir(parents=True, exist_ok=True)
+os.chdir(AGENT_CWD)
 
 
 def call(name, args=None, timeout=300):
@@ -241,7 +246,7 @@ else:
     check("ブラウザのスイッチがオフなら使えない", "browser_tabs", {}, True, "ブラウザのスイッチがオフ")
     set_bmode("operate")
     check("Chrome のリモートデバッグがオフ", "browser_tabs", {}, True, "リモートデバッグがオフ")
-    site = pathlib.Path(__file__).parent / "site"
+    site = HERE / "site"
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site)))
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}"
