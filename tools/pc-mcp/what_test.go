@@ -91,10 +91,25 @@ func TestLane(t *testing.T) {
 	if !sendKeys("{ENTER}", "", false) || !sendKeys("", "a\nb", false) || !sendKeys("", "", true) || sendKeys("^s", "abc", false) {
 		t.Error("sendKeys")
 	}
-	if !sendAppRe.MatchString("「Claude」 claude（pid 1）") || sendAppRe.MatchString("「メモ帳」 notepad（pid 2）") {
-		t.Error("sendAppRe")
+	if !sendApp("「Claude」 claude（pid 1）") || sendApp("「メモ帳」 notepad（pid 2）") {
+		t.Error("sendApp")
 	}
 	if laneOf("pc_files", nil) != "A" || laneOf("pc_trash", nil) != "D" || laneOf("browser_tabs", map[string]any{"action": "new"}) != "D" {
 		t.Error("laneOf")
+	}
+}
+
+func TestSendApp(t *testing.T) {
+	yes := []string{"  「新しいタブ - Google Chrome」 chrome（pid 31240） 位置(-10,0) 大きさ1940x2086 ← いま前", "  「Claude」 claude（pid 15088） 位置(1910,0) 大きさ1940x2086", "  「LINE」 LINE（pid 1）"}
+	no := []string{"  「deadline.txt - メモ帳」 notepad（pid 1） 位置(0,0)", "  「timeline - エクスプローラー」 explorer（pid 2）", "  「online（chrome の話）」 notepad（pid 3）"}
+	for _, l := range yes {
+		if !sendApp(l) {
+			t.Errorf("yes: %s → %q", l, progOf(l))
+		}
+	}
+	for _, l := range no {
+		if sendApp(l) {
+			t.Errorf("no: %s → %q", l, progOf(l))
+		}
 	}
 }

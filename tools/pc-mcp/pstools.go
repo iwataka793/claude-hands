@@ -397,7 +397,7 @@ func (a *Agent) keys(ctx context.Context, raw json.RawMessage) Reply {
 	tx, _ := in["text"].(string)
 	en, _ := in["enter"].(bool)
 	if sendKeys(k, tx, en) {
-		if line := a.windowLine(ctx, w); sendAppRe.MatchString(line) {
+		if line := a.windowLine(ctx, w); sendApp(line) {
 			return stopE("この窓（"+oneLine(strings.TrimSpace(strings.TrimSuffix(line, "← いま前")), 60)+"）での Enter（送信に当たるキー）", "Enter")
 		}
 	}

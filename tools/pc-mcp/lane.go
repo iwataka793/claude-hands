@@ -49,8 +49,24 @@ func jsonString(s string) string {
 	return b.String()
 }
 
-// sendAppRe：Enter だけで送ってしまうアプリ（ブラウザ・チャット・メール・Claude）
-var sendAppRe = regexp.MustCompile(`(?i)(chrome|msedge|firefox|brave|opera|vivaldi|line|slack|teams|discord|outlook|olk|thunderbird|whatsapp|telegram|messenger|claude|chatgpt|メール|mail)`)
+// sendAppRe：Enter だけで送ってしまうアプリ（ブラウザ・チャット・メール・Claude）。プログラム名で見る（題名の言葉では見ない）
+var sendAppRe = regexp.MustCompile(`(?i)^(chrome|msedge|firefox|brave|opera|vivaldi|line|lineapp|slack|teams|ms-teams|discord|outlook|olk|hxoutlook|thunderbird|whatsapp|telegram|messenger|claude|chatgpt)$`)
+
+// progOf：窓の一覧の 1 行（「題名」 プログラム（pid …））から、プログラム名
+func progOf(line string) string {
+	i := strings.LastIndex(line, "」")
+	if i < 0 {
+		return ""
+	}
+	rest := strings.TrimSpace(line[i+len("」"):])
+	if j := strings.Index(rest, "（"); j >= 0 {
+		rest = rest[:j]
+	}
+	return strings.TrimSpace(rest)
+}
+
+// sendApp：その窓が Enter だけで送ってしまうアプリか
+func sendApp(line string) bool { return sendAppRe.MatchString(progOf(line)) }
 
 // sendKeys：打つものに Enter（送信に当たるキー）が入っているか
 func sendKeys(keys, text string, enter bool) bool {
