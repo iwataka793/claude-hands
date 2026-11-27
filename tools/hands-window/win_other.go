@@ -2,6 +2,7 @@
 
 package main
 
+func winRemember()                               {}
 func winPrepare()                                {}
 func winPlace(w, h int)                          {}
 func winShow(on bool)                            {}

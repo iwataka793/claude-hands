@@ -25,6 +25,7 @@ var version = "dev"
 const title = "claude-hands LIVE"
 
 func main() {
+	winRemember() // 起動する前にいちばん前だった窓（あとで返す）
 	app := newApp()
 	data := os.Getenv("LOCALAPPDATA")
 	if data == "" {

@@ -44,6 +44,12 @@ var hwnd uintptr
 var prevFG uintptr
 
 var pGetWindowText = user32.NewProc("GetWindowTextW")
+var pSetForeground = user32.NewProc("SetForegroundWindow")
+
+// initFG：起動する前にいちばん前だった窓。Wails は窓を作ったときに（見えないままでも）いちばん前を取るので、準備ができたら返す
+var initFG uintptr
+
+func winRemember() { initFG, _, _ = pGetForeground.Call() }
 
 func winTitle(h uintptr) string {
 	if h == 0 {
@@ -72,6 +78,9 @@ func winPrepare() {
 	}
 	ex, _, _ := pGetWindowLong.Call(h, gwlExStyle)
 	pSetWindowLong.Call(h, gwlExStyle, ex|wsExNoActivate|wsExToolWindow|wsExTopmost)
+	if fg, _, _ := pGetForeground.Call(); fg == h && initFG != 0 && initFG != h {
+		pSetForeground.Call(initFG)
+	}
 }
 
 // winPlace：画面（作業できる範囲）の右下に置く。w・h は拡大前の大きさ
@@ -119,7 +128,7 @@ func winReport(path string, shown, compact bool) {
 		"found": h != 0, "visible": vis != 0, "shown": shown, "compact": compact,
 		"noActivate": ex&wsExNoActivate != 0, "toolWindow": ex&wsExToolWindow != 0, "topmost": ex&wsExTopmost != 0,
 		"foregroundIsLive": fg == h && h != 0, "rect": []int32{r.L, r.T, r.R, r.B},
-		"prevForeground": winTitle(prevFG), "prevWasLive": prevFG == h && h != 0, "foreground": winTitle(fg),
+		"initForeground": winTitle(initFG), "prevForeground": winTitle(prevFG), "prevWasLive": prevFG == h && h != 0, "foreground": winTitle(fg),
 	})
 	_ = os.WriteFile(path, b, 0o644)
 }

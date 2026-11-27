@@ -146,7 +146,7 @@ jobs:
           $r | ConvertTo-Json -Compress
           $np | Stop-Process -Force -ErrorAction SilentlyContinue
           # 出す前に別の窓が前にあったのに、LIVE が前を取ったら失敗（前に何も無いときは試験の機械の都合なので見ない）
-          $took = $r.foregroundIsLive -and $r.prevForeground -and -not $r.prevWasLive
+          $took = $r.foregroundIsLive -and $r.initForeground
           if (-not ($r.found -and $r.visible -and $r.noActivate -and $r.toolWindow -and $r.topmost) -or $took) { "LIVE window check failed"; exit 1 }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
