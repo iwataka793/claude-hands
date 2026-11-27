@@ -146,6 +146,13 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - **Git**：記録するフォルダは `devkit\hands\git-folders.txt`（ユーザーフォルダからの場所。既定 `devkit/setup`）。記録の置き場所は `%ProgramData%\claude-hands\git`（pc-setup.bat が作る。GitHub には上げない）。画像・zip・exe・ログ・plist などは記録しない
 - `hands action=log` で、今の作業・終わった作業（新しい 5 つ）・最近の TIMELINE
 
+## LIVE の窓（2026-11-27 から。pc-26）
+
+- `%USERPROFILE%\devkit\hands\claude-hands-live.exe`（Go ＋ Wails。スタートアップから起動。1 つだけ動く）。Claude が道具を使っている間だけ右下に出る。フォーカスを取らない（全画面の動画の上でも）
+- 出す中身は記録から（スイッチ・task.json・TIMELINE の最後）。作業の題名は `hands action=start` の title がそのまま出るので、カオルが読んで分かる言葉にする
+- ［STOP／止める］はカオルだけが押す（全部のスイッチをオフ）。Claude は LIVE の窓を押さない・閉じない
+- 画面を撮ると右下に LIVE が写る（今は隠さない）
+
 ## 取り置き（2026-11-27 から）
 
 - 場所：`%ProgramData%\claude-hands\holding\<日時>\`（中に元の名前のファイル・フォルダと「元の場所.txt」）。作るのは pc-setup.bat（UAC。`hands-protect.ps1`）

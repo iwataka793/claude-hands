@@ -2,6 +2,15 @@
 
 新しいものが上。
 
+## 2026-11-27 作る順番 3：LIVE の窓（Go ＋ Wails。pc-26）
+
+- `tools/hands-window`（Go ＋ Wails v2.10.2。画面は HTML）。Windows では C のコンパイラが要らないので、PC の道具と同じ Linux の CI で組み立て（`-tags desktop,production`）、pc-switch.zip に入れた。pc-setup.bat が `devkit\hands\claude-hands-live.exe` に置き、スタートアップに入れて起動する
+- 中身は記録から：スイッチ（iPhone・PC・ブラウザの mode.txt）・task.json（作業の題名）・TIMELINE の最後の行（道具の名前をふつうの言葉に）。どれかのスイッチが入っていて、作業が開いているか 2 分以内に動いたら出す。15 秒動きがなければ「● LIVE」にたたむ（マウスを乗せると広がる）
+- フォーカスを取らない：WS_EX_NOACTIVATE｜TOOLWINDOW｜TOPMOST、出すのは SW_SHOWNOACTIVATE。**Wails は窓を作ったときに（見えないままでも）いちばん前を取る**ので、起動の前にいちばん前だった窓を覚えておき、準備ができたら返す（CI：メモ帳を前に出してから起動して、メモ帳のままを確かめる）
+- ［STOP／止める］：iPhone・PC・ブラウザの mode.txt に off を書く（カオルの権限。Claude の道具からは押さない）
+- カオルの PC で確かめた：右下に出た（題名・最後の操作「PC：画面を撮った・5 秒前」）→ 20 秒で「● LIVE」にたたんだ → 全画面の YouTube の上に出て、いちばん前は Chrome のまま・全画面も解けない → カオルが［止める］を押して、PC の常駐役が「スイッチがオフ」で終わり、iPhone もオフになった（19:25）
+- これから：Claude が画面を撮るときに LIVE を一瞬隠す（今は撮った画面に写る）・DONE の窓・ALLOW と SWITCH の窓を新しい見た目に
+
 ## 2026-11-27 作る前の確かめ：全画面の上の窓（ASK 6）
 
 - Chrome の YouTube を全画面（3840x2160）にして、PowerShell ＋ WPF で右下に 300x64 の窓（最前面・ShowActivated=false・WS_EX_NOACTIVATE｜TOOLWINDOW｜TOPMOST）を 10 秒出した → **動画の上に出た**。前の窓（Chrome）は変わらず（フォーカスを取らない）、全画面も解けなかった。台本は `devkit\hands\tests\overlay-test.ps1`
