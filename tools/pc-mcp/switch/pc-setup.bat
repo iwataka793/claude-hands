@@ -3,9 +3,9 @@ rem PC の道具の常駐役とスイッチを置く（最初と、新しい版にするとき）
 set D=%USERPROFILE%\devkit\pc-agent
 if not exist "%D%" mkdir "%D%"
 if exist "%D%\pc-agent.exe" (
-  >"%D%\mode.txt" echo(off
+  >"%D%\mode.txt" echo(off 2>nul
   rem ブラウザのスイッチが入っていると常駐役は止まらないので、ブラウザもオフにする
-  if exist "%USERPROFILE%\devkit\browser" >"%USERPROFILE%\devkit\browser\mode.txt" echo(off
+  if exist "%USERPROFILE%\devkit\browser" >"%USERPROFILE%\devkit\browser\mode.txt" echo(off 2>nul
   echo 動いている常駐役を止めています...
   for /l %%i in (1,1,20) do (
     tasklist /fi "imagename eq pc-agent.exe" 2>nul | find /i "pc-agent.exe" >nul || goto stopped
@@ -25,7 +25,7 @@ rem 守りの場所（取り置き）と毎日の点検を作る（管理者が要るので UAC が出る）
 echo.
 echo 守りの場所（取り置き）と毎日の点検を作ります。UAC が出たら「はい」を押してください...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"%~dp0hands-protect.ps1\"','-User','%USERDOMAIN%\%USERNAME%'"
-type "%TEMP%\claude-hands-protect.txt" 2>nul | findstr /b "OK NG"
+powershell -NoProfile -Command "Get-Content -Encoding UTF8 -LiteralPath (Join-Path $env:TEMP 'claude-hands-protect.txt') -ErrorAction SilentlyContinue | Where-Object { $_ -match '^(OK|NG)' }"
 echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
 echo   スイッチの窓 %S%\devkit-switch.vbs（デスクトップの「Claude 操作スイッチ」。Claude が頼むと自動で出ます）

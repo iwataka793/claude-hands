@@ -102,7 +102,7 @@ func scanHolding() holdInfo {
 		hi.bytes += it.bytes
 		hi.items = append(hi.items, it)
 	}
-	sort.Slice(hi.items, func(i, j int) bool { return hi.items[i].name > hi.items[j].name })
+	sort.Slice(hi.items, func(i, j int) bool { return hi.items[i].when.After(hi.items[j].when) })
 	return hi
 }
 
