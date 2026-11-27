@@ -1,13 +1,27 @@
 # 消す：取り置き（$A.holding。30 日。Claude には消せない・取り出せない）に写してから、元をごみ箱へ。
 # $A.recycle が true のときだけ、取り置きに写さずにごみ箱へ（取り置きに入らない大きいもの。カオルに聞いてから）。
 Add-Type -AssemblyName Microsoft.VisualBasic
+# つなぎ目（ジャンクション・シンボリックリンク）の先は数えない・写さない
 function SizeOf($p) {
-  if (Test-Path -LiteralPath $p -PathType Container) {
-    $s = [int64]0
-    Get-ChildItem -LiteralPath $p -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object { $s += $_.Length }
-    return $s
+  $i = Get-Item -LiteralPath $p -Force
+  if (-not $i.PSIsContainer) { return [int64]$i.Length }
+  $s = [int64]0
+  foreach ($e in @(Get-ChildItem -LiteralPath $p -Force -ErrorAction SilentlyContinue)) {
+    if ($e.PSIsContainer) { if (-not ($e.Attributes -band [IO.FileAttributes]::ReparsePoint)) { $s += SizeOf $e.FullName } }
+    else { $s += $e.Length }
   }
-  return [int64](Get-Item -LiteralPath $p -Force).Length
+  return $s
+}
+# 取り置きの中は「作る」だけの権限なので、robocopy（作ったあとにフォルダの属性を書こうとして拒否される）は使わない。
+# フォルダを作ってファイルを 1 つずつ写す（2026-11-27 にカオルの PC で確かめた）
+function CopyTree($src, $dst) {
+  [void][IO.Directory]::CreateDirectory($dst)
+  foreach ($e in @(Get-ChildItem -LiteralPath $src -Force)) {
+    if ($e.PSIsContainer) {
+      if ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
+      CopyTree $e.FullName (Join-Path $dst $e.Name)
+    } else { [IO.File]::Copy($e.FullName, (Join-Path $dst $e.Name)) }
+  }
 }
 function ToRecycle($p) {
   if (Test-Path -LiteralPath $p -PathType Container) {
@@ -37,8 +51,7 @@ foreach ($p in $A.paths) {
         "戻すとき：この中のものを、元の場所へコピーしてください（取り置きの中からは消せません。30 日たつと毎日の点検が消します）")
       $dst = Join-Path $item (Split-Path -Leaf $p)
       if (Test-Path -LiteralPath $p -PathType Container) {
-        $null = robocopy $p $dst /E /COPY:D /DCOPY:D /R:1 /W:1 /XJ /NFL /NDL /NJH /NJS /NP
-        if ($LASTEXITCODE -ge 8) { throw "取り置きに写せませんでした（robocopy $LASTEXITCODE）。元は消していません" }
+        CopyTree $p $dst
       } else {
         [IO.File]::Copy($p, $dst)
       }
