@@ -65,7 +65,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `OneDrive\デスクトップ` ほか | 2026-06-10 に OneDrive のフォルダのバックアップが止まったときに残った前のデスクトップなど（クラウドだけ） | カオルが決める |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
-| `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb（mcp-18）・claude-hands-pc.mcpb（pc-21）と pc-switch.zip（pc-22。常駐役・スイッチの窓・守りの場所の台本）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
+| `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb（mcp-18）・claude-hands-pc.mcpb（pc-21）と pc-switch.zip（pc-28。常駐役・スイッチの窓・守りの場所の台本・LIVE と DONE の窓）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい |
 | Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる）。2026-11-26 に名前を claude-hands に変えたが、拡張機能の中の名前（iphone-dev-kit・pc-dev-kit）はそのまま（変えると別の拡張機能として二重に入るため）。見える名前は「iPhone（claude-hands）」「PC（claude-hands）」 | 触らない（入れ直しは設定の画面から） |
 | `ドキュメント\pwtest-docker-code.zip` | Docker に残っていた pwtest（2026-02 の PC 版。CityRank の前身）のイメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core）から取り出した Python のコード。ほかに写しが無かったので残した | カオルが決める |
 | Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |

@@ -152,6 +152,8 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 出す中身は記録から（スイッチ・task.json・TIMELINE の最後）。作業の題名は `hands action=start` の title がそのまま出るので、カオルが読んで分かる言葉にする
 - ［STOP／止める］はカオルだけが押す（全部のスイッチをオフ）。Claude は LIVE の窓を押さない・閉じない
 - 画面を撮ると右下に LIVE が写る（今は隠さない）
+- **DONE の窓**：`hands action=done` のあと、右下に報告が出る（3 分か［閉じる］で消える）。［まとめて戻す］はカオルが 2 回押す（Claude は押さない）。押すと常駐役に `hands undo` が届く（PC が「操作も可」のときだけ）
+- LIVE の exe だけを新しくするとき：Releases の pc-switch.zip から claude-hands-live.exe を取り、動いている claude-hands-live を止めて `devkit\hands` に写し、起動し直す（pc-setup.bat は要らない）
 
 ## 取り置き（2026-11-27 から）
 
