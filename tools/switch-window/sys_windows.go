@@ -107,12 +107,7 @@ func winPlace(w, h int, center bool) {
 		ph = max
 	}
 	m := int32(16) * int32(dpi) / 96
-	// 右下は LIVE の窓（高さ 76・余白 16）の場所なので、その上に出す（重ならない）
-	above := int32(liveRoom) * int32(dpi) / 96
-	if ph+above+2*m > wa.B-wa.T {
-		above = 0
-	}
-	x, y := wa.R-pw-m, wa.B-ph-m-above
+	x, y := wa.R-pw-m, wa.B-ph-m // 右下（スイッチの窓を出している間、LIVE の窓は隠れて、この窓の下の帯が LIVE の役をする）
 	if center {
 		x, y = wa.L+(wa.R-wa.L-pw)/2, wa.T+(wa.B-wa.T-ph)/2
 	}

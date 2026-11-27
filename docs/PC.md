@@ -37,7 +37,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 ## スイッチの窓と「許可しますか？」（2026-11-27 から新しい窓）
 
 - `%USERPROFILE%\devkit\hands\claude-hands-switch.exe`（Go ＋ Wails。tools/switch-window）。デスクトップの「Claude 操作スイッチ」から開く。見た目はモック（ASK-DESIGN.md の「見た目」）：黒地、OFF 赤・VIEW 灰・OPERATE 緑・ALLOW オレンジ
-- **SWITCH**：iPhone・PC・WEB（ブラウザ）を OFF・VIEW・OPERATE で切り替える（mode.txt を書く。PC か WEB をオンにしたとき常駐役が動いていなければ起こす）。ALLOW の［10 MIN］は UAC を通って allow.txt を書く。許可中は［CANCEL］（PC の mode.txt を書き直して取り消す）。下に最後の動き（TIMELINE）と［すべてオフ］。右下の LIVE の窓の上に出る（重ならない）。［×］で隠す（通知領域に残る）、［—］で最小化、上のところをつかんで動かせる
+- **SWITCH**：iPhone・PC・WEB（ブラウザ）を OFF・VIEW・OPERATE で切り替える（mode.txt を書く。PC か WEB をオンにしたとき常駐役が動いていなければ起こす）。ALLOW の［10 MIN］は UAC を通って allow.txt を書く。許可中は［CANCEL］（PC の mode.txt を書き直して取り消す）。いちばん下は LIVE の帯（動いているとき：緑の点・入っているスイッチの札・作業の名前・最後の操作・［STOP／止める］。止まっているとき：IDLE・最後の動き・［ALL OFF／すべてオフ］。どちらも全部のスイッチを OFF）。右下に出て、開いている間は LIVE の窓が隠れる（2 つを 1 枚にまとめた形。案 B）。窓の高さは中身に合わせる（画面が高さを知らせる）。頼みの窓を出している間は題名が「claude-hands ASK」になり、LIVE は隠れない。［×］で隠す（通知領域に残る）、［—］で最小化、上のところをつかんで動かせる
 - **通知領域**：丸の色がいちばん強いスイッチ（OFF 赤・VIEW 灰・OPERATE 緑・ALLOW オレンジ）。左で押すと SWITCH、右で押すとメニュー（開く・すべてオフ・終わる）。マウスを乗せると「iPhone：OFF / PC：VIEW / WEB：OFF」
 - **頼みの窓（VIEW・OPERATE・ALLOW）**：画面の真ん中・いちばん前に出て、通知音を鳴らす。フォーカスは取らない（打っている途中のキーが入らない。キーでは答えられない。出てから 1 秒は押せない）。中身は WHAT（しようとしていること。道具が作る）・WHY（Claude の説明。今は作業の名前＝hands start の題名。無いと「説明がありません」）・IF ALLOWED（許可すると。窓の側が種類ごとに持つ）。［DENY／断る］［ALLOW／許可する］、残りの秒、ほかに待っている頼みの数
 - 頼みのファイル：`devkit\requests\<種類>.txt` に JSON（kind・what・why・tool・from・at）。前の形（理由 1 行）も読む。返事は `<種類>.answer.json`（allow・deny・timeout）。**断る・時間切れだと、道具は待たずに「カオルが断りました。同じ操作をやり直さず、チャットで聞いて」と Claude に返す**。ALLOW を許可しても UAC で「いいえ」なら deny
@@ -158,6 +158,8 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - `hands action=log` で、今の作業・終わった作業（新しい 5 つ）・最近の TIMELINE
 
 ## LIVE の窓（2026-11-27 から。pc-26）
+
+- 形（pc-33〜）：幅 340・高さ 84。1 行目に「LIVE」と、入っているスイッチの色の札（VIEW 灰・OPERATE 緑）。2 行目に作業の名前、3 行目に最後の操作。右に［STOP］。スイッチの窓（claude-hands SWITCH）が見えている間は隠れる（DONE は閉じるまで取っておく）
 
 - `%USERPROFILE%\devkit\hands\claude-hands-live.exe`（Go ＋ Wails。スタートアップから起動。1 つだけ動く）。Claude が道具を使っている間だけ右下に出る。フォーカスを取らない（全画面の動画の上でも）
 - 出す中身は記録から（スイッチ・task.json・TIMELINE の最後）。作業の題名は `hands action=start` の title がそのまま出るので、カオルが読んで分かる言葉にする

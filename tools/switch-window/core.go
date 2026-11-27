@@ -294,11 +294,14 @@ var toolWords = map[string]string{
 	"iphone_button": "ボタンを押した", "iphone_alert": "確認の窓", "iphone_web": "ページ", "iphone_location": "仮の位置",
 }
 
-func lastAction() string {
+func lastAction() string { t, _ := lastActionAt(); return t }
+
+// lastActionAt：今日の TIMELINE の最後の行（ふつうの言葉と、その時刻）
+func lastActionAt() (string, time.Time) {
 	p := filepath.Join(handsDir(), "timeline", time.Now().Format("2006-01-02")+".jsonl")
 	f, err := os.Open(p)
 	if err != nil {
-		return ""
+		return "", time.Time{}
 	}
 	defer f.Close()
 	if st, err := f.Stat(); err == nil && st.Size() > 16<<10 {
@@ -322,7 +325,7 @@ func lastAction() string {
 		}
 	}
 	if last.T.IsZero() {
-		return ""
+		return "", time.Time{}
 	}
 	w := toolWords[last.Tool]
 	if w == "" {
@@ -337,7 +340,39 @@ func lastAction() string {
 	case ago < time.Hour:
 		when = fmt.Sprintf("%d 分前", int(ago.Minutes()))
 	}
-	return hand + "：" + w + " · " + when
+	return hand + "：" + w + " · " + when, last.T
+}
+
+// ---- 下の帯（LIVE・IDLE）。LIVE の窓と同じ決まり：どれかのスイッチが入っていて、作業が開いているか 2 分以内に動いた ----
+
+type LiveView struct {
+	Live  bool   `json:"live"`
+	Title string `json:"title"`
+	Last  string `json:"last"`
+}
+
+func liveView(devs []DevView) LiveView {
+	last, at := lastActionAt()
+	v := LiveView{Last: last}
+	var t struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	if b, err := os.ReadFile(filepath.Join(handsDir(), "task.json")); err == nil {
+		_ = json.Unmarshal(b, &t)
+	}
+	on := false
+	for _, d := range devs {
+		if d.Mode != "off" {
+			on = true
+		}
+	}
+	v.Title = t.Title
+	if v.Title == "" {
+		v.Title = "（作業の区切りなし）"
+	}
+	v.Live = on && (t.ID != "" || (!at.IsZero() && time.Since(at) < 2*time.Minute))
+	return v
 }
 
 // ---- 画面に渡す形 ----
@@ -367,6 +402,7 @@ type View struct {
 	AllowSecs int       `json:"allowSecs"`
 	Ask       *AskView  `json:"ask"`
 	Last      string    `json:"last"`
+	Live      LiveView  `json:"live"`
 	Msg       string    `json:"msg"`
 	Version   string    `json:"version"`
 }

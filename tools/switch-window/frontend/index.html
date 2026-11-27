@@ -48,10 +48,31 @@
   .abtn.cancel { background:transparent; border-color:#3A3A44; color:var(--view); }
   .bar { height:4px; border-radius:2px; background:var(--line); } .bar i { display:block; height:4px; border-radius:2px; background:var(--allow); }
   .allowfoot { display:flex; justify-content:space-between; font-size:11px; color:var(--sub); }
-  .foot { margin-top:auto; display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); }
-  .foot b { font-weight:700; letter-spacing:.06em; color:#6E6E7A; }
-  .foot .last { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .foot .alloff { --wails-draggable:no-drag; height:26px; padding:0 10px; border-radius:8px; border:1px solid var(--line2); background:var(--chip); color:var(--text); font-size:11px; }
+  /* スイッチの窓：中身の高さだけの札を窓の下に置く（窓の高さは Fit で中身に合わせる） */
+  #panel { top:auto; padding:0; gap:0; overflow:hidden; }
+  .top { padding:16px 18px 16px; display:flex; flex-direction:column; gap:8px; }
+  /* 下の帯（LIVE・IDLE）。スイッチの窓を開いている間は、右下の LIVE の窓のかわりにここに出す */
+  .strip { border-top:1px solid var(--line); background:#101014; display:flex; align-items:center; gap:12px; padding:16px 16px 18px 18px; }
+  .strip.live { background:#0F1512; }
+  .sdot { width:10px; height:10px; border-radius:50%; background:#4A4A55; flex:none; }
+  .strip.live .sdot { background:var(--op); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(61,214,140,.5)} 70%{box-shadow:0 0 0 7px rgba(61,214,140,0)} 100%{box-shadow:0 0 0 0 rgba(61,214,140,0)} }
+  .sbody { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .sline1 { display:flex; align-items:center; gap:6px; }
+  .slabel { font-size:13px; font-weight:800; letter-spacing:.14em; color:#6E6E7A; margin-right:auto; }
+  .strip.live .slabel { color:var(--op); }
+  .chipm { height:20px; padding:0 7px; border-radius:6px; font-size:10px; font-weight:700; letter-spacing:.03em; display:flex; align-items:center; }
+  .chipm.view { background:rgba(199,199,209,.10); border:1px solid rgba(199,199,209,.35); color:var(--view); }
+  .chipm.operate { background:rgba(61,214,140,.12); border:1px solid rgba(61,214,140,.45); color:var(--op); }
+  .stitle { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .strip:not(.live) .stitle { font-weight:400; color:var(--sub); }
+  .slast { font-size:11px; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .strip:not(.live) .slast { color:#6E6E7A; }
+  .sbtn { flex:none; width:64px; height:48px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    border:1px solid var(--line2); background:var(--chip); color:var(--text); --wails-draggable:no-drag; }
+  .sbtn b { font-size:12px; font-weight:800; letter-spacing:.04em; } .sbtn span { font-size:10px; color:var(--sub); }
+  .strip.live .sbtn { border-color:var(--off); background:rgba(242,85,90,.08); color:var(--off); }
+  .strip.live .sbtn b { font-size:13px; letter-spacing:.06em; } .strip.live .sbtn span { color:var(--off); }
   .msg { font-size:11px; color:var(--allow); } .msg:empty { display:none; }
   #devs { display:flex; flex-direction:column; gap:6px; }
 
@@ -91,6 +112,7 @@
 <body>
 <!-- スイッチ -->
 <div class="frame hidden" id="panel">
+ <div class="top">
   <div class="head">
     <div class="brand"><b>HANDS</b><span class="jp">Claude 操作スイッチ</span></div>
     <div class="wbtns">
@@ -102,7 +124,7 @@
   <div class="allowbox" id="allowbox">
     <div class="allowrow">
       <div class="allowname">
-        <span style="color:var(--allow);display:flex"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>
+        <span style="color:var(--allow);display:flex"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>
         <div><b>ALLOW</b><span class="jp">パスワード・セキュリティ・お金を 10 分</span></div>
       </div>
       <button class="abtn" id="allowbtn">10 MIN</button>
@@ -113,10 +135,16 @@
     </div>
   </div>
   <div class="msg jp" id="msg"></div>
-  <div class="foot">
-    <b>LOG</b><span class="last jp" id="last">まだ動きはありません</span>
-    <button class="alloff jp" id="alloff" title="iPhone・PC・ブラウザを全部オフ">すべてオフ</button>
+ </div>
+ <div class="strip" id="strip">
+  <span class="sdot"></span>
+  <div class="sbody">
+    <div class="sline1"><span class="slabel" id="slabel">IDLE</span><span id="chips" style="display:flex;gap:4px"></span></div>
+    <span class="stitle jp" id="stitle"></span>
+    <span class="slast jp" id="slast"></span>
   </div>
+  <button class="sbtn" id="sbtn" title="iPhone・PC・ブラウザのスイッチを全部オフ"><b id="sbtnb">ALL OFF</b><span class="jp" id="sbtns">すべてオフ</span></button>
+ </div>
 </div>
 
 <!-- Claude からの頼み -->
@@ -191,7 +219,7 @@ $('devs').addEventListener('click', async (e) => {
 });
 $('hide').onclick = () => A().HidePanel();
 $('min').onclick = () => A().Minimise();
-$('alloff').onclick = async () => { await A().AllOff(); refresh(); };
+$('sbtn').onclick = async () => { await A().AllOff(); refresh(); };
 $('allowbtn').onclick = async () => {
   if ($('allowbtn').classList.contains('cancel')) await A().AllowCancel(); else await A().AllowNow();
   refresh();
@@ -257,9 +285,21 @@ async function refresh() {
     $('allowleft').textContent = `あと ${Math.floor(v.allowSecs / 60)}:${String(v.allowSecs % 60).padStart(2, '0')}`;
   }
   $('msg').textContent = v.msg || '';
-  $('last').textContent = v.last || 'まだ動きはありません';
-  $('last').title = 'claude-hands SWITCH ' + v.version;
+  // 下の帯
+  const L = v.live || {};
+  $('strip').classList.toggle('live', !!L.live);
+  $('slabel').textContent = L.live ? 'LIVE' : 'IDLE';
+  $('chips').innerHTML = L.live ? v.devs.filter((d) => d.mode !== 'off').map((d) => `<span class="chipm ${d.mode}">${esc(d.name)} ${LABEL[d.mode]}</span>`).join('') : '';
+  $('stitle').textContent = L.live ? L.title : 'Claude は止まっています';
+  $('slast').textContent = L.live ? (L.last || '') : (L.last ? '最後：' + L.last : 'まだ動きはありません');
+  $('sbtnb').textContent = L.live ? 'STOP' : 'ALL OFF';
+  $('sbtns').textContent = L.live ? '止める' : 'すべてオフ';
+  $('strip').title = 'claude-hands SWITCH ' + v.version;
+  // 窓の高さを中身に合わせる（すき間も、はみ出しも出さない）
+  const h = Math.ceil($('panel').getBoundingClientRect().height);
+  if (h > 0 && h !== lastFit) { lastFit = h; A().Fit(h); }
 }
+let lastFit = 0;
 
 setInterval(refresh, 500);
 refresh();

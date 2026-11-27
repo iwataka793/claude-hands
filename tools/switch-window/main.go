@@ -25,7 +25,10 @@ var assets embed.FS
 
 var version = "dev"
 
-const title = "claude-hands SWITCH"
+const (
+	title    = "claude-hands SWITCH"
+	askTitle = "claude-hands ASK" // 頼みの窓を出している間の題名
+)
 
 func main() {
 	winRemember() // 起動する前にいちばん前だった窓（Wails が取るので、あとで返す）

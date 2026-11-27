@@ -13,11 +13,9 @@ import (
 // 窓の大きさ（画面の単位。拡大率は Windows 側で掛ける）。どれも 1280×800 の高さの 3 分の 2 まで
 const (
 	panelW = 400
-	panelH = 530
+	panelH = 560 // 最初の高さ。画面が中身の高さを知らせてきたら合わせる（Fit）
 	askW   = 440
 	askH   = 540
-
-	liveRoom = 76 + 12 // 右下の LIVE の窓の高さとすき間（スイッチの窓はその上に置く）
 )
 
 type App struct {
@@ -28,6 +26,7 @@ type App struct {
 	askAt  time.Time
 	panel  bool // スイッチの窓を出している（頼みが終わったらそこへ戻る）
 	shown  string
+	fitH   int // スイッチの窓の中身の高さ（画面から）
 	msg    string
 	msgAt  time.Time
 	tray   string // 通知領域に今出している色と文字
@@ -139,12 +138,15 @@ func (a *App) place() {
 	switch want {
 	case "ask":
 		// 真ん中・いちばん前。フォーカスは取らない（打っているキーが窓に入らないように）
+		// 題名を変える：LIVE の窓は「claude-hands SWITCH」が見えている間だけ隠れる（頼みの窓のときは隠れない）
+		runtime.WindowSetTitle(a.ctx, askTitle)
 		winPlace(askW, askH, true)
 		winTopmost(true)
 		winShow(false)
 	case "panel":
+		runtime.WindowSetTitle(a.ctx, title)
 		winTopmost(false)
-		winPlace(panelW, panelH, false)
+		winPlace(panelW, a.panelHeight(), false)
 		winShow(true)
 	default:
 		winTopmost(false)
@@ -157,7 +159,8 @@ func (a *App) place() {
 // State：画面が 0.5 秒ごとに読む
 func (a *App) State() View {
 	devs := devViews()
-	v := View{Devs: devs, AllowSecs: int(allowLeft().Seconds()), Last: lastAction(), Version: version}
+	v := View{Devs: devs, AllowSecs: int(allowLeft().Seconds()), Live: liveView(devs), Version: version}
+	v.Last = v.Live.Last
 	a.mu.Lock()
 	v.Ask = askView(a.ask, a.others)
 	if a.msg != "" && time.Since(a.msgAt) < 8*time.Second {
@@ -180,6 +183,30 @@ func (a *App) ShowPanel() {
 	a.shown = "" // 出し直す（隠れていた・後ろに回っていた）
 	a.mu.Unlock()
 	a.place()
+}
+
+func (a *App) panelHeight() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.fitH >= 200 && a.fitH <= 900 {
+		return a.fitH
+	}
+	return panelH
+}
+
+// Fit：画面が中身の高さを知らせる。スイッチの窓を出しているなら、その高さにする（下の帯がいつも窓の下にぴったり）
+func (a *App) Fit(h int) {
+	a.mu.Lock()
+	if h == a.fitH {
+		a.mu.Unlock()
+		return
+	}
+	a.fitH = h
+	shown := a.shown
+	a.mu.Unlock()
+	if shown == "panel" {
+		winPlace(panelW, a.panelHeight(), false)
+	}
 }
 
 func (a *App) HidePanel() {

@@ -16,8 +16,8 @@ import (
 
 // 窓の大きさ（画面の単位。拡大率は Windows 側で掛ける）
 const (
-	liveW  = 320
-	liveH  = 76
+	liveW  = 340
+	liveH  = 84
 	smallW = 112
 	smallH = 40
 	doneW  = 380
@@ -153,13 +153,19 @@ var toolWords = map[string]string{
 	"iphone_button": "ボタンを押した", "iphone_alert": "確認の窓", "iphone_web": "ページ", "iphone_location": "仮の位置",
 }
 
+type Chip struct {
+	Name string `json:"name"`
+	Mode string `json:"mode"`
+}
+
 type LiveState struct {
 	Show    bool     `json:"show"`
 	Compact bool     `json:"compact"`
 	Title   string   `json:"title"`
 	Last    string   `json:"last"`
 	Ago     string   `json:"ago"`
-	On      []string `json:"on"` // 入っているスイッチ
+	On      []string `json:"on"`    // 入っているスイッチ
+	Chips   []Chip   `json:"chips"` // 入っているスイッチと、その強さ（色の札）
 	Stopped bool     `json:"stopped"`
 	NG      bool     `json:"ng"`
 	Version string   `json:"version"`
@@ -179,6 +185,7 @@ func (a *App) compute() LiveState {
 	for _, h := range []string{"iPhone", "PC", "WEB"} {
 		if m := readMode(switchFiles()[h]); m != "off" {
 			st.On = append(st.On, h)
+			st.Chips = append(st.Chips, Chip{h, m})
 		}
 	}
 	t := currentTask()
@@ -247,6 +254,15 @@ func (a *App) loop() {
 	start := time.Now()
 	for {
 		st := a.compute()
+		if winSwitchOpen() {
+			// スイッチの窓を開いている間は隠れる（あちらの下の帯が LIVE の役をする）。DONE は閉じるまで取っておく
+			st.Show = false
+			a.mu.Lock()
+			if a.doneID != "" {
+				a.doneAt = time.Now()
+			}
+			a.mu.Unlock()
+		}
 		a.apply(st)
 		runtime.EventsEmit(a.ctx, "state", st)
 		if test && time.Since(start) > 6*time.Second {

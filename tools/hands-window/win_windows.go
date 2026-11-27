@@ -132,3 +132,17 @@ func winReport(path string, shown, compact bool) {
 	})
 	_ = os.WriteFile(path, b, 0o644)
 }
+
+var pIsIconic = user32.NewProc("IsIconic")
+
+// winSwitchOpen：スイッチの窓（claude-hands SWITCH）を開いているか。頼みの窓のときは題名が「claude-hands ASK」になるので入らない
+func winSwitchOpen() bool {
+	t, _ := syscall.UTF16PtrFromString("claude-hands SWITCH")
+	h, _, _ := pFindWindow.Call(0, uintptr(unsafe.Pointer(t)))
+	if h == 0 {
+		return false
+	}
+	vis, _, _ := pIsWindowVisible.Call(h)
+	ic, _, _ := pIsIconic.Call(h)
+	return vis != 0 && ic == 0
+}
