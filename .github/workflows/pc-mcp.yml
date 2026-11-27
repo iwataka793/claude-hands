@@ -137,12 +137,14 @@ jobs:
           Set-Content "$h/devkit/hands/task.json" '{"id":"x","title":"CI test","start":"2026-01-01T00:00:00Z"}'
           $rep = Join-Path $env:RUNNER_TEMP 'live-report.json'
           $env:HANDS_HOME = $h; $env:HANDS_LIVE_TEST = $rep
+          $np = Start-Process notepad.exe -PassThru; Start-Sleep 3   # カオルの PC と同じく、先にほかの窓を前に出しておく
           $p = Start-Process (Resolve-Path art/sw/claude-hands-live.exe).Path -PassThru
           $p | Wait-Process -Timeout 40 -ErrorAction SilentlyContinue
           if (-not $p.HasExited) { $p | Stop-Process -Force }
           if (-not (Test-Path $rep)) { "no report"; exit 1 }
           $r = Get-Content $rep | ConvertFrom-Json
           $r | ConvertTo-Json -Compress
+          $np | Stop-Process -Force -ErrorAction SilentlyContinue
           if (-not ($r.found -and $r.visible -and $r.noActivate -and $r.toolWindow -and $r.topmost) -or $r.foregroundIsLive) { "LIVE window check failed"; exit 1 }
       - name: 通しの試験（本物の Windows）
         shell: pwsh
