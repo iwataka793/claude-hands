@@ -40,6 +40,20 @@ type rect struct{ L, T, R, B int32 }
 
 var hwnd uintptr
 
+// prevFG：LIVE の窓を最初に出す前に、いちばん前だった窓（試験で、前の窓を取っていないかを見る）
+var prevFG uintptr
+
+var pGetWindowText = user32.NewProc("GetWindowTextW")
+
+func winTitle(h uintptr) string {
+	if h == 0 {
+		return ""
+	}
+	buf := make([]uint16, 256)
+	pGetWindowText.Call(h, uintptr(unsafe.Pointer(&buf[0])), 256)
+	return syscall.UTF16ToString(buf)
+}
+
 func findWin() uintptr {
 	if hwnd != 0 {
 		return hwnd
@@ -83,6 +97,9 @@ func winShow(on bool) {
 	if h == 0 {
 		return
 	}
+	if on && prevFG == 0 {
+		prevFG, _, _ = pGetForeground.Call()
+	}
 	if on {
 		pShowWindow.Call(h, swShowNoActivate)
 	} else {
@@ -102,6 +119,7 @@ func winReport(path string, shown, compact bool) {
 		"found": h != 0, "visible": vis != 0, "shown": shown, "compact": compact,
 		"noActivate": ex&wsExNoActivate != 0, "toolWindow": ex&wsExToolWindow != 0, "topmost": ex&wsExTopmost != 0,
 		"foregroundIsLive": fg == h && h != 0, "rect": []int32{r.L, r.T, r.R, r.B},
+		"prevForeground": winTitle(prevFG), "prevWasLive": prevFG == h && h != 0, "foreground": winTitle(fg),
 	})
 	_ = os.WriteFile(path, b, 0o644)
 }
