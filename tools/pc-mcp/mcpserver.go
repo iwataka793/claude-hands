@@ -82,7 +82,11 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 			if toolNeed[tool] == ModeOperate {
 				kind = "pc-operate"
 			}
-			if !askKaoru(kind, tool, actionOf(tool)) {
+			asked, need := askFor(kind, tool, actionOf(tool), in)
+			if need != "" {
+				return errResult(offMsg + "。" + need), nil, nil
+			}
+			if !asked {
 				return errResult(offMsg), nil, nil
 			}
 			if ok, why := waitKaoru(kind, 60*time.Second, func() bool { _, e := callAgent(ctx, "pc_status", noIn{}, 5*time.Second); return e == nil }); !ok {
@@ -97,7 +101,9 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 				kind, want = "pc-operate", ModeOperate
 			}
 			st := NewState(stateDir(), 0)
-			if askKaoru(kind, tool, actionOf(tool)) {
+			if asked, need := askFor(kind, tool, actionOf(tool), in); need != "" {
+				rep.Text += "\n（" + need + "）"
+			} else if asked {
 				if ok, why := waitKaoru(kind, 60*time.Second, func() bool { return st.Mode() >= want }); ok {
 					rep, err = callAgent(ctx, tool, in, timeout)
 				} else {
@@ -107,7 +113,9 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 		}
 		if err == nil && rep.IsError && strings.HasPrefix(rep.Text, "スイッチが「見るだけ」") {
 			st := NewState(stateDir(), 0)
-			if askKaoru("pc-operate", tool, actionOf(tool)) {
+			if asked, need := askFor("pc-operate", tool, actionOf(tool), in); need != "" {
+				rep.Text += "\n（" + need + "）"
+			} else if asked {
 				if ok, why := waitKaoru("pc-operate", 60*time.Second, func() bool { return st.Mode() == ModeOperate }); ok {
 					rep, err = callAgent(ctx, tool, in, timeout)
 				} else {
@@ -116,9 +124,10 @@ func forward[T any](tool string, timeout time.Duration) func(context.Context, *m
 			}
 		}
 		if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
-			why := allowWhy(rep.Text)
 			st := NewState(stateDir(), 0)
-			if askKaoru("pc-allow", tool, actionOf(tool)+"："+why) {
+			if asked, need := askFor("pc-allow", tool, allowWhat(tool, rep), in); need != "" {
+				rep.Text += "\n（" + need + "）"
+			} else if asked {
 				if ok, w := waitKaoru("pc-allow", 90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }); ok {
 					rep, err = callAgent(ctx, tool, in, timeout)
 				} else {
@@ -149,7 +158,11 @@ func browserForward(ctx context.Context, tool string, in any, timeout time.Durat
 	short := errors.Is(err, errAgentDown) ||
 		(err == nil && rep.IsError && (strings.HasPrefix(rep.Text, "ブラウザのスイッチがオフ") || strings.HasPrefix(rep.Text, "ブラウザのスイッチが「見るだけ」")))
 	if short {
-		if !askKaoru(kind, tool, actionOf(tool)) {
+		asked, need := askFor(kind, tool, actionOf(tool), in)
+		if need != "" {
+			return errResult("ブラウザのスイッチが足りません。" + need), nil, nil
+		}
+		if !asked {
 			if errors.Is(err, errAgentDown) {
 				return errResult("ブラウザのスイッチがオフです（常駐役が動いていない）。カオルにスイッチの窓で「ブラウザ」を「見るだけ」か「操作も可」にしてもらってください。切り替えはカオルだけ"), nil, nil
 			}
@@ -170,7 +183,9 @@ func browserForward(ctx context.Context, tool string, in any, timeout time.Durat
 	if err == nil && rep.IsError && strings.Contains(rep.Text, "カオルの許可が要ります") {
 		st := NewState(stateDir(), 0)
 		st.revokers = []string{bst.path("mode.txt")}
-		if askKaoru("pc-allow", tool, actionOf(tool)+"："+allowWhy(rep.Text)) {
+		if asked, need := askFor("pc-allow", tool, allowWhat(tool, rep), in); need != "" {
+			rep.Text += "\n（" + need + "）"
+		} else if asked {
 			if ok, w := waitKaoru("pc-allow", 90*time.Second, func() bool { ok, _ := st.Allowed(); return ok }); ok {
 				rep, err = callAgent(ctx, tool, in, timeout)
 			} else {
@@ -187,6 +202,7 @@ func browserForward(ctx context.Context, tool string, in any, timeout time.Durat
 type noIn struct{}
 
 type diskIn2 struct {
+	whyArg
 	Path    string `json:"path,omitempty" jsonschema:"大きさを調べるフォルダ（例 %USERPROFILE% や C:\\）。省くとドライブの空きと、膨らみやすい場所だけ"`
 	Top     int    `json:"top,omitempty" jsonschema:"大きい順に何個出すか（既定 20）"`
 	Files   bool   `json:"files,omitempty" jsonschema:"true なら、50 MB 以上の大きいファイルも出す"`
@@ -195,6 +211,7 @@ type diskIn2 struct {
 }
 
 type problemsIn struct {
+	whyArg
 	Hours       int    `json:"hours,omitempty" jsonschema:"何時間前から見るか（既定 24）"`
 	App         string `json:"app,omitempty" jsonschema:"アプリの名前の一部で絞る（例 chrome、Claude）"`
 	Warnings    bool   `json:"warnings,omitempty" jsonschema:"true なら警告も出す（既定はエラーだけ）"`
@@ -203,12 +220,14 @@ type problemsIn struct {
 }
 
 type processesIn struct {
+	whyArg
 	Sort string `json:"sort,omitempty" jsonschema:"memory（既定・同じ名前はまとめる）か cpu（1 秒測る）"`
 	Name string `json:"name,omitempty" jsonschema:"名前の一部で絞る"`
 	Top  int    `json:"top,omitempty" jsonschema:"何個出すか（既定 20）"`
 }
 
 type appsIn struct {
+	whyArg
 	Kind   string `json:"kind,omitempty" jsonschema:"installed（入っているアプリ・既定）か startup（起動時に動くもの）"`
 	Filter string `json:"filter,omitempty" jsonschema:"名前・作った会社の一部で絞る"`
 	Sort   string `json:"sort,omitempty" jsonschema:"name（既定）・size・date"`
@@ -217,6 +236,7 @@ type appsIn struct {
 }
 
 type filesIn2 struct {
+	whyArg
 	Action   string `json:"action,omitempty" jsonschema:"list（一覧・既定）・read（中身）・find（名前で探す）・info（詳しく）"`
 	Path     string `json:"path" jsonschema:"ファイルかフォルダ（%LOCALAPPDATA% などの書き方も使える）"`
 	Pattern  string `json:"pattern,omitempty" jsonschema:"read：この正規表現に合う行だけ／find：名前の形（*.log など）"`
@@ -229,6 +249,7 @@ type filesIn2 struct {
 }
 
 type shotIn struct {
+	whyArg
 	Window   string `json:"window,omitempty" jsonschema:"窓の題名の一部・プログラム名・pid。省くと画面全体"`
 	Activate bool   `json:"activate,omitempty" jsonschema:"true なら、撮る前にその窓を前に出す"`
 	Full     bool   `json:"full,omitempty" jsonschema:"true なら縮めない"`
@@ -236,10 +257,12 @@ type shotIn struct {
 }
 
 type windowsIn struct {
+	whyArg
 	All bool `json:"all,omitempty" jsonschema:"true なら隠れている窓も"`
 }
 
 type uiIn struct {
+	whyArg
 	Window string `json:"window,omitempty" jsonschema:"窓の題名の一部・プログラム名・pid。省くといま前の窓"`
 	Filter string `json:"filter,omitempty" jsonschema:"名前・id・値の一部で絞る"`
 	Depth  int    `json:"depth,omitempty" jsonschema:"何段下まで（既定 8）"`
@@ -248,17 +271,20 @@ type uiIn struct {
 }
 
 type psIn2 struct {
+	whyArg
 	Script   string `json:"script" jsonschema:"PowerShell の台本（Windows PowerShell 5.1）"`
 	Seconds  int    `json:"seconds,omitempty" jsonschema:"時間の上限（既定 60・最大 600）"`
 	MaxChars int    `json:"max_chars,omitempty" jsonschema:"出力の文字数の上限（既定 30000）"`
 }
 
 type openIn struct {
+	whyArg
 	Target string `json:"target" jsonschema:"開くもの：アプリ（notepad、explorer など）・ファイル・フォルダ・URL"`
 	Args   string `json:"args,omitempty" jsonschema:"アプリに渡す引数"`
 }
 
 type uiDoIn struct {
+	whyArg
 	Window    string  `json:"window,omitempty" jsonschema:"窓の題名の一部・プログラム名・pid（前に出してから操作する）"`
 	Target    string  `json:"target,omitempty" jsonschema:"部品の名前か id（pc_ui の「」の中か id=）"`
 	Type      string  `json:"type,omitempty" jsonschema:"部品の種類で絞る（Button、Edit など）"`
@@ -272,6 +298,7 @@ type uiDoIn struct {
 }
 
 type keysIn struct {
+	whyArg
 	Window string `json:"window,omitempty" jsonschema:"先に前に出す窓（省くといま前の窓に打つ）"`
 	Text   string `json:"text,omitempty" jsonschema:"そのまま打つ文字"`
 	Paste  bool   `json:"paste,omitempty" jsonschema:"true なら text をクリップボード経由で貼る（日本語はこちらが確実。前のクリップボードは戻す）"`
@@ -280,11 +307,13 @@ type keysIn struct {
 }
 
 type trashIn struct {
+	whyArg
 	Paths   []string `json:"paths" jsonschema:"消すファイル・フォルダ（取り置きに写してからごみ箱へ。完全には消さない）"`
 	Recycle bool     `json:"recycle,omitempty" jsonschema:"true なら取り置きに写さず、ごみ箱だけに送る（取り置きに入らない大きいもの。先にカオルに聞いてから）"`
 }
 
 type handsIn struct {
+	whyArg
 	Action string `json:"action" jsonschema:"start（作業を始める。title が要る）／done（作業を終えて DONE の報告）／log（TIMELINE と作業の一覧。既定）／undo（task の作業で Claude が変えた・消した分を戻す。操作も可）"`
 	Title  string `json:"title,omitempty" jsonschema:"start の題名（何をする作業か。カオルが読んで分かる言葉で）"`
 	Task   string `json:"task,omitempty" jsonschema:"作業の番号（log・undo）"`

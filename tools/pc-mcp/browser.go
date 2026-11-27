@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -53,12 +54,14 @@ return {v:'` + dkLibVersion + `',SEL,clean,vis,sens,role,nm,val,resolve};})());
 `
 
 type brTabsIn struct {
+	whyArg
 	Action string `json:"action,omitempty" jsonschema:"list（タブの一覧・既定）・new（url を新しいタブで開く）・select（tab を前に出す）・close（Claude が開いたタブを閉じる）"`
 	Tab    string `json:"tab,omitempty" jsonschema:"タブ：一覧の id の頭（4 文字以上）か、題名・URL の一部。並び順の番号は使えない"`
 	URL    string `json:"url,omitempty" jsonschema:"new で開く URL"`
 }
 
 type brReadIn struct {
+	whyArg
 	Tab      string `json:"tab,omitempty" jsonschema:"タブ（省くと最後に使ったタブか、いま見えているタブ）"`
 	Mode     string `json:"mode,omitempty" jsonschema:"elements（押せる部品の一覧・既定）・text（ページの文字）・all（両方）"`
 	Filter   string `json:"filter,omitempty" jsonschema:"この文字を含む行だけ（大文字小文字は区別しない）"`
@@ -67,6 +70,7 @@ type brReadIn struct {
 }
 
 type brDoIn struct {
+	whyArg
 	Tab   string           `json:"tab,omitempty" jsonschema:"タブ（省くと最後に使ったタブか、いま見えているタブ）"`
 	Steps []map[string]any `json:"steps" jsonschema:"順にやる手。1 つずつ {\"click\": 12} のように書く。click（番号・\"text=文字\"・\"css=セレクタ\"）・double（同じ）・click_xy [x,y]（ページの見えている所の座標）・type {\"ref\":3,\"text\":\"…\",\"clear\":true,\"enter\":true}（ref を省くと今の欄）・select {\"ref\":5,\"value\":\"文字か値\"}・key \"Enter\"・\"Ctrl+A\"・scroll 600（下へ・負で上へ・\"top\"・\"bottom\"）・wait 500（ミリ秒・10000 まで）・wait_for \"文字\" か {\"text\":…,\"css\":…,\"timeout\":ms}・goto \"URL\"・back true・js \"式\"（最後の値を返す）"`
 	Read  string           `json:"read,omitempty" jsonschema:"終わったあとに読む：elements（既定）・text・all・none"`
@@ -75,12 +79,14 @@ type brDoIn struct {
 }
 
 type brJSIn struct {
+	whyArg
 	Tab     string `json:"tab,omitempty"`
 	Code    string `json:"code" jsonschema:"ページの中で動かす JavaScript（式の値を返す。await も使える。JSON にできる値で返す）"`
 	Seconds int    `json:"seconds,omitempty" jsonschema:"時間の上限（既定 20・最大 120）"`
 }
 
 type brShotIn struct {
+	whyArg
 	Tab      string `json:"tab,omitempty"`
 	Target   string `json:"target,omitempty" jsonschema:"部品 1 つだけ撮るとき：番号・text=…・css=…（省くと見えている所全体）"`
 	MaxWidth int    `json:"max_width,omitempty" jsonschema:"縮めたあとの幅の上限（既定 1000）"`
@@ -183,13 +189,29 @@ func pageNeedsAllow(t targetInfo) string {
 
 func (a *Agent) allowed() bool { ok, _ := a.st.Allowed(); return ok }
 
+// needAllowErr：許可が要って止めた（窓の WHAT 付き）
+type needAllowErr struct{ msg, what string }
+
+func (e needAllowErr) Error() string { return e.msg }
+
+// pageWhat：許可が要るページの WHAT（URL や題名はそのまま出さず、合った言葉だけ）
+func pageWhat(t targetInfo, verb string) string {
+	if m := sensitivePageRe.FindString(t.Title + " " + t.URL); m != "" {
+		return "「" + m + "」にかかわりそうなページ" + verb
+	}
+	if fileURLRe.MatchString(t.URL) {
+		return "PC の中のファイルのページ" + verb
+	}
+	return "許可が要るページ" + verb
+}
+
 func (a *Agent) brCheckOperate(t targetInfo) *Reply {
 	if blockedURLRe.MatchString(t.URL) {
 		r := errText("このページ（%s）は Chrome の設定・拡張機能などのページなので、操作しません", shortTitle(t.URL, 60))
 		return &r
 	}
 	if why := pageNeedsAllow(t); why != "" && !a.allowed() {
-		r := errText("%s", allowMsg(why+"の操作。ページ："+shortTitle(t.Title, 40)))
+		r := errText("%s", allowMsg(why+"の操作。ページ："+shortTitle(t.Title, 40))).needs(pageWhat(t, "を操作する（押す・打つ）"))
 		return &r
 	}
 	return nil
@@ -221,7 +243,7 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 			return errText("%s は Chrome の設定・拡張機能などのページなので開きません", u)
 		}
 		if why := pageNeedsAllow(targetInfo{URL: u}); why != "" && !a.allowed() {
-			return errText("%s", allowMsg(why))
+			return errText("%s", allowMsg(why)).needs(pageWhat(targetInfo{URL: u}, "を開く"))
 		}
 		c, err := b.conn(ctx)
 		if err != nil {
@@ -429,7 +451,7 @@ func (a *Agent) brJS(ctx context.Context, raw json.RawMessage) Reply {
 		return errText("code が空です")
 	}
 	if m := jsAllowRe.FindString(in.Code); m != "" && !a.allowed() {
-		return errText("%s", allowMsg("クッキー・保存領域・パスワードにかかわる JavaScript（"+m+"）"))
+		return errText("%s", allowMsg("クッキー・保存領域・パスワードにかかわる JavaScript（"+m+"）")).needs("ページのクッキー・保存領域・パスワードを読む・変える（JavaScript）")
 	}
 	b := a.browser()
 	t, err := b.pickTab(ctx, in.Tab)
@@ -684,7 +706,12 @@ func (a *Agent) brDo(ctx context.Context, raw json.RawMessage) Reply {
 		msg, err := a.brStep(cctx, c, sid, &t, kind, v)
 		cancel()
 		if err != nil {
-			return fail(i, kind+" "+err.Error())
+			r := fail(i, kind+" "+err.Error())
+			var na needAllowErr
+			if errors.As(err, &na) {
+				r.What = na.what
+			}
+			return r
 		}
 		log = append(log, fmt.Sprintf("%d. %s", i+1, msg))
 	}
@@ -891,7 +918,7 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 			return "", fmt.Errorf("%s は Chrome の設定・拡張機能などのページなので行きません", u)
 		}
 		if why := pageNeedsAllow(targetInfo{URL: u}); why != "" && !a.allowed() {
-			return "", fmt.Errorf("%s", allowMsg(why))
+			return "", needAllowErr{allowMsg(why), pageWhat(targetInfo{URL: u}, "を開く")}
 		}
 		var r struct {
 			ErrorText string `json:"errorText"`
@@ -914,7 +941,7 @@ func (a *Agent) brStep(ctx context.Context, c *CDP, sid string, t *targetInfo, k
 	case "js":
 		code, _ := v.(string)
 		if m := jsAllowRe.FindString(code); m != "" && !a.allowed() {
-			return "", fmt.Errorf("%s", allowMsg("クッキー・保存領域・パスワードにかかわる JavaScript（"+m+"）"))
+			return "", needAllowErr{allowMsg("クッキー・保存領域・パスワードにかかわる JavaScript（" + m + "）"), "ページのクッキー・保存領域・パスワードを読む・変える（JavaScript）"}
 		}
 		var out any
 		if err := evalRepl(ctx, c, sid, code, &out); err != nil {

@@ -95,6 +95,8 @@
   .whybox .label span { color:var(--dim); }
   .why { font-size:13px; line-height:1.7; color:#D4D4DC; max-height:90px; overflow:auto; overflow-wrap:anywhere; }
   .why.none { color:var(--dim); }
+  .task { font-size:11px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .task:empty { display:none; }
   .ifrow { display:flex; gap:10px; align-items:flex-start; }
   .ifrow > span:first-child { color:var(--c); display:flex; margin-top:3px; }
   .iftext { font-size:13px; line-height:1.7; color:#D4D4DC; }
@@ -162,8 +164,9 @@
     <div class="what jp" id="what"></div>
   </div>
   <div class="whybox">
-    <span class="label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>WHY <span class="jp">Claude の説明（作業の名前）</span></span>
+    <span class="label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>WHY <span class="jp">Claude の説明</span></span>
     <div class="why jp" id="why"></div>
+    <div class="task jp" id="task"></div>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px">
     <span class="label">IF ALLOWED <span class="jp">許可すると</span></span>
@@ -255,7 +258,8 @@ function renderAsk(a) {
   $('asktarget').textContent = 'Claude からの頼み · ' + (a.target === 'WEB' ? 'ブラウザ（Chrome）' : a.target);
   $('what').textContent = a.what;
   const why = $('why');
-  why.textContent = a.why || '説明がありません（作業の名前が付いていない）';
+  why.textContent = a.why || '説明がありません';
+  $('task').textContent = a.task ? '作業：' + a.task : '';
   why.classList.toggle('none', !a.why);
   $('if').textContent = a.if;
   $('secs').textContent = a.secs;

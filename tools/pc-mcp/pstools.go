@@ -77,7 +77,7 @@ func (a *Agent) ui(ctx context.Context, raw json.RawMessage) Reply {
 	_ = json.Unmarshal(raw, &in)
 	if w, _ := in["window"].(string); w != "" && sensitiveWindowRe.MatchString(w) {
 		if ok, _ := a.st.Allowed(); !ok {
-			return errText("窓「%s」：%s", w, allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓"))
+			return errText("窓「%s」：%s", w, allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓")).needs(windowWhat(sensitiveWindowRe.FindString(w), "読む"))
 		}
 	}
 	return psReply(a.ps.Run(ctx, uiScript("ui.ps1"), in, 90*time.Second))
@@ -176,7 +176,7 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 	if err != nil {
 		return errText("%v", err)
 	}
-	block, needAllow, viewNG := checkScript(info, in.Script)
+	block, needAllow, viewNG, what := checkScriptWhat(info, in.Script)
 	if block != "" {
 		return errText("%s", block)
 	}
@@ -185,7 +185,7 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 	}
 	if needAllow != "" {
 		if ok, _ := a.st.Allowed(); !ok {
-			return errText("%s", allowMsg(needAllow))
+			return errText("%s", allowMsg(needAllow)).needs(what)
 		}
 	}
 	if in.Seconds <= 0 {
@@ -228,7 +228,11 @@ func (a *Agent) open(ctx context.Context, raw json.RawMessage) Reply {
 	}
 	if m := sensitiveWindowRe.FindString(in.Target + " " + in.Args); m != "" || strings.Contains(strings.ToLower(in.Args), "runas") {
 		if ok, _ := a.st.Allowed(); !ok {
-			return errText("%s", allowMsg("パスワード・セキュリティ・お金にかかわりそうなもの（"+m+"）"))
+			w := "「" + m + "」にかかわりそうなものを開く"
+			if m == "" {
+				w = "アプリを管理者として開く（UAC）"
+			}
+			return errText("%s", allowMsg("パスワード・セキュリティ・お金にかかわりそうなもの（"+m+"）")).needs(w)
 		}
 	}
 	return psReply(a.ps.Run(ctx, script("open.ps1"), in, 60*time.Second))
@@ -249,7 +253,7 @@ func (a *Agent) checkWindow(ctx context.Context, window string) *Reply {
 	}
 	if m := sensitiveWindowRe.FindString(name); m != "" {
 		if ok, _ := a.st.Allowed(); !ok {
-			r := errText("窓「%s」：%s", strings.TrimSpace(name), allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓（"+m+"）"))
+			r := errText("窓「%s」：%s", strings.TrimSpace(name), allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓（"+m+"）")).needs(windowWhat(m, "押す・打つ"))
 			return &r
 		}
 	}

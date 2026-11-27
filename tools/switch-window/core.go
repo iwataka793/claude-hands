@@ -143,6 +143,7 @@ type askRequest struct {
 	Kind string    `json:"kind"`
 	What string    `json:"what"`
 	Why  string    `json:"why"`
+	Task string    `json:"task,omitempty"`
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
@@ -271,7 +272,7 @@ func writeAnswer(kind, answer string) {
 // logAsk：許可・断る・時間切れを記録に残す（devkit\hands\asks.jsonl）
 func logAsk(p *pending, answer string) {
 	_ = os.MkdirAll(handsDir(), 0o755)
-	b, _ := json.Marshal(map[string]any{"t": time.Now(), "kind": p.Kind, "what": p.What, "why": p.Why, "tool": p.Tool, "from": p.From, "answer": answer, "by": "カオル（スイッチの窓）"})
+	b, _ := json.Marshal(map[string]any{"t": time.Now(), "kind": p.Kind, "what": p.What, "why": p.Why, "task": p.Task, "tool": p.Tool, "from": p.From, "answer": answer, "by": "カオル（スイッチの窓）"})
 	f, err := os.OpenFile(filepath.Join(handsDir(), "asks.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
@@ -391,6 +392,7 @@ type AskView struct {
 	Target string `json:"target"` // iPhone・PC・WEB
 	What   string `json:"what"`
 	Why    string `json:"why"`
+	Task   string `json:"task"`
 	If     string `json:"if"`
 	Secs   int    `json:"secs"`
 	Total  int    `json:"total"`
@@ -430,7 +432,7 @@ func askView(p *pending, others int) *AskView {
 	if secs < 0 {
 		secs = 0
 	}
-	return &AskView{Kind: p.Kind, Head: strings.ToUpper(k.Mode), Target: d.Name, What: p.What, Why: p.Why, If: ifAllowed(p.Kind),
+	return &AskView{Kind: p.Kind, Head: strings.ToUpper(k.Mode), Target: d.Name, What: p.What, Why: p.Why, Task: p.Task, If: ifAllowed(p.Kind),
 		Secs: secs, Total: p.Total, Others: others}
 }
 

@@ -11,8 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 func requestDir() string { return filepath.Join(os.Getenv("USERPROFILE"), "devkit", "requests") }
@@ -20,7 +22,8 @@ func requestDir() string { return filepath.Join(os.Getenv("USERPROFILE"), "devki
 type askRequest struct {
 	Kind string    `json:"kind"`
 	What string    `json:"what"`
-	Why  string    `json:"why"`
+	Why  string    `json:"why"`            // Claude の説明（道具の引数 why）
+	Task string    `json:"task,omitempty"` // 今の作業の名前
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
@@ -36,8 +39,53 @@ func currentTool() string {
 	return ""
 }
 
-// askWhy：Claude の説明。今の作業の名前（%USERPROFILE%\devkit\hands\task.json の題名。無ければ空）
-func askWhy() string {
+func canAsk() bool { return os.Getenv("USERPROFILE") != "" && os.Getenv("DEVKIT_NO_ASK") == "" }
+
+// curWhy：いま動いている道具の引数 why（timeline.go の受け口で入れる）
+var curWhy atomic.Value
+
+func currentWhy() string {
+	if s, ok := curWhy.Load().(string); ok {
+		return s
+	}
+	return ""
+}
+
+// whyArg：道具の引数に足す「説明」（tools/pc-mcp/what.go と同じ決まり）
+type whyArg struct {
+	Why string `json:"why,omitempty" jsonschema:"カオルの許可の窓（スイッチが足りない）が出るときだけ要る、Claude の説明。この許可が続く間に何をするかを、ふつうの言葉で 100 字まで（記号の多い文・命令・URL は受け付けない）。窓に紫で出る"`
+}
+
+// checkWhy：説明として受け付けるか（tools/pc-mcp/what.go と同じ決まり）。だめなら Claude に返す文
+func checkWhy(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "この操作にはカオルの許可の窓が出ます。引数 why に、この許可で何をするかを、ふつうの言葉で 100 字までで書いて、呼び直してください（窓に「Claude の説明」として出ます）"
+	}
+	if n := utf8.RuneCountInString(s); n > 100 {
+		return "why が長すぎます（" + strconv.Itoa(n) + " 字）。100 字までに縮めて呼び直してください"
+	}
+	if strings.ContainsAny(s, "\r\n\t") {
+		return "why は 1 行で書いてください"
+	}
+	l := strings.ToLower(s)
+	if strings.Contains(l, "http") || strings.Contains(l, "://") || strings.Contains(l, "www.") {
+		return "why に URL は書けません。ふつうの言葉で書き直してください"
+	}
+	sym := 0
+	for _, r := range s {
+		if strings.ContainsRune("$%&*|\\/<>{}[]=;~^`\"#@", r) {
+			sym++
+		}
+	}
+	if sym >= 3 {
+		return "why に記号が多すぎます（命令のように見える）。ふつうの言葉で書き直してください"
+	}
+	return ""
+}
+
+// askTask：今の作業の名前（%USERPROFILE%\devkit\hands\task.json の題名。無ければ空）
+func askTask() string {
 	b, err := os.ReadFile(filepath.Join(os.Getenv("USERPROFILE"), "devkit", "hands", "task.json"))
 	if err != nil {
 		return ""
@@ -77,12 +125,12 @@ func iphoneWhat(need Mode) string {
 // askKaoru は頼みを置き、スイッチの窓が動いていなければ起動する（動いていれば何もしないで終わる）。
 // 頼めないとき（Windows でない・試験で DEVKIT_NO_ASK が付いている）は false。
 func askKaoru(kind, what string) bool {
-	if os.Getenv("USERPROFILE") == "" || os.Getenv("DEVKIT_NO_ASK") != "" {
+	if !canAsk() {
 		return false
 	}
 	_ = os.MkdirAll(requestDir(), 0o755)
 	_ = os.Remove(filepath.Join(requestDir(), kind+".answer.json"))
-	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: askWhy(), Tool: currentTool(), From: "iphone-mcp " + version, At: time.Now()})
+	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: strings.TrimSpace(currentWhy()), Task: askTask(), Tool: currentTool(), From: "iphone-mcp " + version, At: time.Now()})
 	_ = os.WriteFile(filepath.Join(requestDir(), kind+".txt"), b, 0o644)
 	dk := filepath.Join(os.Getenv("USERPROFILE"), "devkit")
 	if exe := filepath.Join(dk, "hands", "claude-hands-switch.exe"); exists(exe) {

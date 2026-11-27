@@ -152,18 +152,25 @@ var textAllowRe = regexp.MustCompile(`(?i)(-verb\s+['"]?runas|hklm:|hkey_local_m
 // checkScript は、台本を実行してよいかを決める。
 // 返り値：block（許可があってもだめ）・needAllow（許可が要る理由）・viewNG（見るだけでは使えない理由）
 func checkScript(info scriptInfo, src string) (block, needAllow, viewNG string) {
+	block, needAllow, viewNG, _ = checkScriptWhat(info, src)
+	return
+}
+
+// checkScriptWhat は checkScript と同じで、許可の窓の WHAT（ふつうの言葉。what.go の表）も返す。
+func checkScriptWhat(info scriptInfo, src string) (block, needAllow, viewNG, what string) {
 	text := strings.ReplaceAll(src, "/", `\`)
 	if isSwitchPlace(text) {
-		return "スイッチ・許可・守り（取り置き）の置き場所は触れません", "", ""
+		return "スイッチ・許可・守り（取り置き）の置き場所は触れません", "", "", ""
 	}
 	if len(info.Errors) > 0 {
-		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", ""
+		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", "", ""
 	}
-	var allowWhy []string
+	var allowWhy, whats []string
 	for _, c := range info.Cmds {
 		lc := strings.ToLower(c)
 		if why, ok := allowCmds[lc]; ok {
 			allowWhy = append(allowWhy, c+"（"+why+"）")
+			whats = append(whats, cmdWhat[why])
 		}
 		if viewNG == "" && !viewExact[lc] {
 			verb := lc
@@ -180,6 +187,7 @@ func checkScript(info scriptInfo, src string) (block, needAllow, viewNG string) 
 	for _, m := range info.Members {
 		if allowMemberRe.MatchString(m) {
 			allowWhy = append(allowWhy, "."+m+"()")
+			whats = append(whats, memberWhat(m))
 		}
 		if viewNG == "" && badMemberRe.MatchString(m) {
 			viewNG = "呼び出し ." + m + "()"
@@ -187,6 +195,7 @@ func checkScript(info scriptInfo, src string) (block, needAllow, viewNG string) 
 	}
 	if info.Dynamic > 0 {
 		allowWhy = append(allowWhy, "中身が決まっていない呼び出し（& $x など）")
+		whats = append(whats, "中身が先に分からない命令を動かす")
 		if viewNG == "" {
 			viewNG = "中身が決まっていない呼び出し"
 		}
@@ -196,12 +205,18 @@ func checkScript(info scriptInfo, src string) (block, needAllow, viewNG string) 
 	}
 	if m := textAllowRe.FindString(text); m != "" {
 		allowWhy = append(allowWhy, m)
+		whats = append(whats, textWhat(m))
 	}
 	if m := sensitivePathRe.FindString(text); m != "" {
 		allowWhy = append(allowWhy, "場所 "+m)
+		whats = append(whats, targetName(m)+"を読む・変える")
 	}
 	if len(allowWhy) > 0 {
 		needAllow = strings.Join(uniq(allowWhy), "、")
+		what = joinWhat(whats)
+		if what == "" {
+			what = "よく分からない操作（pc_powershell）"
+		}
 	}
 	return
 }

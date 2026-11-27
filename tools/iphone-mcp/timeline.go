@@ -71,6 +71,11 @@ func timelineMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 		start := time.Now()
 		if p, ok := req.GetParams().(*mcp.CallToolParamsRaw); ok {
 			curTool.Store(p.Name)
+			var w struct {
+				Why string `json:"why"`
+			}
+			_ = json.Unmarshal(p.Arguments, &w)
+			curWhy.Store(w.Why)
 		}
 		res, err := next(ctx, method, req)
 		p, ok := req.GetParams().(*mcp.CallToolParamsRaw)

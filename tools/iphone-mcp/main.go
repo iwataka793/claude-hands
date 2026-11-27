@@ -113,6 +113,11 @@ func (a *app) gate(need Mode) *mcp.CallToolResult {
 		if need == ModeOperate {
 			kind, what = "iphone-operate", "操作も可"
 		}
+		if canAsk() {
+			if msg := checkWhy(currentWhy()); msg != "" {
+				return fail("スイッチが足りません（いま：%s。iPhone を「%s」にする頼みが要る）。%s", a.sw.Current().String(), what, msg)
+			}
+		}
 		if !askKaoru(kind, iphoneWhat(need)) {
 			return fail("スイッチが足りません（いま：%s）。カオルに「%s」にしてもらってください（切り替えはカオルだけ。%s）", a.sw.Current().String(), what, a.sw.Path())
 		}
@@ -134,6 +139,7 @@ func (a *app) lc(bundle string) string {
 type noInput struct{}
 
 type logsIn struct {
+	whyArg
 	Match        string `json:"match" jsonschema:"iPhone のログから抜き出す正規表現。例 DEVKIT"`
 	SinceSeconds int    `json:"since_seconds,omitempty" jsonschema:"何秒前からのログを見るか（既定 60）"`
 	WaitSeconds  int    `json:"wait_seconds,omitempty" jsonschema:"合う行がまだ無ければ、この秒数まで待つ（既定 0）"`
@@ -141,10 +147,12 @@ type logsIn struct {
 }
 
 type screenshotIn struct {
+	whyArg
 	Full bool `json:"full,omitempty" jsonschema:"true なら縮めない元の大きさ（既定は 1/3 に縮めた JPEG）"`
 }
 
 type elementsIn struct {
+	whyArg
 	All bool `json:"all,omitempty" jsonschema:"true なら文字の無い部品も含める"`
 	Max int  `json:"max,omitempty" jsonschema:"行数の上限（既定 200）"`
 }
@@ -153,6 +161,7 @@ type elementsIn struct {
 // （jsonschema の都合で埋め込みにせず、それぞれの型に同じ 2 つを書く）
 
 type tapIn struct {
+	whyArg
 	X     float64 `json:"x" jsonschema:"横の位置（WDA の単位。iPhone 16e は幅 390）"`
 	Y     float64 `json:"y" jsonschema:"縦の位置（高さ 844）"`
 	Count int     `json:"count,omitempty" jsonschema:"2 ならダブルタップ"`
@@ -162,6 +171,7 @@ type tapIn struct {
 }
 
 type swipeIn struct {
+	whyArg
 	FromX    float64 `json:"from_x"`
 	FromY    float64 `json:"from_y"`
 	ToX      float64 `json:"to_x"`
@@ -172,6 +182,7 @@ type swipeIn struct {
 }
 
 type tapTextIn struct {
+	whyArg
 	Text    string  `json:"text" jsonschema:"押したい部品の文字（label / name / value / placeholderValue のどれかと一致）"`
 	Index   int     `json:"index,omitempty" jsonschema:"同じ文字が複数あるときの番号（0 から）"`
 	Partial bool    `json:"partial,omitempty" jsonschema:"true なら文字の一部が合えばよい"`
@@ -182,6 +193,7 @@ type tapTextIn struct {
 }
 
 type typeIn struct {
+	whyArg
 	Text    string `json:"text" jsonschema:"打つ文字"`
 	Field   string `json:"field,omitempty" jsonschema:"入力欄の文字（ラベルや薄く出ている案内文）。指定するとその欄を押してから打つ。省略すると今選ばれている欄に打つ"`
 	Partial bool   `json:"partial,omitempty" jsonschema:"true なら field の一部が合えばよい"`
@@ -192,24 +204,28 @@ type typeIn struct {
 }
 
 type buttonIn struct {
+	whyArg
 	Name string `json:"name" jsonschema:"home / volumeup / volumedown / lock / unlock / hide_keyboard（キーボードを閉じる）/ notifications（通知センター）/ control_center / back（画面の左端から戻る）"`
 	Show string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
 	Log  string `json:"log,omitempty" jsonschema:"操作のあとに出たログのうち、この正規表現に合う行も返す"`
 }
 
 type pinchIn struct {
+	whyArg
 	Scale    float64 `json:"scale" jsonschema:"2 なら 2 倍に拡大、0.5 なら縮小"`
 	Velocity float64 `json:"velocity,omitempty" jsonschema:"速さ（省略で拡大 1・縮小 -1）"`
 	Show     string  `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
 }
 
 type alertIn struct {
+	whyArg
 	Action string `json:"action,omitempty" jsonschema:"read（文とボタンを読む・既定）／accept（許可・OK 側）／dismiss（キャンセル側）"`
 	Button string `json:"button,omitempty" jsonschema:"accept / dismiss のとき、押すボタンの文字（例「Appの使用中は許可」）"`
 	Show   string `json:"show,omitempty" jsonschema:"操作のあとの画面を付けるか：changed（既定）／always／never"`
 }
 
 type waitIn struct {
+	whyArg
 	Text    string  `json:"text" jsonschema:"待つ文字（画面の部品の label / name / value）"`
 	Partial bool    `json:"partial,omitempty" jsonschema:"true なら一部が合えばよい"`
 	Gone    bool    `json:"gone,omitempty" jsonschema:"true なら消えるまで待つ（「読み込み中」など）"`
@@ -218,6 +234,7 @@ type waitIn struct {
 }
 
 type scrollToIn struct {
+	whyArg
 	Text      string `json:"text" jsonschema:"出したい部品の文字"`
 	Partial   bool   `json:"partial,omitempty" jsonschema:"true なら一部が合えばよい"`
 	Direction string `json:"direction,omitempty" jsonschema:"どちらの中身を見に行くか：down（既定。下の方）／up／left／right"`
@@ -227,6 +244,7 @@ type scrollToIn struct {
 }
 
 type appIn struct {
+	whyArg
 	Action string `json:"action" jsonschema:"activate（前に出す）／launch（起動し直す）／terminate（終わらせる）／state（動いているか）／url（URL を開く）"`
 	Bundle string `json:"bundle,omitempty" jsonschema:"アプリの名前（ホーム画面の名前。標準アプリは「設定」など日本語でよい）か bundle id。省略か livecontainer なら LiveContainer"`
 	URL    string `json:"url,omitempty" jsonschema:"開く URL（action が url のとき。https:// や アプリの URL スキーム）"`
@@ -235,6 +253,7 @@ type appIn struct {
 }
 
 type stepsIn struct {
+	whyArg
 	Steps []map[string]any `json:"steps" jsonschema:"上から順に行う操作。1 つは {\"do\": 種類, ...引数}。種類と引数は同じ名前の道具と同じ：tap{x,y,count,hold} / swipe{from_x,from_y,to_x,to_y,duration} / tap_text{text,index,partial,count,hold} / type{text,field,partial,clear,enter} / button{name} / pinch{scale} / alert{action,button} / wait{text,partial,gone,seconds} / scroll_to{text,partial,direction,max,tap} / app{action,bundle,url} / sleep{seconds}"`
 	Pause float64          `json:"pause,omitempty" jsonschema:"操作と操作のあいだに待つ秒数（既定 0.3）"`
 	Show  string           `json:"show,omitempty" jsonschema:"最後の画面を付けるか：always（既定）／changed／never"`
@@ -242,11 +261,13 @@ type stepsIn struct {
 }
 
 type lcInstallIn struct {
+	whyArg
 	Tag   string `json:"tag,omitempty" jsonschema:"claude-hands の Releases のタグ（例 build-5）。省略で最新"`
 	Asset string `json:"asset,omitempty" jsonschema:"Releases の中のファイル名（既定 DevKit.ipa）"`
 }
 
 type infoIn struct {
+	whyArg
 	What     string `json:"what,omitempty" jsonschema:"summary（機種・iOS・ロック・容量・電池・言語など。既定）／processes（動いているアプリ）／apps（入れたアプリと大きさ）／crashes（落ちた記録）"`
 	Match    string `json:"match,omitempty" jsonschema:"名前を絞る正規表現（processes・apps・crashes）"`
 	All      bool   `json:"all,omitempty" jsonschema:"processes で、アプリ以外のプログラムも出す"`
@@ -256,6 +277,7 @@ type infoIn struct {
 }
 
 type filesIn struct {
+	whyArg
 	Action    string `json:"action,omitempty" jsonschema:"list（一覧・既定）／read（文字のファイルを読む）／pull（PC に取る）／write（文字を書く）／push（PC のファイルを置く）。write・push は操作も可のときだけ"`
 	App       string `json:"app,omitempty" jsonschema:"どのアプリの中か：名前か bundle id（省くと LiveContainer。開けるのは開発者の署名のアプリだけ）。media なら写真などのフォルダ"`
 	Path      string `json:"path,omitempty" jsonschema:"iPhone の中の場所。例 /Documents"`
@@ -267,21 +289,25 @@ type filesIn struct {
 }
 
 type devkitIn struct {
+	whyArg
 	Path string `json:"path,omitempty" jsonschema:"のぞき窓の道。/state（既定。版と画面の行）か、/cmd に do と text を付けたもの（行を消す clear・行を足す add。/cmd は操作も可のときだけ）"`
 }
 
 type webIn struct {
+	whyArg
 	Action string `json:"action,omitempty" jsonschema:"list（見られるページの一覧・既定）／eval（ページで JavaScript を動かす。操作も可のときだけ）"`
 	Page   string `json:"page,omitempty" jsonschema:"eval するページ（list の page の値）。省くと Safari のいちばん上のページ"`
 	Expr   string `json:"expr,omitempty" jsonschema:"eval で動かす JavaScript（例 document.title）"`
 }
 
 type clipboardIn struct {
+	whyArg
 	Action string `json:"action" jsonschema:"get（読む）／set（文字を入れる）"`
 	Text   string `json:"text,omitempty" jsonschema:"set で入れる文字"`
 }
 
 type locationIn struct {
+	whyArg
 	Action string  `json:"action" jsonschema:"set（仮の位置にする）／reset（元に戻す）"`
 	Lat    float64 `json:"lat,omitempty" jsonschema:"緯度（set のとき）"`
 	Lon    float64 `json:"lon,omitempty" jsonschema:"経度（set のとき）"`

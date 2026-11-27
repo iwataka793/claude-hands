@@ -25,7 +25,8 @@ func requestDir() string { return filepath.Join(os.Getenv("USERPROFILE"), "devki
 type askRequest struct {
 	Kind string    `json:"kind"`
 	What string    `json:"what"`
-	Why  string    `json:"why"`
+	Why  string    `json:"why"`            // Claude の説明（道具の引数 why）
+	Task string    `json:"task,omitempty"` // 今の作業の名前（hands start の題名）
 	Tool string    `json:"tool,omitempty"`
 	From string    `json:"from"`
 	At   time.Time `json:"at"`
@@ -36,8 +37,42 @@ type askAnswer struct {
 	At     time.Time `json:"at"`
 }
 
-// askWhy：Claude の説明。今の作業の名前（無ければ空）
-func askWhy() string {
+// canAsk：窓を出してもらえるか（Windows でない・試験で DEVKIT_NO_ASK が付いているときは頼まない）
+func canAsk() bool { return os.Getenv("USERPROFILE") != "" && os.Getenv("DEVKIT_NO_ASK") == "" }
+
+// askFor：窓を出す前に Claude の説明（why）を確かめてから頼む。
+// 返り値：頼んだか・頼まなかった理由（説明が無い・だめ。Claude に「書いて呼び直して」と返す）
+func askFor(kind, tool, what string, in any) (bool, string) {
+	if !canAsk() {
+		return false, ""
+	}
+	why := whyOf(in)
+	if msg := checkWhy(why); msg != "" {
+		return false, msg
+	}
+	return askKaoru(kind, tool, what, strings.TrimSpace(why)), ""
+}
+
+// whyOf：道具の引数から why を取り出す
+func whyOf(in any) string {
+	b, _ := json.Marshal(in)
+	var m struct {
+		Why string `json:"why"`
+	}
+	_ = json.Unmarshal(b, &m)
+	return m.Why
+}
+
+// allowWhat：許可の窓の WHAT。常駐役が言い換えの表で作ったもの（無ければ道具の短い言い方）
+func allowWhat(tool string, rep Reply) string {
+	if rep.What != "" {
+		return rep.What
+	}
+	return actionOf(tool) + "（許可が要るもの）"
+}
+
+// askTask：今の作業の名前（無ければ空）
+func askTask() string {
 	if t := currentTask(); t != nil {
 		return t.Title
 	}
@@ -46,13 +81,13 @@ func askWhy() string {
 
 // askKaoru は頼みを置き、スイッチの窓が動いていなければ起動する（動いていれば何もしないで終わる）。
 // 頼めないとき（Windows でない・試験で DEVKIT_NO_ASK が付いている）は false。
-func askKaoru(kind, tool, what string) bool {
-	if os.Getenv("USERPROFILE") == "" || os.Getenv("DEVKIT_NO_ASK") != "" {
+func askKaoru(kind, tool, what, why string) bool {
+	if !canAsk() {
 		return false
 	}
 	_ = os.MkdirAll(requestDir(), 0o755)
 	_ = os.Remove(filepath.Join(requestDir(), kind+".answer.json")) // 前の返事は捨てる
-	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: askWhy(), Tool: tool, From: "pc-mcp " + version, At: time.Now()})
+	b, _ := json.Marshal(askRequest{Kind: kind, What: what, Why: why, Task: askTask(), Tool: tool, From: "pc-mcp " + version, At: time.Now()})
 	_ = os.WriteFile(filepath.Join(requestDir(), kind+".txt"), b, 0o644)
 	startSwitchWindow()
 	return true
@@ -142,16 +177,4 @@ func actionOf(tool string) string {
 		return s
 	}
 	return "よく分からない操作（" + tool + "）"
-}
-
-// allowWhy：守りが止めた理由（「カオルの許可が要ります（ここ）」の中身。無ければ 1 行目）
-func allowWhy(t string) string {
-	const key = "カオルの許可が要ります（"
-	if i := strings.Index(t, key); i >= 0 {
-		r := t[i+len(key):]
-		if j := strings.Index(r, "）。カオルに"); j > 0 { // 中に（ ）が入ることがある
-			return r[:j]
-		}
-	}
-	return firstLine(t)
 }

@@ -23,7 +23,11 @@ type Reply struct {
 	Text    string  `json:"text"`
 	Images  []Image `json:"images,omitempty"`
 	IsError bool    `json:"isError,omitempty"`
+	What    string  `json:"what,omitempty"` // 許可が要るとき：しようとしていること（ふつうの言葉。許可の窓の WHAT）
 }
+
+// needs：許可が要る返事に、窓の WHAT を付ける
+func (r Reply) needs(what string) Reply { r.What = what; return r }
 
 type Image struct {
 	Data []byte `json:"data"`
@@ -256,13 +260,13 @@ func (a *Agent) needAllowFor(path string, modify bool) *Reply {
 		return &r
 	case "sensitive":
 		if ok, _ := a.st.Allowed(); !ok {
-			r := errText("%s：%s", path, allowMsg(why))
+			r := errText("%s：%s", path, allowMsg(why)).needs(pathWhat(cls, sensitivePathRe.FindString(matchForm(normPath(path))), modify))
 			return &r
 		}
 	case "system":
 		if modify {
 			if ok, _ := a.st.Allowed(); !ok {
-				r := errText("%s：%s", path, allowMsg(why))
+				r := errText("%s：%s", path, allowMsg(why)).needs(pathWhat(cls, "", modify))
 				return &r
 			}
 		}
