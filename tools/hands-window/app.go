@@ -20,7 +20,12 @@ const (
 	liveH  = 76
 	smallW = 112
 	smallH = 40
+	doneW  = 380
+	doneH  = 150
+	openH  = 340 // DONE を「詳しく」で開いたとき
 )
+
+const doneFor = 3 * time.Minute // DONE は閉じなければこれだけ出しておく（マウスが乗っている間は消さない）
 
 const (
 	busyFor = 15 * time.Second  // 動いてからこれだけは広げておく
@@ -34,6 +39,16 @@ type App struct {
 	stopped time.Time // ［止める］を押した時刻
 	shown   bool
 	compact bool
+	size    [2]int
+	started bool
+
+	// DONE
+	seenDone  string    // もう見せた（か、起動したときにもうあった）いちばん新しい作業の番号
+	doneID    string    // いま見せている DONE
+	doneAt    time.Time // 見せ始めた時刻
+	doneOpen  bool      // 詳しく
+	undoArmed bool      // ［まとめて戻す］を 1 回押した（もう 1 回で戻す）
+	undoMsg   string
 }
 
 func newApp() *App { return &App{} }
@@ -148,6 +163,15 @@ type LiveState struct {
 	Stopped bool     `json:"stopped"`
 	NG      bool     `json:"ng"`
 	Version string   `json:"version"`
+
+	Mode      string   `json:"mode"` // live・done
+	DoneTitle string   `json:"doneTitle,omitempty"`
+	DoneTime  string   `json:"doneTime,omitempty"`
+	Summary   []string `json:"summary,omitempty"`
+	Report    string   `json:"report,omitempty"`
+	Open      bool     `json:"open"`
+	UndoArmed bool     `json:"undoArmed"`
+	UndoMsg   string   `json:"undoMsg,omitempty"`
 }
 
 func (a *App) compute() LiveState {
@@ -185,6 +209,23 @@ func (a *App) compute() LiveState {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	st.Mode = "live"
+	if id := newestDone(); id != "" && id != a.seenDone {
+		if !a.started {
+			a.seenDone = id // 起動したときにもうあったものは見せない
+		} else {
+			a.seenDone, a.doneID, a.doneAt, a.doneOpen, a.undoArmed, a.undoMsg = id, id, time.Now(), false, false, ""
+		}
+	}
+	a.started = true
+	if a.doneID != "" && (time.Since(a.doneAt) < doneFor || a.hover) {
+		d := loadDone(a.doneID)
+		st.Mode, st.Show, st.Compact = "done", true, false
+		st.DoneTitle, st.DoneTime, st.Summary, st.Report = d.title, d.when, d.summary, d.report
+		st.Open, st.UndoArmed, st.UndoMsg = a.doneOpen, a.undoArmed, a.undoMsg
+		return st
+	}
+	a.doneID = ""
 	if !a.stopped.IsZero() && time.Since(a.stopped) < 10*time.Second {
 		st.Stopped, st.Show, st.Compact = true, true, false
 		return st
@@ -221,18 +262,23 @@ func (a *App) loop() {
 func (a *App) apply(st LiveState) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if st.Show != a.shown || (st.Show && st.Compact != a.compact) {
+	w, h := liveW, liveH
+	switch {
+	case st.Mode == "done" && st.Open:
+		w, h = doneW, openH
+	case st.Mode == "done":
+		w, h = doneW, doneH
+	case st.Compact:
+		w, h = smallW, smallH
+	}
+	if st.Show != a.shown || (st.Show && a.size != [2]int{w, h}) {
 		if st.Show {
-			w, h := liveW, liveH
-			if st.Compact {
-				w, h = smallW, smallH
-			}
 			winPlace(w, h)
 			winShow(true)
 		} else {
 			winShow(false)
 		}
-		a.shown, a.compact = st.Show, st.Compact
+		a.shown, a.compact, a.size = st.Show, st.Compact, [2]int{w, h}
 	}
 }
 
@@ -264,4 +310,97 @@ func (a *App) Stop() string {
 		return "止められなかった：" + strings.Join(ng, "・")
 	}
 	return "全部のスイッチをオフにしました"
+}
+
+// ---- DONE ----
+
+func doneDir() string { return filepath.Join(handsDir(), "done") }
+
+// newestDone：いちばん新しい DONE の作業の番号（done\<番号>.txt）
+func newestDone() string {
+	es, err := os.ReadDir(doneDir())
+	if err != nil {
+		return ""
+	}
+	best := ""
+	for _, e := range es {
+		if n := e.Name(); strings.HasSuffix(n, ".txt") && strings.TrimSuffix(n, ".txt") > best {
+			best = strings.TrimSuffix(n, ".txt")
+		}
+	}
+	return best
+}
+
+type doneInfo struct {
+	title, when, report string
+	summary             []string
+}
+
+// loadDone：DONE の報告（常駐役が記録から作ったもの）を読む
+func loadDone(id string) doneInfo {
+	var d doneInfo
+	b, err := os.ReadFile(filepath.Join(doneDir(), id+".txt"))
+	if err != nil {
+		d.title = id
+		return d
+	}
+	txt := strings.ReplaceAll(strings.TrimPrefix(string(b), "\ufeff"), "\r\n", "\n")
+	var rest []string
+	for i, l := range strings.Split(txt, "\n") {
+		if i == 0 && strings.HasPrefix(l, "DONE：") {
+			t := strings.TrimPrefix(l, "DONE：")
+			if k := strings.LastIndex(t, "（"); k > 0 {
+				d.when = strings.Trim(t[k:], "（）")
+				t = t[:k]
+			}
+			d.title = t
+			continue
+		}
+		if strings.HasPrefix(l, "戻すとき：") {
+			continue
+		}
+		if strings.HasPrefix(l, "手の数：") || strings.HasPrefix(l, "変えたファイル") || strings.HasPrefix(l, "消したもの") {
+			d.summary = append(d.summary, l)
+		}
+		rest = append(rest, l)
+	}
+	d.report = strings.TrimSpace(strings.Join(rest, "\n"))
+	return d
+}
+
+// CloseDone：DONE を閉じる（LIVE に戻る）
+func (a *App) CloseDone() {
+	a.mu.Lock()
+	a.doneID, a.undoArmed = "", false
+	a.mu.Unlock()
+}
+
+// OpenDone：詳しく／たたむ
+func (a *App) OpenDone(open bool) {
+	a.mu.Lock()
+	a.doneOpen = open
+	a.doneAt = time.Now()
+	a.mu.Unlock()
+}
+
+// Undo：［まとめて戻す］。1 回目は「本当に？」にするだけ、2 回目で常駐役に頼む（カオルが押したと記録に残す）
+func (a *App) Undo() string {
+	a.mu.Lock()
+	id, armed := a.doneID, a.undoArmed
+	if id == "" {
+		a.mu.Unlock()
+		return ""
+	}
+	if !armed {
+		a.undoArmed, a.doneAt = true, time.Now()
+		a.mu.Unlock()
+		return "もう一度押すと戻します"
+	}
+	a.undoArmed = false
+	a.mu.Unlock()
+	msg := callUndo(id)
+	a.mu.Lock()
+	a.undoMsg, a.doneAt, a.doneOpen = msg, time.Now(), true
+	a.mu.Unlock()
+	return msg
 }

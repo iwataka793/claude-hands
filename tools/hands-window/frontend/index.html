@@ -26,6 +26,22 @@
   body.compact #card { border-radius:20px; padding:0 12px; justify-content:center; gap:8px; }
   body.compact .body .title, body.compact .body .last, body.compact .jp, body.compact button { display:none; }
   .msg { font-size:12px; color:var(--text); }
+  /* DONE */
+  #done { position:absolute; inset:0; background:var(--bg); border:1px solid var(--line); border-radius:14px; box-sizing:border-box;
+    padding:12px 14px; display:none; flex-direction:column; gap:6px; --undo:#A78BFA; }
+  body.done #card { display:none; } body.done #done { display:flex; }
+  .dhead { display:flex; align-items:baseline; gap:8px; }
+  .dlabel { font-weight:700; font-size:13px; letter-spacing:.14em; color:#60A5FA; }
+  .dtitle { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dsum { font-size:11px; color:var(--sub); line-height:1.5; }
+  .dreport { display:none; flex:1; overflow:auto; font-size:11px; color:var(--text); white-space:pre-wrap; line-height:1.5;
+    border-top:1px solid var(--line); padding-top:6px; }
+  body.open .dreport { display:block; }
+  .dbtns { display:flex; gap:6px; margin-top:auto; }
+  .dbtns button { border-color:var(--line); color:var(--text); padding:6px 9px; }
+  .dbtns button.undo { border-color:var(--undo); color:var(--undo); }
+  .dbtns button.undo.armed { background:rgba(167,139,250,.18); }
+  .dmsg { font-size:11px; color:var(--undo); white-space:pre-wrap; }
 </style>
 </head>
 <body class="compact">
@@ -38,10 +54,39 @@
   </div>
   <button id="stop" title="iPhone・PC・ブラウザのスイッチを全部オフにします">STOP<span>止める</span></button>
 </div>
+<div id="done">
+  <div class="dhead"><span class="dlabel">DONE</span><span class="jp" id="dtime"></span></div>
+  <div class="dtitle" id="dtitle"></div>
+  <div class="dsum" id="dsum"></div>
+  <div class="dreport" id="dreport"></div>
+  <div class="dmsg" id="dmsg"></div>
+  <div class="dbtns">
+    <button id="dopen">DETAIL<span>詳しく</span></button>
+    <button class="undo" id="dundo" title="この作業で Claude が変えた文字のファイルと、消したもの（取り置き）だけを戻します">UNDO<span>まとめて戻す</span></button>
+    <button id="dclose">CLOSE<span>閉じる</span></button>
+  </div>
+</div>
 <script>
   const $ = id => document.getElementById(id);
+  let open = false;
+  function drawDone(s) {
+    document.body.classList.add('done'); document.body.classList.remove('compact');
+    open = !!s.open; document.body.classList.toggle('open', open);
+    $('dtime').textContent = '作業が終わりました' + (s.doneTime ? '（' + s.doneTime + '）' : '');
+    $('dtitle').textContent = s.doneTitle || '';
+    $('dsum').textContent = (s.summary || []).join('\n');
+    $('dsum').style.whiteSpace = 'pre-wrap';
+    $('dreport').textContent = s.report || '';
+    $('dopen').firstChild.textContent = open ? 'LESS' : 'DETAIL';
+    $('dopen').querySelector('span').textContent = open ? 'たたむ' : '詳しく';
+    $('dundo').classList.toggle('armed', !!s.undoArmed);
+    $('dundo').querySelector('span').textContent = s.undoArmed ? 'もう一度押すと戻す' : 'まとめて戻す';
+    $('dmsg').textContent = s.undoMsg || '';
+  }
   function draw(s) {
     if (!s) return;
+    if (s.mode === 'done') { drawDone(s); return; }
+    document.body.classList.remove('done', 'open');
     document.body.classList.toggle('compact', !!s.compact);
     $('dot').classList.toggle('ng', !!s.ng || !!s.stopped);
     if (s.stopped) {
@@ -60,6 +105,9 @@
     const r = await window.go.main.App.Stop();
     $('title').textContent = r;
   });
+  $('dopen').addEventListener('click', () => bound() && window.go.main.App.OpenDone(!open));
+  $('dclose').addEventListener('click', () => bound() && window.go.main.App.CloseDone());
+  $('dundo').addEventListener('click', async () => { if (bound()) { $('dmsg').textContent = '…'; const r = await window.go.main.App.Undo(); $('dmsg').textContent = r; } });
   let hooked = false;
   function hook() {
     if (!hooked && window.runtime && window.runtime.EventsOn) { window.runtime.EventsOn('state', draw); hooked = true; }
