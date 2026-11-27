@@ -29,6 +29,15 @@ shutil.rmtree(HD, ignore_errors=True)
 (HD / "holding").mkdir(parents=True, exist_ok=True)
 os.environ["PC_HANDS_DIR"] = str(HD)
 os.environ["PC_HANDS_FREE_GB"] = "200"  # 試験の機械の C は空きが少ないので
+HU = pathlib.Path(tempfile.gettempdir()) / "pc-mcp-hands-user"
+shutil.rmtree(HU, ignore_errors=True)
+HU.mkdir(parents=True, exist_ok=True)
+os.environ["PC_HANDS_USERDIR"] = str(HU)
+GT = pathlib.Path.home() / "pc-mcp-hands-test"   # Git で記録するフォルダ（ホームの中）
+shutil.rmtree(GT, ignore_errors=True)
+GT.mkdir(parents=True, exist_ok=True)
+(GT / "keep.txt").write_text("before\n")
+(HU / "git-folders.txt").write_text("pc-mcp-hands-test\n")
 
 
 def call(name, args=None, timeout=300):
@@ -156,6 +165,32 @@ if WIN:
     check("状態に取り置きが出る", "pc_status", {}, False, "取り置き：2 件")
     check("取り置きの場所は触れない", "pc_powershell", {"script": f"Get-ChildItem '{HD / 'holding'}'"}, True, "置き場所")
     check("Windows 本体はごみ箱にも送れない", "pc_trash", {"paths": [r"C:\Windows\notepad.exe"]}, True, "許可")
+
+if WIN:
+    print("=== 3b. 作業のまとまり（hands）")
+    check("作業を始める", "hands", {"action": "start", "title": "試しの作業"}, False, "作業を始めた")
+    check("Git で記録するファイルを変える", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'keep.txt'}' -Value 'after' -NoNewline; Set-Content -Path '{GT / 'new.txt'}' -Value 'new' -NoNewline; 'done'"}, False)
+    h = tmp / "hands-trash.txt"
+    h.write_text("held")
+    check("作業の中で消す", "pc_trash", {"paths": [str(h)]}, False, "取り置き 30 日")
+    err, text, _, _ = call("hands", {"action": "done"})
+    print("    " + text.replace("\n", "\n    ")[:1200])
+    if err or "変えた：pc-mcp-hands-test/keep.txt" not in text or "作った：pc-mcp-hands-test/new.txt" not in text or str(h) not in text:
+        fails.append("DONE の報告に変えたもの・消したものが出ていない")
+    tid = ""
+    for l in text.splitlines():
+        if "task=" in l:
+            tid = l.split("task=")[1].split("（")[0].strip()
+    check("TIMELINE を読む", "hands", {"action": "log", "task": tid}, False, "pc_trash")
+    check("まとめて戻す", "hands", {"action": "undo", "task": tid}, False, "戻した")
+    print("    keep.txt：", (GT / "keep.txt").read_text().strip(), "／new.txt あり：", (GT / "new.txt").exists(), "／hands-trash.txt あり：", h.exists())
+    if (GT / "keep.txt").read_text().strip() != "before":
+        fails.append("変えたファイルが戻っていない")
+    if (GT / "new.txt").exists():
+        fails.append("作ったファイルが取り置きへ行っていない")
+    if not h.exists():
+        fails.append("消したものが取り置きから戻っていない")
+    check("取り置きは消えていない（戻すのは写す）", "pc_status", {}, False, "取り置き：")
 
 print("=== 4. 許可（ALLOW）")
 (AD / "allow.txt").write_text("allow\r\n")

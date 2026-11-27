@@ -14,13 +14,22 @@ function SizeOf($p) {
 }
 # 取り置きの中は「作る」だけの権限なので、robocopy（作ったあとにフォルダの属性を書こうとして拒否される）は使わない。
 # フォルダを作ってファイルを 1 つずつ写す（2026-11-27 にカオルの PC で確かめた）
+# ファイルの中身だけを写す（[IO.File]::Copy は「ネットから来た」印などの付属データも写そうとして、取り置きの権限で拒否される）
+function CopyOne($s, $d) {
+  $in = [IO.File]::OpenRead($s)
+  try {
+    $out = [IO.File]::Open($d, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try { $in.CopyTo($out) } finally { $out.Dispose() }
+  } finally { $in.Dispose() }
+  # 時刻は付けられない（取り置きの権限）。元の更新日時は「元の場所.txt」に書く
+}
 function CopyTree($src, $dst) {
   [void][IO.Directory]::CreateDirectory($dst)
   foreach ($e in @(Get-ChildItem -LiteralPath $src -Force)) {
     if ($e.PSIsContainer) {
       if ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
       CopyTree $e.FullName (Join-Path $dst $e.Name)
-    } else { [IO.File]::Copy($e.FullName, (Join-Path $dst $e.Name)) }
+    } else { CopyOne $e.FullName (Join-Path $dst $e.Name) }
   }
 }
 function ToRecycle($p) {
@@ -48,12 +57,19 @@ foreach ($p in $A.paths) {
       New-Item -ItemType Directory -Path $item -ErrorAction Stop | Out-Null
       Set-Content -LiteralPath (Join-Path $item '元の場所.txt') -Encoding UTF8 -ErrorAction Stop -Value @(
         "元の場所：$p", "取り置いた時刻：$(Get-Date -Format s)", "大きさ：$size バイト",
-        "戻すとき：この中のものを、元の場所へコピーしてください（取り置きの中からは消せません。30 日たつと毎日の点検が消します）")
+        "戻すとき：この中のものを、元の場所へコピーしてください（取り置きの中からは消せません。30 日たつと毎日の点検が消します）",
+        "元の更新日時：$((Get-Item -LiteralPath $p -Force).LastWriteTime.ToString('s'))",
+        $(try {
+          $z = Get-Content -LiteralPath $p -Stream Zone.Identifier -ErrorAction Stop
+          $zone = ($z | Where-Object { $_ -match '^ZoneId=' }) -join ''
+          $host1 = ($z | Where-Object { $_ -match '^HostUrl=' } | ForEach-Object { try { ([uri]($_ -replace '^HostUrl=', '')).Host } catch { '' } }) -join ''
+          'ネットから来た印（写しには付いていない）：' + $zone + $(if ($host1) { ' ' + $host1 } else { '' })
+        } catch { '' }))
       $dst = Join-Path $item (Split-Path -Leaf $p)
       if (Test-Path -LiteralPath $p -PathType Container) {
         CopyTree $p $dst
       } else {
-        [IO.File]::Copy($p, $dst)
+        CopyOne $p $dst
       }
       $got = SizeOf $dst
       if ($got -ne $size) { throw "取り置きの写しの大きさが合いません（元 $size／写し $got）。元は消していません" }

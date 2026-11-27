@@ -2,6 +2,7 @@
 #   %ProgramData%\claude-hands\holding  取り置き。カオルの普通の権限（＝常駐役・Claude）は「入れる」だけ。消す・書き換える・取り出すはできない
 #   %ProgramData%\claude-hands\status   毎日の点検の結果（読むだけ）
 #   %ProgramData%\claude-hands\bin      毎日の点検の台本（読むだけ）
+#   %ProgramData%\claude-hands\git      作業の前後の Git の記録（常駐役が書く）
 #   予定のタスク \claude-hands\RestorePoint（SYSTEM・毎日 12:00）：復元ポイント・30 日たった取り置きを消す・結果を status に書く
 param([Parameter(Mandatory)][string]$User)
 $ErrorActionPreference = 'Stop'
@@ -9,7 +10,7 @@ $log = Join-Path $env:TEMP 'claude-hands-protect.txt'
 Start-Transcript -Path $log -Force | Out-Null
 try {
   $H = Join-Path $env:ProgramData 'claude-hands'
-  foreach ($d in $H, "$H\holding", "$H\status", "$H\bin") { New-Item -ItemType Directory -Force -Path $d | Out-Null }
+  foreach ($d in $H, "$H\holding", "$H\status", "$H\bin", "$H\git") { New-Item -ItemType Directory -Force -Path $d | Out-Null }
   $sys = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-18')
   $adm = New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')
   $own = New-Object System.Security.Principal.SecurityIdentifier('S-1-3-4')   # OWNER RIGHTS：作った人（持ち主）に自動で付く権限（権限の書き換え）を消す
@@ -28,6 +29,8 @@ try {
   Protect $H $read
   Protect "$H\status" $read
   Protect "$H\bin" $read
+  # Git の記録（作業の前後）：常駐役が書くので、カオルの権限で書き換えられる。文字の守りで Claude の台本からは触らせない
+  Protect "$H\git" @((Rule $usr 'Modify' 'ContainerInherit,ObjectInherit' 'None'))
   Protect "$H\holding" @(
     (Rule $usr 'ReadAndExecute, CreateFiles, CreateDirectories' 'ContainerInherit' 'None'),   # フォルダ：中に作れる
     (Rule $usr 'Read, WriteAttributes' 'ObjectInherit' 'InheritOnly'),                         # ファイル：読むだけ

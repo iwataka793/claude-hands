@@ -281,6 +281,13 @@ type trashIn struct {
 	Recycle bool     `json:"recycle,omitempty" jsonschema:"true なら取り置きに写さず、ごみ箱だけに送る（取り置きに入らない大きいもの。先にカオルに聞いてから）"`
 }
 
+type handsIn struct {
+	Action string `json:"action" jsonschema:"start（作業を始める。title が要る）／done（作業を終えて DONE の報告）／log（TIMELINE と作業の一覧。既定）／undo（task の作業で Claude が変えた・消した分を戻す。操作も可）"`
+	Title  string `json:"title,omitempty" jsonschema:"start の題名（何をする作業か。カオルが読んで分かる言葉で）"`
+	Task   string `json:"task,omitempty" jsonschema:"作業の番号（log・undo）"`
+	Max    int    `json:"max,omitempty" jsonschema:"log の行数（既定 40）"`
+}
+
 func runMCP() {
 	s := mcp.NewServer(&mcp.Implementation{Name: "pc", Version: version}, nil)
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_status", Description: "PC の道具の様子：常駐役が動いているか・スイッチ（オフ・見るだけ・操作も可）・許可（ALLOW）・C の空き・取り置き・毎日の点検（復元ポイント）・OneDrive への写し・最近の記録。いつでも使える"}, forward[noIn]("pc_status", 15*time.Second))
@@ -297,6 +304,7 @@ func runMCP() {
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_ui_do", Description: "窓の部品を名前で探して押す・文字を入れる・切り替える・開く（UI オートメーション）。位置で押す（click_xy、pc_screenshot の画像の座標でもよい）もできる。操作も可のときだけ"}, forward[uiDoIn]("pc_ui_do", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_keys", Description: "キーボードで打つ（文字・特別なキー・Enter）。window で先に窓を前に出せる。操作も可のときだけ"}, forward[keysIn]("pc_keys", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_trash", Description: "ファイル・フォルダを消す（完全には消さない）：取り置き（30 日。Claude には取り出せない・消せない。戻すのはカオル）に写してから、元をごみ箱へ。取り置きに入らない大きいものは止まるので、カオルに聞いてから recycle: true。Windows 本体・パスワードなどの場所はカオルの許可が要る。消す前にカオルに確かめる決まり。操作も可のときだけ"}, forward[trashIn]("pc_trash", 6*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "hands", Description: "作業のまとまり：PC・ブラウザ・iPhone の操作を 1 本の記録（TIMELINE）に残し、作業ごとに区切る。PC やファイルを変える作業は、始める前に action=start（題名）、終わったら action=done（記録から「何を変えたか」の報告）。action=undo で、その作業で Claude が変えた文字のファイル（決まったフォルダ）と消したもの（取り置き）だけを戻す（あとで変わったものは戻さない）。action=log で最近の記録"}, forward[handsIn]("hands", 10*time.Minute))
 	// ブラウザ（カオルのいつもの Chrome。画面を撮らずに文字と番号で読んで動かす）
 	mcp.AddTool(s, &mcp.Tool{Name: "browser_tabs", Description: "Chrome のタブの一覧（番号・題名・URL）。action=new で URL を新しいタブで開く・select で前に出す・close で Claude が開いたタブを閉じる（一覧は見るだけで使える、ほかは操作も可）。初めて使うとき、Chrome が「許可しますか？」を出すのでカオルに押してもらう"}, forward[brTabsIn]("browser_tabs", 2*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "browser_read", Description: "Chrome のページを文字で読む（画像より速く正確）：押せる部品（ボタン・リンク・入力欄）に番号を付けた一覧と、ページの文字。filter で絞れる。番号は browser_do で使う。見るだけで使える"}, forward[brReadIn]("browser_read", 2*time.Minute))

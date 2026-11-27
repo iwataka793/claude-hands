@@ -51,6 +51,7 @@ func isBrowserTool(t string) bool { return strings.HasPrefix(t, "browser_") }
 // 道具ごとに要るスイッチ
 var toolNeed = map[string]Mode{
 	"pc_status": ModeOff,
+	"hands":     ModeView, // 作業のまとまり（undo は中で「操作も可」を確かめる）
 	"pc_disk":   ModeView, "pc_problems": ModeView, "pc_processes": ModeView, "pc_apps": ModeView,
 	"pc_files": ModeView, "pc_screenshot": ModeView, "pc_windows": ModeView, "pc_ui": ModeView,
 	"pc_powershell": ModeView, // 中で「見るだけ」か「操作」かを分ける
@@ -137,6 +138,7 @@ func (a *Agent) handle(w http.ResponseWriter, r *http.Request) {
 		res = "NG: " + first
 	}
 	a.st.Audit(req.Tool, string(req.Args), res, time.Since(start))
+	recordCall(req.Tool, req.Args, rep, time.Since(start))
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(rep)
 }
@@ -199,6 +201,8 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 		return a.keys(ctx, raw)
 	case "pc_trash":
 		return a.trash(ctx, raw)
+	case "hands":
+		return a.hands(ctx, raw)
 	case "browser_tabs":
 		return a.brTabs(ctx, raw)
 	case "browser_read":

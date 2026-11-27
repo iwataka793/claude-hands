@@ -75,6 +75,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | pc_open | 操作も可 | アプリ・ファイル・フォルダ・URL を開く |
 | pc_ui_do | 操作も可 | 部品を名前か id で探して click・set_value・toggle・expand・select など。位置で押す click_xy（`from_image` で画像の座標のまま） |
 | pc_keys | 操作も可 | 打つ（`text`、日本語は `paste: true` が確実）・特別なキー（`keys`：^s・%{F4}・{TAB} など）・`enter`。`window` を前に出せなければ打たない |
+| hands | 見るだけ〜（undo は操作も可） | 作業のまとまり：start・done（DONE の報告）・log（TIMELINE）・undo（まとめて戻す）。下の「作業のまとまり」 |
 | pc_trash | 操作も可 | 消す（完全には消さない）：**取り置き**（30 日）に写してから、元をごみ箱へ。取り置きに入らない大きいもの・C の空きが少ないときは止まる → カオルに聞いてから `recycle: true`（ごみ箱だけ）。消す前にカオルに確かめる決まり（下の「取り置き」） |
 
 ## ブラウザ（2026-11-26 から。browser_ で始まる道具）
@@ -137,6 +138,14 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 読む量を絞る（`filter`・`max`）。画像は最後
 - 毎回同じ手順なら、browser_js に台本をまとめるか、PC に置くプログラムにする
 
+## 作業のまとまり（hands。2026-11-27 から）
+
+- **TIMELINE**：PC・ブラウザ・iPhone の道具の呼び出しを、`%USERPROFILE%\devkit\hands\timeline\日付.jsonl` に 1 本で残す（時刻・どの手か・道具・引数の頭・結果・作業の番号。pc_trash は取り置きの場所も）。iPhone の拡張機能も同じ所に書く
+- **Claude の決まり**：PC やファイルを変える作業は、始める前に `hands action=start title=…`（カオルが読んで分かる題名）、終わったら `hands action=done`。done の報告（DONE）は Claude の説明ではなく記録から作る：変えたファイル（Git）・消したもの（取り置き）・そのほかの操作の数。報告は `devkit\hands\done\<番号>.txt` にも残る
+- **まとめて戻す**：`hands action=undo task=<番号>`（操作も可）。その作業で Claude が変えた文字のファイルは始めの中身へ、作ったファイルは取り置きへ、消したものは取り置きから元の場所へ写す。あとで変わっているもの・元の場所に別のものがあるものは戻さずに知らせる。決まったフォルダの外の変更・送ったもの・設定は対象外
+- **Git**：記録するフォルダは `devkit\hands\git-folders.txt`（ユーザーフォルダからの場所。既定 `devkit/setup`）。記録の置き場所は `%ProgramData%\claude-hands\git`（pc-setup.bat が作る。GitHub には上げない）。画像・zip・exe・ログ・plist などは記録しない
+- `hands action=log` で、今の作業・終わった作業（新しい 5 つ）・最近の TIMELINE
+
 ## 取り置き（2026-11-27 から）
 
 - 場所：`%ProgramData%\claude-hands\holding\<日時>\`（中に元の名前のファイル・フォルダと「元の場所.txt」）。作るのは pc-setup.bat（UAC。`hands-protect.ps1`）
@@ -145,7 +154,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 上限 10 GB（C の空きが 100 GB を切ったら 5 GB、50 GB を切ったら止める）。入らないものは pc_trash が止まるので、カオルに聞いてから `recycle: true`
 - 30 日たったものは、毎日 12:00 の点検（予定のタスク `\claude-hands\RestorePoint`。SYSTEM。`%ProgramData%\claude-hands\bin\hands-daily.ps1`）が消す。同じ点検で復元ポイントを作り、結果を `status\daily.txt` に書く（pc_status に出る）
 - OneDrive のクラウドだけのファイルを消すと、写すために一度落とす
-- 写し方：フォルダを作ってファイルを 1 つずつ写す（robocopy は作ったフォルダの属性を書こうとして拒否され、しかも成功と返すので使わない）。つなぎ目（ジャンクション）の先は写さない
+- 写し方：フォルダを作って、ファイルの中身だけを 1 つずつ写す（[IO.File]::Copy は「ネットから来た」印などの付属データも写そうとして拒否される。印は「元の場所.txt」に ZoneId とサイトの名前だけ書く。URL には一時的な鍵が入るので書かない）。時刻も付けられないので、元の更新日時は「元の場所.txt」へ（robocopy は作ったフォルダの属性を書こうとして拒否され、しかも成功と返すので使わない）。つなぎ目（ジャンクション）の先は写さない
 - 確かめたこと（2026-11-27・カオルの PC）：Claude の権限では、取り置きのファイルを消す・書き換える・付け足す・名前を変える・取り出す、フォルダごと消す・名前を変える、権限・持ち主を書き換える、取り置きごと消す、の 10 通りが全部「アクセス拒否」。10 分 許可があっても同じ（許可は文字の守りを外すだけ）
 - 写すのに失敗したら、元は消さない。途中でできた空の日時フォルダは消せないまま残る（30 日で点検が消す）
 

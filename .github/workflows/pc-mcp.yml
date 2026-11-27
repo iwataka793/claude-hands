@@ -54,7 +54,7 @@ jobs:
                   if "id" in m: rs[m["id"]] = m
           tools = [t["name"] for t in rs[2]["result"]["tools"]]
           print("道具:", tools)
-          assert len(tools) == 19, tools
+          assert len(tools) == 20, tools
           st = rs[3]["result"]["content"][0]["text"]
           print(st)
           assert "動いていない" in st

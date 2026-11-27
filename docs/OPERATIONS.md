@@ -39,6 +39,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 - **ブラウザの道具**（`browser_` で始まる。PC の道具の中。[PC.md](PC.md) の「ブラウザ」）：カオルのいつもの Chrome を、画面を撮らずに文字と番号で読み（browser_read）、何手もまとめて動かす（browser_do）。Chrome の作業はまずこれ。Claude in Chrome・内蔵ブラウザより速い。スイッチは PC と別の「ブラウザ」（許可は共通）
 - ファイルを置く・読む（デスクトップアプリの橋渡し：device_commit_files・device_stage_files）
 - 画面を見てクリックする（computer use）：上の道具でできないときだけ
+- **作業のまとまり（hands）**：PC・ファイル・iPhone の中身を変える作業は、始める前に `hands action=start title=…`、終わったら `hands action=done`（DONE の報告をカオルに見せる）。戻すときは `hands action=undo task=…`（[PC.md](PC.md) の「作業のまとまり」）
 - どの道具も、カオルのスイッチ（デスクトップの「Claude 操作スイッチ」）の範囲でだけ動く。足りないと「許可しますか？」の窓が出る
 
 ---

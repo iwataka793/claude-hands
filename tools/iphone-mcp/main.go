@@ -80,6 +80,7 @@ func main() {
 
 	s := mcp.NewServer(&mcp.Implementation{Name: "iphone", Version: version}, nil)
 	a.register(s)
+	s.AddReceivingMiddleware(timelineMiddleware) // TIMELINE（3 つの手の記録）
 	if err := s.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		slog.Error("server", "error", err)
 	}
