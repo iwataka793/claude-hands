@@ -292,6 +292,10 @@ func (a *Agent) brTabs(ctx context.Context, raw json.RawMessage) Reply {
 		params := map[string]any{"url": "about:blank"}
 		if b.profile == profClaude {
 			params["background"] = true // Claude 用の Chrome は、タブを開いても窓を前に出さない（カオルの窓のフォーカスを取らない）
+			if ps, _ := b.pages(ctx); len(ps) == 0 {
+				params["newWindow"] = true // 窓を全部閉じたあと（Chrome は窓なしで動き続ける）
+				defer func() { go sendBack(b.pid) }()
+			}
 		}
 		if err := c.Call(ctx, "", "Target.createTarget", params, &r); err != nil {
 			return errText("タブを開けません：%v", err)

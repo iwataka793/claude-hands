@@ -103,7 +103,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - Claude 用の Chrome のタブは全部 Claude のものなので、閉じてよい
 - pc_status の「Chrome：つながっている（Claude 用の Chrome・カオルの Chrome）」で、どちらにつないでいるかが分かる
 - 見た目：**ダーク＋紫**（カオルの Chrome とひと目で見分ける）。名前は「Claude」。翻訳の吹き出しは出さない。起動の前に Preferences の browser.theme.user_color2・color_variant2・color_scheme2 を入れる（Chrome 158 で確かめた名前）
-- 出し方：**フォーカスを取らずに起動し、ほかの窓の後ろに置く**（最小化の指定 SW_SHOWMINNOACTIVE で起動 → SW_SHOWNOACTIVATE と HWND_BOTTOM）。見たいときはタスクバーから開く。閉じるときは Browser.close（「ページを復元しますか？」は出さない）
+- 出し方：**フォーカスを取らずに起動し、ほかの窓の後ろに置く**（窓なしで起動 --no-startup-window → つないでから Target.createTarget の newWindow・background で窓を作る → SW_SHOWNOACTIVATE と HWND_BOTTOM。タブも background で開く。ふつうに起動すると、最小化の指定でも Chrome は前を取った）。見たいときはタスクバーから開く。閉じるときは Browser.close（「ページを復元しますか？」は出さない）
 
 カオルのいつもの Chrome（ログイン済み）を、画面を撮らずに**文字と番号**で読んで、**何手もまとめて**動かす。1 回の呼び出しは PC の中で 0.01〜0.1 秒（手元の試験）。往復が減るので、Claude in Chrome や内蔵ブラウザより速い。
 

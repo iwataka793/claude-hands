@@ -160,6 +160,7 @@ var errNoRemoteDebug = errors.New("Chrome のリモートデバッグがオフ�
 // Browser は、常駐役が持ち続ける Chrome とのつながり（タブごとのセッションも覚える）。
 type Browser struct {
 	profile  string // claude（Claude 用の Chrome。道具が起動する）・kaoru（カオルの Chrome）
+	pid      int    // Claude 用の Chrome の本体（窓を後ろに置くとき）
 	mu       sync.Mutex
 	cdp      *CDP
 	sessions map[string]string // targetId → sessionId
@@ -203,15 +204,18 @@ func (b *Browser) connClaudeLocked(ctx context.Context) (*CDP, error) {
 	}
 	ws, err := try()
 	if err != nil {
-		if lerr := launchClaudeChrome(ctx); lerr != nil {
+		pid, lerr := launchClaudeChrome(ctx)
+		if lerr != nil {
 			return nil, lerr
 		}
 		if ws, err = try(); err != nil {
 			return nil, fmt.Errorf("Claude 用の Chrome につなげません（%v）", err)
 		}
+		b.pid = pid
 	}
 	b.cdp = newCDP(ws)
 	b.sessions = map[string]string{}
+	newClaudeWindow(ctx, b.cdp, b.pid) // 窓なしで起動したので、後ろで窓を作る（閉じきったあとも同じ）
 	return b.cdp, nil
 }
 

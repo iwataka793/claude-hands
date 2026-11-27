@@ -72,43 +72,61 @@ func chromeExe() string {
 }
 
 // launchClaudeChrome：Claude 用の Chrome を起動して、つなぐ番号（DevToolsActivePort）ができるまで待つ
-func launchClaudeChrome(ctx context.Context) error {
+// 窓は出さずに起動し（--no-startup-window）、つないでから窓を「後ろで」作る（newClaudeWindow）。
+// カオルの PC で確かめた（2026-11-27）：ふつうに起動すると、最小化の指定でも Chrome が前を取った。
+// 窓なしで起動して Target.createTarget（newWindow・background）で作ると、カオルの窓が前のまま。
+func launchClaudeChrome(ctx context.Context) (int, error) {
 	exe := chromeExe()
 	if exe == "" {
-		return errors.New("Chrome（chrome.exe）が見つかりません")
+		return 0, errors.New("Chrome（chrome.exe）が見つかりません")
 	}
 	dir := claudeChromeDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return 0, err
 	}
 	port := filepath.Join(dir, "DevToolsActivePort")
 	_ = os.Remove(port) // 前に閉じたときの古い番号
 	setClaudeChromePrefs(dir)
 	args := []string{"--user-data-dir=" + dir, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
 		"--no-first-run", "--no-default-browser-check", "--disable-sync", "--new-window",
-		"--disable-features=Translate", "--hide-crash-restore-bubble"}
+		"--disable-features=Translate", "--hide-crash-restore-bubble", "--no-startup-window"}
 	if extra := env("PC_CLAUDE_CHROME_ARGS", ""); extra != "" {
 		args = append(args, strings.Fields(extra)...)
 	}
-	args = append(args, "about:blank")
-	// フォーカスを取らずに起動し、窓はほかの窓の後ろに置く（カオルが見ている窓の上にかぶさらない。2026-11-27 カオル）
 	pid, err := startQuiet(exe, args)
 	if err != nil {
-		return fmt.Errorf("Claude 用の Chrome を起動できません：%v", err)
+		return 0, fmt.Errorf("Claude 用の Chrome を起動できません：%v", err)
 	}
 	end := time.Now().Add(25 * time.Second)
 	for time.Now().Before(end) {
 		if b, err := os.ReadFile(port); err == nil && strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0]) != "" {
-			go sendBack(pid)
-			return nil
+			return pid, nil
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return 0, ctx.Err()
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
-	return errors.New("Claude 用の Chrome が起動しましたが、つなぐ番号（DevToolsActivePort）が出ませんでした")
+	return 0, errors.New("Claude 用の Chrome が起動しましたが、つなぐ番号（DevToolsActivePort）が出ませんでした")
+}
+
+// newClaudeWindow：Claude 用の Chrome に窓が無ければ、後ろで作る（フォーカスを取らない）。窓はほかの窓の後ろに置く
+func newClaudeWindow(ctx context.Context, c *CDP, pid int) {
+	var r struct {
+		TargetInfos []targetInfo `json:"targetInfos"`
+	}
+	if c.Call(ctx, "", "Target.getTargets", nil, &r) == nil {
+		for _, t := range r.TargetInfos {
+			if t.Type == "page" {
+				return
+			}
+		}
+	}
+	_ = c.Call(ctx, "", "Target.createTarget", map[string]any{"url": "about:blank", "newWindow": true, "background": true}, nil)
+	if pid != 0 {
+		go sendBack(pid)
+	}
 }
 
 // claudeBlocked：Claude 用の Chrome では開かない・動かさないページ（ログイン・お金・パスワード）。許可があってもだめ

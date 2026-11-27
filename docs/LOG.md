@@ -11,6 +11,7 @@
 - 気づいたこと：Claude 用の Chrome はカオルの Chrome と見た目が同じで見分けにくい。起動したときにいちばん前に出る（フォーカスを取る）。英語のページで翻訳の吹き出しが出る
 - カオルと決めた（22:06）：色を変える・後ろに出す・翻訳を消す。カオルの PC の Chrome（158）で試した：Preferences の browser.theme は user_color2・color_variant2 が本物の名前（user_color は Chrome が消した）。color_variant2=1 は薄すぎ、3 でも薄い紫 → color_scheme2=2（ダーク）＋紫ではっきり見分けられた。最小化の指定で起動するとフォーカスを取らず、SW_SHOWNOACTIVATE＋HWND_BOTTOM で後ろに置けた。強制で閉じると次に「ページを復元しますか？」が出る → --hide-crash-restore-bubble
 - pc-43 をカオルの PC で：紫のダークの設定は入った。起動の直後に開いたタブが一覧に無かったが、これはカオルがまちがって閉じたもの（道具の問題ではなかった。いったん「最初のページを待つ」直しを入れたが取り消した）。タブを開くと Chrome が自分の窓を前に出した（デスクトップが前のとき。前の窓の記録を 0.4 秒ごとに取って確かめた）→ 直し（pc-44）：Claude 用の Chrome ではタブを Target.createTarget の background: true で開く（窓を前に出さない）
+- pc-45 をカオルの PC で（22:24）：まだ起動のときに Chrome が前を取った（前の窓の記録：Claude → about:blank - Google Chrome）。最小化の指定（SW_SHOWMINNOACTIVE）で起動しても Chrome は前を取る。PowerShell で試して、**窓なしで起動（--no-startup-window）→ つないでから Target.createTarget（newWindow・background）で窓を作る**と、カオルの窓が前のまま（4 秒ずっと Claude）で窓もできた → 直し（pc-46）。窓を全部閉じたあと（Chrome は窓なしで動き続ける）も、同じく後ろで窓を作る
 
 ## 2026-11-27 作る順番 3-4：作業の道 A〜E（pc-38・mcp-24）
 
