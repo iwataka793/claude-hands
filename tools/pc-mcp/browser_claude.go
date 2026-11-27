@@ -9,10 +9,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -83,20 +83,23 @@ func launchClaudeChrome(ctx context.Context) error {
 	}
 	port := filepath.Join(dir, "DevToolsActivePort")
 	_ = os.Remove(port) // 前に閉じたときの古い番号
+	setClaudeChromePrefs(dir)
 	args := []string{"--user-data-dir=" + dir, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
-		"--no-first-run", "--no-default-browser-check", "--disable-sync", "--new-window"}
+		"--no-first-run", "--no-default-browser-check", "--disable-sync", "--new-window",
+		"--disable-features=Translate", "--hide-crash-restore-bubble"}
 	if extra := env("PC_CLAUDE_CHROME_ARGS", ""); extra != "" {
 		args = append(args, strings.Fields(extra)...)
 	}
 	args = append(args, "about:blank")
-	cmd := exec.Command(exe, args...)
-	if err := cmd.Start(); err != nil {
+	// フォーカスを取らずに起動し、窓はほかの窓の後ろに置く（カオルが見ている窓の上にかぶさらない。2026-11-27 カオル）
+	pid, err := startQuiet(exe, args)
+	if err != nil {
 		return fmt.Errorf("Claude 用の Chrome を起動できません：%v", err)
 	}
-	go func() { _ = cmd.Wait() }()
 	end := time.Now().Add(25 * time.Second)
 	for time.Now().Before(end) {
 		if b, err := os.ReadFile(port); err == nil && strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0]) != "" {
+			go sendBack(pid)
 			return nil
 		}
 		select {
@@ -125,4 +128,38 @@ func profileName(p string) string {
 		return "カオルの Chrome"
 	}
 	return "Claude 用の Chrome"
+}
+
+// setClaudeChromePrefs：Claude 用の Chrome の見た目と設定（起動の前に Preferences に入れる。ほかの中身はそのまま）
+//
+//	ダーク＋紫（カオルの Chrome とひと目で見分ける。2026-11-27 カオルの PC で見て決めた）・名前「Claude」・翻訳の吹き出しを出さない。
+//	Chrome 158 の名前：browser.theme.user_color2（ARGB の色）・color_variant2（3＝はっきりした色）・color_scheme2（2＝ダーク）
+func setClaudeChromePrefs(dir string) {
+	f := filepath.Join(dir, "Default", "Preferences")
+	m := map[string]any{}
+	if b, err := os.ReadFile(f); err == nil {
+		if json.Unmarshal(b, &m) != nil {
+			return // 読めない形なら触らない
+		}
+	}
+	sub := func(parent map[string]any, k string) map[string]any {
+		if v, ok := parent[k].(map[string]any); ok {
+			return v
+		}
+		v := map[string]any{}
+		parent[k] = v
+		return v
+	}
+	theme := sub(sub(m, "browser"), "theme")
+	theme["user_color2"] = int32(-8635667) // 0xFF7C3AED（紫）
+	theme["color_variant2"] = 3
+	theme["color_scheme2"] = 2
+	sub(m, "profile")["name"] = "Claude"
+	sub(m, "translate")["enabled"] = false
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(f), 0o755)
+	_ = os.WriteFile(f, b, 0o644)
 }

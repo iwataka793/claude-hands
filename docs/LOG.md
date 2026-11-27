@@ -9,6 +9,7 @@
 - CI：今までのブラウザの試験は PC_BROWSER_PROFILE=kaoru（試験用の一時の Chrome）で続け、Claude 用の Chrome の試験（起動・読む・ログインのページに行かない・閉じる・2 つにつながる）を足した
 - カオルの PC で確かめた（pc-42、22:04）：browser_tabs new → 別の Chrome（pid 別・User Data は %LOCALAPPDATA%\claude-hands\chrome-claude）が起動し、許可の問い合わせなしでつながった。example.com を開いて文字で読めた。accounts.google.com は「Claude 用の Chrome では開かない」で止まった。カオルの Chrome（YouTube）はそのまま
 - 気づいたこと：Claude 用の Chrome はカオルの Chrome と見た目が同じで見分けにくい。起動したときにいちばん前に出る（フォーカスを取る）。英語のページで翻訳の吹き出しが出る
+- カオルと決めた（22:06）：色を変える・後ろに出す・翻訳を消す。カオルの PC の Chrome（158）で試した：Preferences の browser.theme は user_color2・color_variant2 が本物の名前（user_color は Chrome が消した）。color_variant2=1 は薄すぎ、3 でも薄い紫 → color_scheme2=2（ダーク）＋紫ではっきり見分けられた。最小化の指定で起動するとフォーカスを取らず、SW_SHOWNOACTIVATE＋HWND_BOTTOM で後ろに置けた。強制で閉じると次に「ページを復元しますか？」が出る → --hide-crash-restore-bubble
 
 ## 2026-11-27 作る順番 3-4：作業の道 A〜E（pc-38・mcp-24）
 
