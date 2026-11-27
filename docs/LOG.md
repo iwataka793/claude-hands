@@ -2,6 +2,13 @@
 
 新しいものが上。
 
+## 2026-11-27 iPhone の確かめ（作る前に確かめること：ASK 8・LINK 3・5）
+
+- **LINK 5 クリップボード**：PC → iPhone、iPhone → PC とも、Claude が入れて読めた（iPhone は iphone_clipboard で中から。WDA なし）。Apple のユニバーサル クリップボードは Windows には無いので、渡すのは Claude（あとで RECIPE の SEND に）
+- **LINK 3 Pythonista**：`pythonista3://` で Pythonista が開いた（WDA なし）。決まった台本を動かす形（`?action=run`）は、動かしてよい台本を決めてから
+- **ASK 8 WDA の届く範囲**：**家のネットワークの PC（有線 100.64.1.15）から iPhone の Wi-Fi のアドレスの 8100 番に届いた**（WDA が動いている間。62078 番も届く）。WDA は合言葉なしで画面を動かせるので、同じ Wi-Fi の機器から iPhone を操作できてしまう。ping は届かない。直し方はまだ決めていない（下の「これから」）
+- これから（ASK 8 の直し方の候補）：①WDA を使うときだけ動かし、使い終わったら止める（今は動かしっぱなし）②自分で組み立てている WDA（wda.yml）を、Wi-Fi の口では待たないように直す（go-ios のトンネルの口だけで待つ。できるかを調べる）③iPhone の Wi-Fi 側で 8100 番を止める手段は iOS には無い
+
 ## 2026-11-27 作る順番 2：TIMELINE・DONE・まとめて戻す・Git（pc-22・mcp-18 を入れた）
 
 - 道具を 1 つ足した（hands。PC 20・iPhone 23・合わせて 43 → 44）：start（作業を始める・Git の記録）・done（記録から DONE の報告）・log（TIMELINE）・undo（まとめて戻す）
