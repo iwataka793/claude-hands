@@ -100,7 +100,7 @@ func recordCall(tool string, args json.RawMessage, rep Reply, d time.Duration) {
 			Action string `json:"action"`
 		}
 		_ = json.Unmarshal(args, &in)
-		if in.Action == "" || in.Action == "log" || in.Action == "status" {
+		if in.Action != "undo" { // start・done は hands の中で書く。log は読むだけ
 			return
 		}
 	}
