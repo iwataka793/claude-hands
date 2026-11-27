@@ -2,6 +2,17 @@
 
 新しいものが上。
 
+## 2026-11-27 夜の区切り（後片付けと、次にやること）
+
+- 片付け（カオルに確かめてから）：最新の版を devkit\installers に（pc-switch.zip＝pc-47・claude-hands-pc.mcpb＝pc-42・claude-hands-iphone.mcpb＝mcp-24）。古い版と、ダウンロードにたまった pc-switch-30〜46（zip と開いたフォルダ）・古い .mcpb・試しの記録を取り置きへ（36 件）。pc-switch-47 の開いたフォルダは、エクスプローラーで開いていて使用中のため残った（取り置きに写しはできた）
+- いま入っている版：常駐役と窓 pc-47、拡張機能 PC pc-42・iPhone mcp-24
+- 次にやること：
+  - 作る順番 5：箱（TRY の窓）。先に Sandboxie-Plus が Home 版で動くかを確かめる（入れるときに UAC と使用条件の同意）
+  - 作る順番 7：iPhone の操作の記録とバックアップ（先に idevicebackup2 が iOS 27 で使えるか）
+  - 作る順番 8：連動（RECIPE・WATCH。先に Wi-Fi 越しの go-ios＝LINK 4）
+  - 直し：Claude が画面を撮るとき LIVE を一瞬隠す／WDA を使っている間は家の Wi-Fi から届く（USE_IP と usbmux）／go.ps1 の USE_IP=127.0.0.1 が試していないまま（iPhone の道具では USB からつながらなくなった）／道具の数を 30 個台に／iPhone の道具の why・E を実機で試す
+  - 12/1 SideStore の更新を確かめる
+
 ## 2026-11-27 作る順番 4：Claude 用の Chrome（pc-42〜）
 
 - ブラウザの道具に `profile`（claude・kaoru）を足した。既定は claude。Claude 用の Chrome は道具が別の User Data（%LOCALAPPDATA%\claude-hands\chrome-claude）で起動し、remote-debugging-port=0 でつなぐ（許可の問い合わせなし）。スイッチがオフ・30 分使わないと Browser.close で閉じる
