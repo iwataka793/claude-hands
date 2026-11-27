@@ -13,7 +13,7 @@ import (
 // 窓の大きさ（画面の単位。拡大率は Windows 側で掛ける）。どれも 1280×800 の高さの 3 分の 2 まで
 const (
 	panelW = 400
-	panelH = 520
+	panelH = 530
 	askW   = 440
 	askH   = 540
 )

@@ -11,7 +11,7 @@
   .jp { font-family:"Yu Gothic UI","Meiryo","Segoe UI",sans-serif; }
   button { font:inherit; cursor:pointer; }
   .frame { position:absolute; inset:0; box-sizing:border-box; background:var(--bg); border:1px solid var(--line); border-radius:22px;
-    padding:18px 18px 14px; display:flex; flex-direction:column; gap:12px; }
+    padding:16px 18px 18px; display:flex; flex-direction:column; gap:10px; }
   .hidden { display:none !important; }
 
   /* ---- SWITCH ---- */
@@ -23,7 +23,7 @@
   .wbtn { width:32px; height:32px; border-radius:10px; border:1px solid var(--line); background:#16161C; color:var(--sub);
     display:flex; align-items:center; justify-content:center; padding:0; }
   .wbtn:hover { color:var(--text); }
-  .dev { border:1px solid var(--line); border-radius:16px; padding:8px 12px; display:flex; flex-direction:column; gap:8px; background:var(--card); }
+  .dev { border:1px solid var(--line); border-radius:16px; padding:8px 12px; display:flex; flex-direction:column; gap:6px; background:var(--card); }
   .devhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .devname { display:flex; align-items:center; gap:9px; min-width:0; }
   .ico { width:28px; height:28px; border-radius:9px; background:var(--chip); color:var(--view); display:flex; align-items:center; justify-content:center; flex:none; }
@@ -31,19 +31,19 @@
   .devname .hint { font-size:11px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .status { font-size:11px; white-space:nowrap; }
   .seg { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; background:#0B0B0F; border-radius:12px; padding:4px; }
-  .seg button { display:flex; align-items:center; justify-content:center; gap:6px; height:34px; border-radius:9px; font-size:12px; font-weight:700;
+  .seg button { display:flex; align-items:center; justify-content:center; gap:6px; height:32px; border-radius:9px; font-size:12px; font-weight:700;
     letter-spacing:.03em; background:transparent; border:1px solid transparent; color:#7C7C88; }
   .seg button:hover { color:var(--text); }
   .seg button.on.off { background:rgba(242,85,90,.12); border-color:rgba(242,85,90,.45); color:var(--off); }
   .seg button.on.view { background:rgba(199,199,209,.10); border-color:rgba(199,199,209,.35); color:var(--view); }
   .seg button.on.operate { background:rgba(61,214,140,.12); border-color:rgba(61,214,140,.45); color:var(--op); }
-  .allowbox { border:1px solid var(--line); border-radius:16px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; background:var(--card); }
+  .allowbox { border:1px solid var(--line); border-radius:16px; padding:8px 12px; display:flex; flex-direction:column; gap:6px; background:var(--card); }
   .allowbox.on { border-color:rgba(255,138,61,.55); }
   .allowrow { display:flex; align-items:center; justify-content:space-between; }
   .allowname { display:flex; align-items:center; gap:10px; }
   .allowname b { font-size:15px; font-weight:700; display:block; }
   .allowname span { font-size:11px; color:var(--dim); }
-  .abtn { height:34px; padding:0 14px; border-radius:10px; font-size:12px; font-weight:700; letter-spacing:.04em;
+  .abtn { height:30px; padding:0 14px; border-radius:10px; font-size:12px; font-weight:700; letter-spacing:.04em;
     background:rgba(255,138,61,.14); border:1px solid rgba(255,138,61,.55); color:var(--allow); }
   .abtn.cancel { background:transparent; border-color:#3A3A44; color:var(--view); }
   .bar { height:4px; border-radius:2px; background:var(--line); } .bar i { display:block; height:4px; border-radius:2px; background:var(--allow); }
@@ -53,7 +53,7 @@
   .foot .last { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .foot .alloff { --wails-draggable:no-drag; height:26px; padding:0 10px; border-radius:8px; border:1px solid var(--line2); background:var(--chip); color:var(--text); font-size:11px; }
   .msg { font-size:11px; color:var(--allow); } .msg:empty { display:none; }
-  #devs { display:flex; flex-direction:column; gap:8px; }
+  #devs { display:flex; flex-direction:column; gap:6px; }
 
   /* ---- ASK ---- */
   .ask { --c:var(--allow); border-color:color-mix(in srgb, var(--c) 45%, transparent); padding:22px; gap:16px; }
@@ -109,7 +109,7 @@
     </div>
     <div id="allowon" class="hidden">
       <div class="bar"><i id="allowbar"></i></div>
-      <div class="allowfoot jp" style="margin-top:6px"><span id="allowleft"></span><span>切り替えると取り消し</span></div>
+      <div class="allowfoot jp" style="margin-top:4px"><span id="allowleft"></span><span>切り替えると取り消し</span></div>
     </div>
   </div>
   <div class="msg jp" id="msg"></div>
