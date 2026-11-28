@@ -158,3 +158,37 @@ func startProc(exe string, args ...string) error {
 	cmd := exec.Command(exe, args...)
 	return cmd.Start()
 }
+
+var (
+	advapi32     = syscall.NewLazyDLL("advapi32.dll")
+	pRegGetValue = advapi32.NewProc("RegGetValueW")
+)
+
+// regQuery：HKCU\… の文字の値を読む（TRY の窓：既定のアプリがストアのアプリかを見る）
+func regQuery(key, value string) (string, error) {
+	const hkcu = 0x80000001
+	const rrfRtRegSz = 0x00000002
+	k := key
+	if len(k) > 5 && (k[:5] == `HKCU\` || k[:5] == `hkcu\`) {
+		k = k[5:]
+	}
+	kp, err := syscall.UTF16PtrFromString(k)
+	if err != nil {
+		return "", err
+	}
+	vp, err := syscall.UTF16PtrFromString(value)
+	if err != nil {
+		return "", err
+	}
+	var size uint32
+	r, _, _ := pRegGetValue.Call(hkcu, uintptr(unsafe.Pointer(kp)), uintptr(unsafe.Pointer(vp)), rrfRtRegSz, 0, 0, uintptr(unsafe.Pointer(&size)))
+	if r != 0 || size == 0 {
+		return "", syscall.Errno(r)
+	}
+	buf := make([]uint16, size/2+1)
+	r, _, _ = pRegGetValue.Call(hkcu, uintptr(unsafe.Pointer(kp)), uintptr(unsafe.Pointer(vp)), rrfRtRegSz, 0, uintptr(unsafe.Pointer(&buf[0])), uintptr(unsafe.Pointer(&size)))
+	if r != 0 {
+		return "", syscall.Errno(r)
+	}
+	return syscall.UTF16ToString(buf), nil
+}

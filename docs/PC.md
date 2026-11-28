@@ -234,6 +234,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 状態：working（Claude が試している。窓は出ない。続けて run すると箱はそのまま）→ offer で waiting（TRY の窓）→ applied／discarded。devkit\downloads のファイルは既定ですぐ waiting（`offer:false` で続けて試せる）
 - 文字のファイル（256 KB まで・UTF-8／UTF-16／Shift_JIS）は、変わったものに「- 前・+ 後」の行、増えたものに先頭の行を付ける
 - 捨てる・本物に入れるのあとで、作業用のフォルダは消す（道具の作業用。カオルのファイルではない）
+- **箱の中ではストアのアプリが動かない**（2026-11-28 の記録）：カオルの PC は .txt・.ps1 の既定のアプリがストアの新しいメモ帳。既定のアプリで開くと Start.exe が止まったまま残り、窓は出ない（カオルの［見る］［箱の中で開く］が開かなかった）。昔からの `C:\Windows\System32\notepad.exe` を名指しすると箱の中で開く（窓の題名に [#]）。→ 窓は既定のアプリに頼らず：文字のファイルは notepad.exe、.ps1 は powershell -NoExit、.bat／.cmd は cmd /k、.exe はそのまま、.msi は msiexec /i。既定がストアのアプリのものは「箱では開けない」と出す（pc-58）
 - TRY の窓：一覧の行ごとに［VIEW 見る］（そのファイルを箱の中で開く。箱の中では本物の場所が箱の中身に見える）・変わった行（+ 青緑・- 赤）・「Claude が箱で N 回試した（最後の回は成功）」。台本の試しのときは［箱の中で開く］を出さない
 
 - **devkit\downloads のもの（Claude が落としたもの。印が無くてもネットから来た扱い）の動くもの**（exe・msi・bat・ps1・vbs・js・lnk・マクロ入りの文書など）は、**箱の外では動かさない**。道具の守りが pc_powershell（Start-Process・Invoke-Item・msiexec・cmd などで動かす）と pc_open を止めて「pc_try を使って」と返す。Defender の検査（MpCmdRun）・zip を開く・印を読むのは通す。Start.exe /box:ClaudeBox で箱の中で動かすのも通す

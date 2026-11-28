@@ -193,14 +193,7 @@ func (a *App) TryOpen() string {
 	if fi, err := os.Stat(s.Path); err != nil || fi.IsDir() {
 		return "Claude の台本の試しなので、開くものはありません（一覧の［見る］で中身を見られます）"
 	}
-	pf := os.Getenv("ProgramFiles")
-	if pf == "" {
-		pf = `C:\Program Files`
-	}
-	if err := startProc(filepath.Join(pf, "Sandboxie-Plus", "Start.exe"), "/box:ClaudeBox", s.Path); err != nil {
-		return "箱の中で開けませんでした：" + err.Error()
-	}
-	msg := "箱の中で開きました（ネットなし・窓のふちが水色）。使い終わったら閉じて、［本物に入れる］か［捨てる］を押してください"
+	msg := openInBox(s.Path, true)
 	a.mu.Lock()
 	a.tryMsg, a.tryArmed = msg, ""
 	a.mu.Unlock()
@@ -217,14 +210,7 @@ func (a *App) TryView(i int) string {
 	if it.Kind == "deleted" || it.Kind == "admin" {
 		return ""
 	}
-	pf := os.Getenv("ProgramFiles")
-	if pf == "" {
-		pf = `C:\Program Files`
-	}
-	if err := startProc(filepath.Join(pf, "Sandboxie-Plus", "Start.exe"), "/box:ClaudeBox", it.Real); err != nil {
-		return "箱の中で開けませんでした：" + err.Error()
-	}
-	msg := filepath.Base(it.Real) + " を箱の中で開きました（ふちが水色の窓。ネットなし）"
+	msg := openInBox(it.Real, false)
 	a.mu.Lock()
 	a.tryMsg = msg
 	a.mu.Unlock()
@@ -289,4 +275,94 @@ func (a *App) tryHeight() int {
 		return a.tryFit
 	}
 	return tryH
+}
+
+// ---- 箱の中で開く（2026-11-28 の記録：既定のアプリがストアのアプリ（新しいメモ帳など）だと、箱の中では動かず
+// Start.exe が止まったままになる。昔からの notepad.exe を名指しすれば開く） ----
+
+func startExe() string {
+	pf := os.Getenv("ProgramFiles")
+	if pf == "" {
+		pf = `C:\Program Files`
+	}
+	return filepath.Join(pf, "Sandboxie-Plus", "Start.exe")
+}
+
+// boxCopy：本物の場所 → 箱の中の写し（あれば）
+func boxCopy(real string) string {
+	sd := os.Getenv("SystemDrive")
+	if sd == "" {
+		sd = "C:"
+	}
+	root := filepath.Join(sd+`\`, "Sandbox", os.Getenv("USERNAME"), "ClaudeBox")
+	if r, err := filepath.Rel(home(), real); err == nil && !strings.HasPrefix(r, "..") {
+		return filepath.Join(root, "user", "current", r)
+	}
+	if len(real) > 3 && real[1] == ':' {
+		return filepath.Join(root, "drive", strings.ToUpper(real[:1]), real[3:])
+	}
+	return ""
+}
+
+// looksText：先頭 8 KB に NUL が無ければ文字のファイルとみなす（箱の写しがあればそちらを見る）
+func looksText(real string) bool {
+	p := real
+	if b := boxCopy(real); b != "" {
+		if _, err := os.Stat(b); err == nil {
+			p = b
+		}
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	buf := make([]byte, 8192)
+	n, _ := f.Read(buf)
+	for _, c := range buf[:n] {
+		if c == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// storeDefault：その拡張子の既定のアプリがストアのアプリか（箱では動かない）
+func storeDefault(ext string) bool {
+	out, err := regQuery(`HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\`+ext+`\UserChoice`, "ProgId")
+	return err == nil && strings.HasPrefix(strings.ToLower(out), "appx")
+}
+
+// openInBox：run＝試したものを使ってみる（台本は動かして窓を残す）／見るだけ＝文字はメモ帳で
+func openInBox(real string, run bool) string {
+	name := filepath.Base(real)
+	ext := strings.ToLower(filepath.Ext(real))
+	win := os.Getenv("SystemRoot")
+	if win == "" {
+		win = `C:\Windows`
+	}
+	var args []string
+	switch {
+	case run && ext == ".ps1":
+		args = []string{filepath.Join(win, "System32", "WindowsPowerShell", "v1.0", "powershell.exe"), "-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", real}
+	case run && (ext == ".bat" || ext == ".cmd"):
+		args = []string{filepath.Join(win, "System32", "cmd.exe"), "/k", real}
+	case run && ext == ".exe":
+		args = []string{real}
+	case run && ext == ".msi":
+		args = []string{filepath.Join(win, "System32", "msiexec.exe"), "/i", real}
+	case looksText(real):
+		args = []string{filepath.Join(win, "System32", "notepad.exe"), real}
+	case storeDefault(ext):
+		return name + " の既定のアプリはストアのアプリなので、箱の中では開けません（Sandboxie の決まり）。中身を見たいときは Claude に頼んでください"
+	default:
+		args = []string{real}
+	}
+	if err := startProc(startExe(), append([]string{"/box:ClaudeBox"}, args...)...); err != nil {
+		return "箱の中で開けませんでした：" + err.Error()
+	}
+	if run && (ext == ".ps1" || ext == ".bat" || ext == ".cmd") {
+		return name + " を箱の中で動かしました（窓は開いたまま残る。ふちが水色・ネットなし）。見終わったら窓を閉じて、［本物に入れる］か［捨てる］を押してください"
+	}
+	return name + " を箱の中で開きました（ふちが水色の窓・ネットなし）。見終わったら閉じてください"
 }
