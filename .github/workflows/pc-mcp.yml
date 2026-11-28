@@ -133,14 +133,17 @@ jobs:
             if ($err.Count) { $err | ForEach-Object { $_.ToString() }; exit 1 }
             "OK: $n"
           }
-          # 箱から見せない場所の一覧：鍵・資格情報・トークンの場所が入っているか（hands-protect と box-check が同じ一覧を使う）
+      - name: 箱から見せない場所の一覧に、鍵・資格情報・トークンの場所が入っているか（box-closed.ps1）
+        shell: powershell
+        run: |
+          # この台本は BOM なしで渡されるので、Windows PowerShell 5.1 が読めるよう英数字だけで書く
           . (Resolve-Path "tools/pc-mcp/switch/box-closed.ps1").Path
           $l = @(ClaudeBoxClosed 'C:\Users\u' 'C:\ProgramData\claude-hands')
-          "見せない場所：$($l.Count) か所"
+          "closed places: $($l.Count)"
           foreach ($want in '.ssh', 'Microsoft\Credentials', 'Microsoft\Protect', 'GitHub CLI', 'gcloud', '.git-credentials', 'Chrome\User Data', 'claude-hands') {
-            if (-not ($l | Where-Object { $_[1] -like "*$want*" })) { "見せない場所に無い：$want"; exit 1 }
+            if (-not ($l | Where-Object { $_[1] -like "*$want*" })) { "missing: $want"; exit 1 }
           }
-          if (@($l | ForEach-Object { $_[1] } | Sort-Object -Unique).Count -ne $l.Count) { "見せない場所が重なっている"; exit 1 }
+          if (@($l | ForEach-Object { $_[1] } | Sort-Object -Unique).Count -ne $l.Count) { "duplicate places"; exit 1 }
       - name: LIVE の窓が出るか（フォーカスを取らない・右下）
         shell: pwsh
         run: |
