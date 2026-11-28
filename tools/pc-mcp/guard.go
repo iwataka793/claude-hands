@@ -56,6 +56,51 @@ func isBoxWindow(s string) bool {
 	return isBoxConf(s) || (boxWindowRe.MatchString(s) && !browserWindowRe.MatchString(s))
 }
 
+// 箱のすり抜け止め（2026-11-28。ASK-DESIGN.md の 6「箱のすり抜け」）：
+// Claude が落としたもの（devkit\downloads）の中の、動くもの・マクロ入りの文書は、箱の外では動かさない（pc_try を使う）。
+// 箱の中身（C:\Sandbox）は台本から触らない（本物に写すのは TRY の窓だけ。読むのは pc_files でよい）。
+var riskyExt = `(exe|msi|msix|msixbundle|appx|appxbundle|bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|scr|com|pif|lnk|url|docm|dotm|xlsm|xltm|xlam|pptm|potm|ppam|jar|reg|cpl|msc|inf|application|appref-ms)`
+var riskyDownloadRe = regexp.MustCompile(`(?i)\\devkit\\downloads\\[^'"\r\n;|]*\.` + riskyExt + `\b`)
+var boxDataRe = regexp.MustCompile(`(?i)(^|[^a-z])[a-z]:\\sandbox(\\|$|['"\s])`)
+
+// 台本の中で「動かす」に当たる命令（落としたものを箱の外で動かす）
+var runCmds = map[string]bool{"start-process": true, "invoke-item": true, "msiexec": true, "msiexec.exe": true, "rundll32": true, "rundll32.exe": true,
+	"regsvr32": true, "regsvr32.exe": true, "cmd": true, "cmd.exe": true, "powershell": true, "powershell.exe": true, "pwsh": true, "pwsh.exe": true,
+	"wscript": true, "wscript.exe": true, "cscript": true, "cscript.exe": true, "mshta": true, "mshta.exe": true, "explorer": true, "explorer.exe": true,
+	"java": true, "java.exe": true, "javaw": true, "javaw.exe": true, "reg": true, "reg.exe": true, "regedit": true, "regedit.exe": true, "import-module": true}
+
+const tryMsg = "devkit\\downloads の中の動くもの（ネットから来たもの）は、箱の外では動かしません。pc_try で箱の中で試してください（本物に入れるかはカオルが TRY の窓で決める）"
+
+// runsDownload：台本が devkit\downloads の動くものを、箱の外で動かそうとしているか
+func runsDownload(info scriptInfo, text string) bool {
+	if !riskyDownloadRe.MatchString(text) {
+		return false
+	}
+	// 箱の中で動かす（Start.exe /box:ClaudeBox …）のはよい
+	if l := strings.ToLower(text); strings.Contains(l, `sandboxie-plus\start.exe`) && strings.Contains(l, "box:"+strings.ToLower(tryBox)) {
+		return false
+	}
+	for _, c := range info.Cmds {
+		lc := strings.ToLower(c)
+		if runCmds[lc] || riskyDownloadRe.MatchString(strings.ReplaceAll(c, "/", `\`)) {
+			return true
+		}
+	}
+	return false
+}
+
+// openRuns：pc_open の target・args に、devkit\downloads の動くもの・箱の中のものがあるか
+func openRuns(target, args string) string {
+	t := matchForm(normPath(target)) + " " + args
+	if riskyDownloadRe.MatchString(t) || (inDownloads(normPath(target)) && regexp.MustCompile(`(?i)\.`+riskyExt+`$`).MatchString(target)) {
+		return tryMsg
+	}
+	if boxDataRe.MatchString(matchForm(target)) || boxDataRe.MatchString(args) {
+		return "箱の中のもの（C:\\Sandbox）は、箱の外では開きません（中を見るのは pc_files で。動かすのは pc_try）"
+	}
+	return ""
+}
+
 // Windows 本体：読むのはよいが、変えるには許可が要る
 var systemPathRe = regexp.MustCompile(`(?i)^([a-z]:\\?$|[a-z]:\\windows\b|[a-z]:\\program files|[a-z]:\\programdata\b|[a-z]:\\\$recycle\.bin|[a-z]:\\system volume information|[a-z]:\\users\\[^\\]+\\?$|.*\\start menu\\programs\\startup\b)`)
 
@@ -185,6 +230,12 @@ func checkScriptWhat(info scriptInfo, src string) (block, needAllow, viewNG, wha
 	}
 	if m := boxConfRe.FindString(text); m != "" {
 		return boxConfWhy + "には触れません（" + m + "）。Claude からは変えない決まり。変えるときはカオルに頼む", "", "", ""
+	}
+	if boxDataRe.MatchString(text) {
+		return "箱の中身（C:\\Sandbox）は台本から触りません。中を見るのは pc_files、試すのは pc_try、本物に入れるのはカオルの TRY の窓だけ", "", "", ""
+	}
+	if runsDownload(info, text) {
+		return tryMsg, "", "", ""
 	}
 	if len(info.Errors) > 0 {
 		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", "", ""

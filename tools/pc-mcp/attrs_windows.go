@@ -5,6 +5,7 @@ package main
 import (
 	"io/fs"
 	"syscall"
+	"time"
 )
 
 const (
@@ -36,4 +37,12 @@ func isReparse(d fs.DirEntry) bool {
 		return false
 	}
 	return attrs(fi)&attrReparse != 0
+}
+
+// createdAt：作成日時（箱の中で消したことの印を見分けるのに使う）
+func createdAt(fi fs.FileInfo) time.Time {
+	if d, ok := fi.Sys().(*syscall.Win32FileAttributeData); ok {
+		return time.Unix(0, d.CreationTime.Nanoseconds())
+	}
+	return fi.ModTime()
 }

@@ -66,6 +66,23 @@
   .cbtns { display:flex; gap:6px; margin-top:auto; flex-shrink:0; }
   .cbtns button { border-color:var(--line); color:var(--text); padding:6px 9px; }
   .cbtns button span { display:inline; margin:0 0 0 5px; font-size:10px; }
+  /* TRY（箱で試した結果。カオルが決める） */
+  #try { position:absolute; inset:0; background:var(--bg); border:1px solid var(--line); border-radius:14px; box-sizing:border-box;
+    padding:12px 14px; display:none; flex-direction:column; gap:5px; --try:#2DD4BF; }
+  body.try #card, body.try #done, body.try #check { display:none; } body.try #try { display:flex; }
+  .tlabel { font-weight:700; font-size:13px; letter-spacing:.14em; color:var(--try); }
+  .tfile { font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+  .tline { font-size:11px; color:var(--sub); line-height:1.5; }
+  .tcounts { font-size:12px; line-height:1.5; }
+  .tlist { margin:0; padding-left:16px; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+  .tnotes { font-size:10px; color:var(--sub); line-height:1.5; white-space:pre-wrap; }
+  .tmsg { font-size:11px; color:var(--try); white-space:pre-wrap; overflow-wrap:anywhere; }
+  .tbtns { display:flex; gap:6px; margin-top:auto; flex-shrink:0; flex-wrap:wrap; }
+  .tbtns button { border-color:var(--line); color:var(--text); padding:6px 9px; }
+  .tbtns button span { display:inline; margin:0 0 0 5px; font-size:10px; }
+  .tbtns button.apply { border-color:var(--try); color:var(--try); }
+  .tbtns button.armed { background:rgba(45,212,191,.18); }
+  .tbtns button.discard.armed { background:rgba(242,85,90,.15); border-color:var(--stop); color:var(--stop); }
 </style>
 </head>
 <body class="compact">
@@ -95,6 +112,21 @@
   <ul class="cnotes" id="cnotes"></ul>
   <div class="cfoot">Claude に「CHECK を見て」と言えば、続きを調べます</div>
   <div class="cbtns"><button id="cclose" title="今日はもう出しません。知らせが続いていれば明日また出ます">CLOSE<span>閉じる</span></button></div>
+</div>
+<div id="try">
+  <div class="dhead"><span class="tlabel">TRY</span><span class="jp">箱で試しました（ネットなし）</span></div>
+  <div class="tfile" id="tfile"></div>
+  <div class="tline" id="tdef"></div>
+  <div class="tcounts" id="tcounts"></div>
+  <ul class="tlist" id="tlist"></ul>
+  <div class="tnotes" id="tnotes"></div>
+  <div class="tmsg" id="tmsg"></div>
+  <div class="tbtns" id="tbtns">
+    <button id="topen" title="ネットを切った箱の中で開いて、使ってみます">OPEN<span>箱の中で開く</span></button>
+    <button class="apply" id="tapply" title="箱の中で増えた・変わったファイルを本物に入れます（元は取り置きへ）">APPLY<span>本物に入れる</span></button>
+    <button class="discard" id="tdiscard" title="箱を空にします（本物は何も変わりません）">DISCARD<span>捨てる</span></button>
+  </div>
+  <div class="tbtns" id="tdone" style="display:none"><button id="tclose">CLOSE<span>閉じる</span></button></div>
 </div>
 <script>
   const $ = id => document.getElementById(id);
@@ -141,8 +173,34 @@
     d.style.height = ''; d.style.bottom = keep;
     if (h > 0 && h !== lastCheckFit) { lastCheckFit = h; window.go.main.App.FitCheck(h); }
   }
+  let lastTryFit = 0;
+  function drawTry(s) {
+    const t = s.try || {};
+    document.body.classList.add('try'); document.body.classList.remove('compact', 'done', 'open', 'check');
+    $('tfile').textContent = t.file || '';
+    $('tdef').textContent = t.done ? '' : (t.defender || '');
+    $('tcounts').textContent = t.done ? '' : (t.counts || '');
+    const ul = $('tlist'); ul.innerHTML = '';
+    if (!t.done) (t.lines || []).forEach(n => { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); });
+    $('tnotes').textContent = t.done ? '' : (t.notes || []).join('\n');
+    $('tmsg').textContent = t.msg || '';
+    $('tbtns').style.display = t.done ? 'none' : 'flex';
+    $('tdone').style.display = t.done ? 'flex' : 'none';
+    $('tapply').classList.toggle('armed', t.armed === 'apply');
+    $('tdiscard').classList.toggle('armed', t.armed === 'discard');
+    $('tapply').querySelector('span').textContent = t.armed === 'apply' ? 'もう一度押すと入れる' : '本物に入れる';
+    $('tdiscard').querySelector('span').textContent = t.armed === 'discard' ? 'もう一度押すと捨てる' : '捨てる';
+    if (!bound()) return;
+    const d = $('try'); const keep = d.style.bottom;
+    d.style.bottom = 'auto'; d.style.height = 'auto';
+    const h = Math.ceil(d.getBoundingClientRect().height);
+    d.style.height = ''; d.style.bottom = keep;
+    if (h > 0 && h !== lastTryFit) { lastTryFit = h; window.go.main.App.FitTry(h); }
+  }
   function draw(s) {
     if (!s) return;
+    if (s.mode === 'try') { drawTry(s); return; }
+    document.body.classList.remove('try');
     if (s.mode === 'check') { drawCheck(s); return; }
     document.body.classList.remove('check');
     if (s.mode === 'done') { drawDone(s); return; }
@@ -170,6 +228,11 @@
   $('dopen').addEventListener('click', () => bound() && window.go.main.App.OpenDone(!open));
   $('dclose').addEventListener('click', () => bound() && window.go.main.App.CloseDone());
   $('dundo').addEventListener('click', async () => { if (bound()) { $('dmsg').textContent = '…'; const r = await window.go.main.App.Undo(); $('dmsg').textContent = r; } });
+  const tryCall = async (fn) => { if (bound()) { $('tmsg').textContent = '…'; const r = await window.go.main.App[fn](); if (r) $('tmsg').textContent = r; } };
+  $('topen').addEventListener('click', () => tryCall('TryOpen'));
+  $('tapply').addEventListener('click', () => tryCall('TryApply'));
+  $('tdiscard').addEventListener('click', () => tryCall('TryDiscard'));
+  $('tclose').addEventListener('click', () => bound() && window.go.main.App.CloseTry());
   let hooked = false;
   function hook() {
     if (!hooked && window.runtime && window.runtime.EventsOn) { window.runtime.EventsOn('state', draw); hooked = true; }

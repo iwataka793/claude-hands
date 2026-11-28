@@ -64,6 +64,7 @@ var toolNeed = map[string]Mode{
 	"pc_files": ModeView, "pc_screenshot": ModeView, "pc_windows": ModeView, "pc_ui": ModeView,
 	"pc_powershell": ModeView, // 中で「見るだけ」か「操作」かを分ける
 	"pc_open":       ModeOperate, "pc_ui_do": ModeOperate, "pc_keys": ModeOperate, "pc_trash": ModeOperate,
+	"pc_try": ModeOperate,
 	// ブラウザ（Chrome）
 	"browser_tabs": ModeView, // 一覧は見るだけ、開く・前に出す・閉じるは中で「操作も可」を確かめる
 	"browser_read": ModeView, "browser_screenshot": ModeView,
@@ -228,6 +229,8 @@ func (a *Agent) call(ctx context.Context, tool string, raw json.RawMessage) Repl
 		return a.trash(ctx, raw)
 	case "hands":
 		return a.hands(ctx, raw)
+	case "pc_try":
+		return a.try(ctx, raw)
 	case "browser_tabs":
 		return a.brTabs(ctx, raw)
 	case "browser_read":
@@ -285,6 +288,10 @@ func (a *Agent) status() Reply {
 
 // needAllowFor は、場所の種類から「止める／許可が要る」を決める。modify=true は変える操作。
 func (a *Agent) needAllowFor(path string, modify bool) *Reply {
+	if modify && boxDataRe.MatchString(matchForm(normPath(path))) {
+		r := errText("%s：箱の中身（C:\\Sandbox）は変えない・消さない（捨てるのは pc_try action=discard）", path)
+		return &r
+	}
 	cls, why := pathClass(path)
 	switch cls {
 	case "switch":

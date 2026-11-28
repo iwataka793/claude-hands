@@ -91,6 +91,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | pc_open | 操作も可 | アプリ・ファイル・フォルダ・URL を開く |
 | pc_ui_do | 操作も可 | 部品を名前か id で探して click・set_value・toggle・expand・select など。位置で押す click_xy（`from_image` で画像の座標のまま） |
 | pc_keys | 操作も可 | 打つ（`text`、日本語は `paste: true` が確実）・特別なキー（`keys`：^s・%{F4}・{TAB} など）・`enter`。`window` を前に出せなければ打たない |
+| pc_try | 操作も可 | 箱で試す（B の道）：devkit\downloads のファイルを Defender で検査 → ClaudeBox（ネットなし）の中で動かす → 増えた・変わった・消えたファイルをまとめて TRY の窓に出す。`action`：run（既定。`path`・`args`・`seconds` 既定 60 最大 110）・status・discard（捨てる）。本物に入れるのは TRY の窓（カオル）だけ（下の「箱」） |
 | hands | 見るだけ〜（undo は操作も可） | 作業のまとまり：start・done（DONE の報告）・log（TIMELINE）・undo（まとめて戻す）。下の「作業のまとまり」 |
 | pc_trash | 操作も可 | 消す（完全には消さない）：**取り置き**（30 日）に写して中身が合うのを確かめてから、元を消す（ごみ箱は通さない。2026-11-28 から。C を 2 回使わないため）。取り置きに入らない大きいもの・C の空きが少ないときは止まる → カオルに聞いてから `recycle: true`（ごみ箱だけ）。消す前にカオルに確かめる決まり（下の「取り置き」） |
 
@@ -224,6 +225,19 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
   - **パスワードをなくしたとき**：管理者で（UAC の「はい」）メモ帳を開き、C:\Windows\Sandboxie.ini の [GlobalSettings] の EditPassword= の行を消して保存 → SandMan のオプション →［設定を再読み込み］（未検証。Sandboxie の手で ini を直す使い方どおりなら戻る）。Claude は UAC を押せないので、この戻し方は使えない
 - Claude がするのは：箱の中で動かす（`Start.exe /box:ClaudeBox /wait …`）・中身を空にする（`Start.exe /box:ClaudeBox delete_sandbox_silent`）・箱の中身のファイルを読む。設定を読む・変えるのは道具が止める
 - Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
+
+### 箱で試す（B の道・TRY の窓。pc-54〜）
+
+- **devkit\downloads のもの（Claude が落としたもの。印が無くてもネットから来た扱い）の動くもの**（exe・msi・bat・ps1・vbs・js・lnk・マクロ入りの文書など）は、**箱の外では動かさない**。道具の守りが pc_powershell（Start-Process・Invoke-Item・msiexec・cmd などで動かす）と pc_open を止めて「pc_try を使って」と返す。Defender の検査（MpCmdRun）・zip を開く・印を読むのは通す。Start.exe /box:ClaudeBox で箱の中で動かすのも通す
+- **pc_try**（Claude）：Defender で検査（見つかったら止める。検査できなければ動かさない）→ 箱が残っていれば空にしてから → ClaudeBox の中で動かして seconds 秒待つ（過ぎたら箱の中で動いたまま）→ 箱の中身をまとめて `devkit\hands\try\current.json` に書く → TRY の窓が出る（通知音 1 回）。返事待ちの間は次の pc_try はできない（discard で捨てれば次へ）
+  - 箱の中身の読み方（2026-11-28 に記録で確かめた）：`drive\C\…`＝C:\…・`user\current\…`＝%USERPROFILE%\…・`user\all\…`＝%ProgramData%\…。本物を変えると写しが箱にでき、消すと大きさ 0・作成日時 1986-05-24 の印になる。根の直下の RegHive などはレジストリ（入れない）。CatRoot2・Recent・PowerShell の起動の記録・Temp などは Windows が勝手に作るもの（数えるだけ）。本物と同じ中身のもの（開いただけ）は数えない。Windows・Program Files・ProgramData の中は「管理者の場所」（入れない。本物でもう一度入れ直す）
+- **TRY の窓**（LIVE の窓の中。色は青緑）：ファイル名・Defender の結果・増えた／変わった／消えた・一覧（8 つまで）・「ネットは切ってある（ネットありでは試していない）」。ボタンはカオルだけ：
+  - ［箱の中で開く］：窓が自分で Start.exe /box:ClaudeBox を動かす（ネットなしの箱で使ってみる。窓のふちが水色）
+  - ［本物に入れる］（2 回押す）：窓が合言葉（request.key）で署名して常駐役に頼む（Claude は合言葉を読めないので頼めない）。常駐役は箱の中を読み直し、窓に出したものと違えば一覧を新しくして止める（もう一度押す）。変わったものの元と箱の中で消えたものは取り置きへ送ってから、増えた・変わったものを本物に写す（中身を確かめてから置き換え）。試しのあとで本物が変わったもの・管理者の場所は入れない。終わったら箱を空にする
+  - ［捨てる］（2 回押す）：箱を空にする（本物は何も変わらない）。Claude も pc_try action=discard で捨てられる
+- 箱の中身（C:\Sandbox）は台本から触らない（読むのは pc_files でよい。開く・消す・写すは止める）
+- 容量の点検：箱が 5 GB を超えたら空にする（返事待ちのときは知らせるだけ）
+- まだ：ネットありで試したいとき（カオルに聞く）・TRY の結果を DONE の報告に入れる
 
 ## 容量の点検（2026-11-28 から。pc-49〜。ASK-DESIGN.md の「容量の決まり」）
 

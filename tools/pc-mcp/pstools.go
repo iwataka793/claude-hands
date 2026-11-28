@@ -302,6 +302,9 @@ func (a *Agent) open(ctx context.Context, raw json.RawMessage) Reply {
 	if in.Target == "" {
 		return errText("target（開くもの：アプリ名・ファイル・フォルダ・URL）を指定してください")
 	}
+	if msg := openRuns(in.Target, in.Args); msg != "" && !strings.Contains(in.Target, "://") {
+		return errText("%s", msg)
+	}
 	if !strings.Contains(in.Target, "://") {
 		if r := a.needAllowFor(in.Target, false); r != nil {
 			return *r

@@ -134,7 +134,6 @@ func TestBoxConf(t *testing.T) {
 	for _, src := range []string{
 		`& 'C:\Program Files\Sandboxie-Plus\Start.exe' /box:ClaudeBox /wait notepad.exe`,
 		`Start-Process 'C:\Program Files\Sandboxie-Plus\Start.exe' -ArgumentList '/box:ClaudeBox','delete_sandbox_silent' -Wait`,
-		`Get-ChildItem C:\Sandbox\iwata\ClaudeBox`,
 	} {
 		if block, _, _, _ := checkScriptWhat(scriptInfo{}, src); block != "" {
 			t.Errorf("止めすぎ：%q → %q", src, block)

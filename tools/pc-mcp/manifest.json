@@ -78,6 +78,10 @@
       "description": "ごみ箱に送る"
     },
     {
+      "name": "pc_try",
+      "description": "落としたものを箱で試す"
+    },
+    {
       "name": "browser_tabs",
       "description": "Chrome のタブ"
     },

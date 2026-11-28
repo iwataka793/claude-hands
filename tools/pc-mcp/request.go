@@ -174,7 +174,7 @@ var toolAction = map[string]string{
 	"pc_ui": "PC の窓の部品を読む", "pc_ui_do": "PC の窓の部品を押す・文字を入れる", "pc_keys": "PC でキーを打つ",
 	"pc_open": "PC でファイル・アプリ・ページを開く", "pc_files": "PC のファイルを読む・探す", "pc_disk": "PC の容量を調べる",
 	"pc_problems": "PC の不具合の記録を読む", "pc_processes": "PC で動いているものを見る", "pc_apps": "PC のアプリの一覧を見る",
-	"pc_powershell": "PC で PowerShell の命令を動かす", "pc_trash": "PC のファイルを消す（取り置き 30 日に写してから）",
+	"pc_powershell": "PC で PowerShell の命令を動かす", "pc_trash": "PC のファイルを消す（取り置き 30 日に写してから）", "pc_try": "落としたものを箱で試す",
 	"hands":        "作業の区切り・まとめて戻す",
 	"browser_tabs": "Chrome のタブを見る・開く・閉じる", "browser_read": "Chrome のページを読む", "browser_do": "Chrome のページを押す・文字を入れる",
 	"browser_js": "Chrome のページで台本を動かす", "browser_screenshot": "Chrome のページを撮る",

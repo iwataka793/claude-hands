@@ -50,7 +50,16 @@ type App struct {
 	undoArmed bool      // ［まとめて戻す］を 1 回押した（もう 1 回で戻す）
 	undoMsg   string
 	doneFit   int // DONE（たたんだ形）の中身の高さ（画面から。題名の行数で変わる）
-	checkFit  int // CHECK の中身の高さ（画面から）
+
+	// TRY（箱で試した結果。try.go）
+	trySeen  string    // もう鳴らした試しの番号
+	tryArmed string    // apply・discard を 1 回押した
+	tryMsg   string    // 窓に出す返事
+	tryResAt time.Time // 押し終わった時刻（結果を少し出す）
+	tryID    string
+	tryFile  string
+	tryFit   int
+	checkFit int // CHECK の中身の高さ（画面から）
 }
 
 func newApp() *App { return &App{} }
@@ -182,6 +191,7 @@ type LiveState struct {
 	Open      bool     `json:"open"`
 	UndoArmed bool     `json:"undoArmed"`
 	UndoMsg   string   `json:"undoMsg,omitempty"`
+	Try       *TryView `json:"try,omitempty"`
 }
 
 func (a *App) compute() LiveState {
@@ -227,6 +237,10 @@ func (a *App) compute() LiveState {
 		} else {
 			a.seenDone, a.doneID, a.doneAt, a.doneOpen, a.undoArmed, a.undoMsg = id, id, time.Now(), false, false, ""
 		}
+	}
+	if a.computeTry(&st) {
+		a.started = true
+		return st
 	}
 	a.started = true
 	if a.doneID != "" && (time.Since(a.doneAt) < doneFor || a.hover) {
@@ -340,6 +354,8 @@ func (a *App) apply(st LiveState) {
 	defer a.mu.Unlock()
 	w, h := liveW, liveH
 	switch {
+	case st.Mode == "try":
+		w, h = tryW, a.tryHeight()
 	case st.Mode == "done" && st.Open:
 		w, h = doneW, openH
 	case st.Mode == "done":

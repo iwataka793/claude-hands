@@ -317,6 +317,35 @@ func capTemp(r *capResult, now time.Time) {
 	}
 }
 
+// ---- 箱（Sandboxie の ClaudeBox）：5 GB を超えたら空にする（カオルの返事待ちのときは知らせるだけ） ----
+
+const boxCapGB = 5
+
+func capBox(ctx context.Context, r *capResult) {
+	root := boxRoot()
+	if _, err := os.Stat(root); err != nil {
+		r.sizes = append(r.sizes, fmt.Sprintf("箱（ClaudeBox）：空・上限 %d GB", boxCapGB))
+		return
+	}
+	n := sizeOf(root)
+	r.sizes = append(r.sizes, fmt.Sprintf("箱（ClaudeBox）：%s・上限 %d GB", mb(n), boxCapGB))
+	if n <= boxCapGB*gib {
+		return
+	}
+	tryMu.Lock()
+	defer tryMu.Unlock()
+	if s, err := loadTry(); err == nil && s.Status == "waiting" {
+		r.note("箱（ClaudeBox）が %d GB を超えた（%s）。TRY の窓の返事待ちなので空にしていない", boxCapGB, mb(n))
+		return
+	}
+	if err := emptyBox(ctx); err != nil {
+		r.errs = append(r.errs, "箱を空にできなかった："+err.Error())
+		r.note("箱（ClaudeBox）が %d GB を超えたのに空にできなかった", boxCapGB)
+		return
+	}
+	r.did("箱（ClaudeBox）を空にした（%s）", mb(n))
+}
+
 // ---- Claude が落としたもの（devkit\downloads）：14 日たったら取り置きへ ----
 
 func (a *Agent) capDownloads(ctx context.Context, r *capResult, now time.Time) {
@@ -525,6 +554,7 @@ func (a *Agent) capacityRun(ctx context.Context) []string {
 	capChrome(r)
 	capWebviews(r)
 	a.capDownloads(ctx, r, now)
+	capBox(ctx, r)
 	capGit(ctx, r, now)
 	capChecks(r, now)
 	out := []string{"時刻：" + now.Format("2006-01-02 15:04")}

@@ -58,7 +58,7 @@ jobs:
                   if "id" in m: rs[m["id"]] = m
           tools = [t["name"] for t in rs[2]["result"]["tools"]]
           print("道具:", tools)
-          assert len(tools) == 20, tools
+          assert len(tools) == 21, tools
           st = rs[3]["result"]["content"][0]["text"]
           print(st)
           assert "動いていない" in st
@@ -155,6 +155,23 @@ jobs:
           # 出す前に別の窓が前にあったのに、LIVE が前を取ったら失敗（前に何も無いときは試験の機械の都合なので見ない）
           $took = $r.foregroundIsLive -and $r.initForeground
           if (-not ($r.found -and $r.visible -and $r.noActivate -and $r.toolWindow -and $r.topmost) -or $took) { "LIVE window check failed"; exit 1 }
+      - name: TRY の窓が出るか（箱で試した結果・返事待ち）
+        shell: pwsh
+        run: |
+          $h = Join-Path $env:RUNNER_TEMP 'tryhome'
+          New-Item -ItemType Directory -Force -Path "$h/devkit/pc-agent", "$h/devkit/hands/try" | Out-Null
+          Set-Content "$h/devkit/pc-agent/mode.txt" 'off'
+          $j = @{ id='t1'; path="$h\devkit\downloads\setup.exe"; defender='見つからなかった'; items=@(@{kind='new'; real="$h\devkit\downloads\a.txt"; size=3}); status='waiting' } | ConvertTo-Json -Depth 4
+          Set-Content "$h/devkit/hands/try/current.json" $j -Encoding UTF8
+          $rep = Join-Path $env:RUNNER_TEMP 'try-report.json'
+          $env:HANDS_HOME = $h; $env:HANDS_LIVE_TEST = $rep
+          $p = Start-Process (Resolve-Path art/sw/claude-hands-live.exe).Path -PassThru
+          $p | Wait-Process -Timeout 40 -ErrorAction SilentlyContinue
+          if (-not $p.HasExited) { $p | Stop-Process -Force }
+          if (-not (Test-Path $rep)) { "no report"; exit 1 }
+          $r = Get-Content $rep | ConvertFrom-Json
+          $r | ConvertTo-Json -Compress
+          if (-not ($r.found -and $r.visible)) { "TRY window check failed"; exit 1 }
       - name: スイッチの窓が頼みを出すか（真ん中・いちばん前・フォーカスは取らない・時間切れの返事）
         shell: pwsh
         run: |

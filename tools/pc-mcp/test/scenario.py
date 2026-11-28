@@ -162,6 +162,10 @@ check("スイッチの置き場所は触れない", "pc_powershell", {"script": 
 check("許可の置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{AD / 'allow.txt'}' x"}, True, "置き場所")
 check("箱（Sandboxie）の設定は触れない", "pc_powershell", {"script": r"& 'C:\Program Files\Sandboxie-Plus\SbieIni.exe' set ClaudeBox BlockNetworkFiles n"}, True, "箱（Sandboxie）")
 check("箱の設定の窓は開けない", "pc_open", {"target": r"C:\Program Files\Sandboxie-Plus\SandMan.exe"}, True, "箱（Sandboxie）")
+check("落としたものを箱の外で動かさない", "pc_powershell", {"script": r"Start-Process 'C:\Users\x\devkit\downloads\setup.exe'"}, True, "pc_try")
+check("落としたものを開かない", "pc_open", {"target": r"C:\Users\x\devkit\downloads\setup.exe"}, True, "pc_try")
+check("箱の中身は台本から触らない", "pc_powershell", {"script": r"Copy-Item C:\Sandbox\x\ClaudeBox\a.txt C:\Users\x\a.txt"}, True, "TRY の窓")
+check("本物に入れるのは TRY の窓だけ", "pc_try", {"action": "apply", "id": "x"}, True, "TRY の窓")
 check("鍵の場所の中身は許可が要る", "pc_files", {"action": "read", "path": "~/.ssh/id_rsa"}, True, "許可")
 if WIN:
     check("取り置きに写してから元を消す（ごみ箱は通さない）", "pc_trash", {"paths": [str(f)]}, False, "ごみ箱は通さない")

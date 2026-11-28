@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"syscall"
 	"unsafe"
 )
@@ -145,4 +146,15 @@ func winSwitchOpen() bool {
 	vis, _, _ := pIsWindowVisible.Call(h)
 	ic, _, _ := pIsIconic.Call(h)
 	return vis != 0 && ic == 0
+}
+
+var pMessageBeep = user32.NewProc("MessageBeep")
+
+// winBeep：カオルを待つときの音（Windows の通知音。TRY が出たとき 1 回）
+func winBeep() { pMessageBeep.Call(0x40) } // MB_ICONASTERISK
+
+// startHidden：窓を出さずにプログラムを起動する（待たない）
+func startProc(exe string, args ...string) error {
+	cmd := exec.Command(exe, args...)
+	return cmd.Start()
 }
