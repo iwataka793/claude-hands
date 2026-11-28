@@ -16,6 +16,9 @@
 - これで LOG の「見つかった穴（Claude が道具から Sandboxie の設定を書き換えられる）」はふさいだ
 - 手元で pc-mcp の試験を回すとき：GOPROXY=off は部品が手元に無いと失敗する。`GOPROXY=direct GOSUMDB=off`（GitHub から直接取る）で通った（proxy.golang.org はこのセッションの外への道で断られる）
 
+- 片付け（カオルが了承）：pc-52 の zip・.mcpb・開いたフォルダ、試しの台本を取り置きへ。入れ直し用（devkit\installers）を pc-53 に
+- **B の道の前の確かめ（ASK-DESIGN.md の「PC で確かめること」7）**：Defender の検査は道具から呼べる（`MpCmdRun.exe -Scan -ScanType 3 -File <ファイル> -DisableRemediation`。場所をそのまま書けば許可は要らない。`& $変数` だと許可が要る。終わりのコード 0＝見つからない）。「ネットから来た」印は Get-Item -Stream で読める。ただし**印はすぐ消える**：Expand-Archive で開いた中身には付かない（pc-switch-53.zip には付いていて、開いた exe には無い）・朝に落とした Sandboxie のインストーラーの印も今は無かった（理由は分からない）。→ 印に頼らず「devkit\downloads にあるもの・そこから開いたものはネットから来た扱い」の決まりが要る（決めたとおり）
+
 ### 次にやること
 
 1. 5 番の本体の残り：B の道（ネットから来たもの・devkit\downloads のもの → Defender の検査 → ClaudeBox で試す）・TRY の窓（［箱の中で開く］［本物に入れる］［捨てる］）・終わったら箱を空にする・箱の上限 5 GB を容量の点検に足す
