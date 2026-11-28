@@ -2,6 +2,20 @@
 
 新しいものが上。
 
+## 2026-11-28 箱（Sandboxie-Plus 1.18.6）をカオルの PC で確かめた
+
+- 入れたのはカオル（インストーラーは管理者の権限で動くので、Claude の道具の操作は Windows に届かない。UIPI）。追加のタスクは Templates.ini の更新だけオン・ImDisk ドライバーはオフ
+- **メモリ整合性（HVCI）がオンのまま、ドライバー（SbieDrv）とサービス（SbieSvc）が動いた**
+- 道具（Start.exe /box:名前 /wait …）から箱の中でものを動かせた。箱の中で作ったファイルは C:\Sandbox\<ユーザー>\<箱>\… にだけでき、本物の側には出ない。システムの記録に LsaSrv 6033（箱の中の匿名の接続を断った）が 1 件。害は無い
+- Claude 用の箱 ClaudeTry を SbieIni.exe で作れた（管理者の権限なしで書ける）。BlockNetworkFiles=y・DropAdminRights=y・ClosedFilePath=InternetAccessDevices と、見せない場所（鍵・カオルの Chrome と Edge のデータ・OneDrive）
+  - ネット：ClaudeTry は example.com・github.com に「アクセス許可で禁じられた方法でソケット…」でつながらない。DefaultBox（切っていない）はつながる
+  - 見せない場所：箱の中から 3 か所とも UnauthorizedAccessException
+  - 消す：本物のファイルを箱の中で消すと、箱の中からは消えて見え、本物は残る
+  - 管理者：箱の中は False
+- 守りの場所（取り置き・スイッチ・道具の記録）を見せない設定は、台本に名前を書くだけで道具の守りが止める（かわさない）。**本番の箱の設定は pc-setup.bat（UAC）で入れ、Sandboxie の EditAdminOnly=y で Claude から変えられないようにする**（今は Claude が SbieIni で書き換えられる＝見せない設定を外せてしまう）
+- 重さ：窓を出さない Chrome で同じページ。example.com は外 1 秒・箱 2〜3 秒、ウィキペディアの長いページは外 3〜9 秒・箱 5〜6 秒。Chrome の中身（12.8 MB）は箱の中にだけできた
+- 片付け：試しの箱 2 つを Sandboxie の機能（delete_sandbox_silent）で空に（約 300 MB）。試しのファイルは取り置きへ
+
 ## 2026-11-28 5 番（箱）を始めた：Sandboxie-Plus を入れる前の確かめ
 
 - PC：Windows 11 Home 26H2（ビルド 26300）・64 ビット・メモリ整合性（HVCI）オン・Defender のリアルタイムと改ざん防止オン・メモリ 15 GB。Sandboxie は入っていない
