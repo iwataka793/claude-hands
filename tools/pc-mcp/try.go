@@ -486,6 +486,10 @@ func tryReport(s *tryState) string {
 			l = append(l, fmt.Sprintf("  ほか %d", len(s.Items)-30))
 			break
 		}
+		if it.Kind == "deleted" {
+			l = append(l, fmt.Sprintf("  %s：%s", kw[it.Kind], it.Real))
+			continue
+		}
 		l = append(l, fmt.Sprintf("  %s：%s（%s）", kw[it.Kind], it.Real, mb(it.Size)))
 	}
 	switch s.Status {

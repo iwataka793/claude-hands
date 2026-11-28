@@ -226,7 +226,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - Claude がするのは：箱の中で動かす（`Start.exe /box:ClaudeBox /wait …`）・中身を空にする（`Start.exe /box:ClaudeBox delete_sandbox_silent`）・箱の中身のファイルを読む。設定を読む・変えるのは道具が止める
 - Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
 
-### 箱で試す（B の道・TRY の窓。pc-54〜）
+### 箱で試す（B の道・TRY の窓。pc-55〜。2026-11-28 カオルの PC で確かめた）
 
 - **devkit\downloads のもの（Claude が落としたもの。印が無くてもネットから来た扱い）の動くもの**（exe・msi・bat・ps1・vbs・js・lnk・マクロ入りの文書など）は、**箱の外では動かさない**。道具の守りが pc_powershell（Start-Process・Invoke-Item・msiexec・cmd などで動かす）と pc_open を止めて「pc_try を使って」と返す。Defender の検査（MpCmdRun）・zip を開く・印を読むのは通す。Start.exe /box:ClaudeBox で箱の中で動かすのも通す
 - **pc_try**（Claude）：Defender で検査（見つかったら止める。検査できなければ動かさない）→ 箱が残っていれば空にしてから → ClaudeBox の中で動かして seconds 秒待つ（過ぎたら箱の中で動いたまま）→ 箱の中身をまとめて `devkit\hands\try\current.json` に書く → TRY の窓が出る（通知音 1 回）。返事待ちの間は次の pc_try はできない（discard で捨てれば次へ）
