@@ -13,8 +13,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -412,7 +414,106 @@ func capChecks(r *capResult, now time.Time) {
 	// OneDrive：PC に落ちている分（クラウドだけのものは数えない）
 	if od := os.Getenv("OneDrive"); od != "" {
 		r.sizes = append(r.sizes, "OneDrive の PC に落ちている分："+mb(sizeOf(od)))
+		capOneDrive(r, now, od)
 	}
+}
+
+// capOneDrive：OneDrive の契約。使用量は PC の中に無い（取るには設定の窓を開いて読むしかない）ので、
+// 有料（1.1 TB）の間は 80% に届かない前提で、契約が切れて無料の 5 GB に落ちることを見る（2026-11-28 カオルに伝えて決めた）
+func capOneDrive(r *capResult, now time.Time, od string) {
+	v := oneDriveAccount()
+	if len(v) == 0 {
+		return
+	}
+	backup := logicalSize(filepath.Join(od, "PC-Backup"))
+	paid := regNum(v["LastKnownIsPaidUser"]) == 1
+	state := v["LastKnownSubscriptionState"]
+	exp := time.Time{}
+	if n := regNum(v["LastKnownSubscriptionExpiry"]); n > 0 {
+		exp = time.Unix(n, 0)
+	}
+	auto := regNum(v["LastKnownSubscriptionAutoRenew"]) == 1
+	line := "OneDrive の契約："
+	switch {
+	case !paid:
+		line += "無料（5 GB）"
+		if backup > 4*gib {
+			r.note("OneDrive が無料（5 GB）で、PC-Backup の写しが %s ある（あふれるおそれ）", gb(backup))
+		}
+	case state != "" && state != "Active":
+		line += "有料・" + state
+		r.note("OneDrive の契約が「%s」になっている（有効でない）", state)
+	default:
+		line += "有料・有効"
+	}
+	if !exp.IsZero() {
+		line += "・次の期限 " + exp.Format("2006-01-02")
+		if auto {
+			line += "（自動更新）"
+		} else {
+			line += "（自動更新なし）"
+			if paid && exp.Sub(now) < 14*24*time.Hour {
+				r.note("OneDrive の契約が %s で切れる（自動更新なし。切れると無料の 5 GB に落ちる）", exp.Format("01-02"))
+			}
+		}
+	}
+	r.sizes = append(r.sizes, line+"・PC-Backup の写し "+mb(backup))
+}
+
+// oneDriveAccount：レジストリの OneDrive の個人用アカウントの値（reg query の出力から。値は REG_SZ はそのまま、REG_DWORD は 0x..）
+func oneDriveAccount() map[string]string {
+	cmd := exec.Command("reg", "query", `HKCU\Software\Microsoft\OneDrive\Accounts\Personal`)
+	hideWindow(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	return parseRegQuery(string(out))
+}
+
+func parseRegQuery(out string) map[string]string {
+	m := map[string]string{}
+	for _, l := range strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n") {
+		f := strings.Fields(l)
+		if len(f) >= 3 && strings.HasPrefix(f[1], "REG_") {
+			m[f[0]] = strings.Join(f[2:], " ")
+		}
+	}
+	return m
+}
+
+// regNum：reg query の値を数に（REG_DWORD・REG_QWORD は 0x..、REG_SZ は 10 進）。読めなければ -1
+func regNum(v string) int64 {
+	v = strings.TrimSpace(v)
+	base := 10
+	if strings.HasPrefix(v, "0x") {
+		v, base = v[2:], 16
+	}
+	n, err := strconv.ParseInt(v, base, 64)
+	if err != nil {
+		return -1
+	}
+	return n
+}
+
+// logicalSize：クラウドだけのファイルも含めた大きさ（OneDrive の側で使う大きさ）
+func logicalSize(p string) int64 {
+	var n int64
+	_ = filepath.WalkDir(p, func(q string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && q != p && isReparse(d) {
+			return fs.SkipDir
+		}
+		if !d.IsDir() {
+			if fi, e := d.Info(); e == nil {
+				n += fi.Size()
+			}
+		}
+		return nil
+	})
+	return n
 }
 
 // capacityRun：全部の置き場所を測って、上限を超えたものを片付け、結果を status に書く

@@ -50,6 +50,7 @@ type App struct {
 	undoArmed bool      // ［まとめて戻す］を 1 回押した（もう 1 回で戻す）
 	undoMsg   string
 	doneFit   int // DONE（たたんだ形）の中身の高さ（画面から。題名の行数で変わる）
+	checkFit  int // CHECK の中身の高さ（画面から）
 }
 
 func newApp() *App { return &App{} }
@@ -171,7 +172,9 @@ type LiveState struct {
 	NG      bool     `json:"ng"`
 	Version string   `json:"version"`
 
-	Mode      string   `json:"mode"` // live・done
+	Mode      string   `json:"mode"`                // live・done・check
+	Check     []string `json:"check,omitempty"`     // 容量の点検の知らせ（CHECK）
+	CheckTime string   `json:"checkTime,omitempty"` // その点検の時刻
 	DoneTitle string   `json:"doneTitle,omitempty"`
 	DoneTime  string   `json:"doneTime,omitempty"`
 	Summary   []string `json:"summary,omitempty"`
@@ -240,7 +243,63 @@ func (a *App) compute() LiveState {
 	}
 	st.Show = len(st.On) > 0 && (t != nil || ago < showFor)
 	st.Compact = !(ago < busyFor || a.hover)
+	// CHECK：容量の点検に知らせがあり、今日まだ閉じていなければ出す（Claude が動いている間は LIVE を優先）
+	if !st.Show {
+		if notes, when := checkNotes(); len(notes) > 0 && checkClosedOn() != time.Now().Format("2006-01-02") {
+			st.Mode, st.Show, st.Compact, st.Check, st.CheckTime = "check", true, false, notes, when
+		}
+	}
 	return st
+}
+
+// ---- CHECK（容量の点検の知らせ。docs/ASK-DESIGN.md「容量の決まり」） ----
+
+func checkFile() string       { return filepath.Join(handsDir(), "status", "capacity.txt") }
+func checkClosedFile() string { return filepath.Join(handsDir(), "status", "check-closed.txt") }
+
+// checkNotes：常駐役が書いた点検の結果から「知らせ：」の行（なしは除く）と時刻
+func checkNotes() ([]string, string) {
+	b, err := os.ReadFile(checkFile())
+	if err != nil {
+		return nil, ""
+	}
+	var notes []string
+	when := ""
+	for _, l := range strings.Split(strings.ReplaceAll(strings.TrimPrefix(string(b), "\ufeff"), "\r\n", "\n"), "\n") {
+		if v, ok := strings.CutPrefix(l, "時刻："); ok {
+			when = v
+		}
+		if v, ok := strings.CutPrefix(l, "知らせ："); ok && v != "なし" {
+			notes = append(notes, v)
+		}
+	}
+	return notes, when
+}
+
+// checkClosedOn：カオルが CHECK を閉じた日（yyyy-mm-dd）
+func checkClosedOn() string {
+	b, _ := os.ReadFile(checkClosedFile())
+	return strings.TrimSpace(string(b))
+}
+
+// CloseCheck：CHECK を閉じる（今日はもう出さない。知らせが続いていれば次の日にまた出す）
+func (a *App) CloseCheck() {
+	_ = os.MkdirAll(filepath.Dir(checkClosedFile()), 0o755)
+	_ = os.WriteFile(checkClosedFile(), []byte(time.Now().Format("2006-01-02")), 0o644)
+}
+
+// FitCheck：画面が CHECK の中身の高さを知らせる
+func (a *App) FitCheck(h int) {
+	a.mu.Lock()
+	a.checkFit = h
+	a.mu.Unlock()
+}
+
+func (a *App) checkHeight() int {
+	if a.checkFit >= 100 && a.checkFit <= 400 {
+		return a.checkFit
+	}
+	return doneH
 }
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
@@ -285,6 +344,8 @@ func (a *App) apply(st LiveState) {
 		w, h = doneW, openH
 	case st.Mode == "done":
 		w, h = doneW, a.doneHeight()
+	case st.Mode == "check":
+		w, h = doneW, a.checkHeight()
 	case st.Compact:
 		w, h = smallW, smallH
 	}

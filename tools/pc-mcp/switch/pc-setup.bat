@@ -34,7 +34,7 @@ taskkill /im claude-hands-live.exe /f >nul 2>&1
 timeout /t 1 >nul
 copy /y "%~dp0claude-hands-live.exe" "%H%\claude-hands-live.exe" >nul || echo LIVE の窓を置けませんでした
 powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Startup')+'\claude-hands LIVE.lnk'); $s.TargetPath=$env:USERPROFILE+'\devkit\hands\claude-hands-live.exe'; $s.Save()"
-start "" "%H%\claude-hands-live.exe"
+start "" /D "%H%" "%H%\claude-hands-live.exe"
 rem 守りの場所（取り置き）と毎日の点検を作る（管理者が要るので UAC が出る）
 echo.
 echo 守りの場所（取り置き）と毎日の点検を作ります。UAC が出たら「はい」を押してください...

@@ -92,9 +92,19 @@ foreach ($p in $A.paths) {
     }
     $via = ''
     if ($held) {
-      try { DropHeld $p } catch { $via = '（元を消せず、ごみ箱へ送った：' + $_.Exception.Message + '）'; if (Test-Path -LiteralPath $p) { ToRecycle $p } }
+      try { DropHeld $p } catch {
+        $why1 = $_.Exception.Message
+        if ((Test-Path -LiteralPath $p -PathType Container) -and @(Get-ChildItem -LiteralPath $p -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+          # 中身は消えて、空のフォルダだけが使用中で残った（エクスプローラーで開いている・そこから起動したものが動いている など）
+          $via = '（空のフォルダだけ使用中で残った。中身は取り置きにある。使い終わったら消せる）'
+        } else {
+          try { ToRecycle $p; $via = '（元を消せず、ごみ箱へ送った：' + $why1 + '）' } catch {
+            'ERROR: ' + $p + '：元を消せなかった（' + $why1 + '）。取り置きには写してある：' + $held; continue
+          }
+        }
+      }
     } else { ToRecycle $p }
-    if (Test-Path -LiteralPath $p) { 'ERROR: 残っている：' + $p; continue }
+    if ((Test-Path -LiteralPath $p) -and -not $via.StartsWith('（空のフォルダ')) { 'ERROR: 残っている：' + $p; continue }
     $used += $size
     if ($held) { '消した（取り置き 30 日・ごみ箱は通さない）：' + $p + ' → ' + $held + $via } else { 'ごみ箱へ（取り置きなし）：' + $p }
   } catch { 'ERROR: ' + $p + '：' + $_.Exception.Message }

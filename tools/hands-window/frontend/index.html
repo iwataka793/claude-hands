@@ -55,6 +55,17 @@
   .dbtns button.undo { border-color:var(--undo); color:var(--undo); }
   .dbtns button.undo.armed { background:rgba(167,139,250,.18); }
   .dmsg { font-size:11px; color:var(--undo); white-space:pre-wrap; }
+  /* CHECK（容量の点検の知らせ） */
+  #check { position:absolute; inset:0; background:var(--bg); border:1px solid var(--line); border-radius:14px; box-sizing:border-box;
+    padding:12px 14px; display:none; flex-direction:column; gap:6px; }
+  body.check #card, body.check #done { display:none; } body.check #check { display:flex; }
+  .clabel { font-weight:700; font-size:13px; letter-spacing:.14em; color:#FBBF24; }
+  .cnotes { margin:0; padding-left:16px; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+  .cnotes li { margin:2px 0; }
+  .cfoot { font-size:10px; color:var(--sub); }
+  .cbtns { display:flex; gap:6px; margin-top:auto; flex-shrink:0; }
+  .cbtns button { border-color:var(--line); color:var(--text); padding:6px 9px; }
+  .cbtns button span { display:inline; margin:0 0 0 5px; font-size:10px; }
 </style>
 </head>
 <body class="compact">
@@ -78,6 +89,12 @@
     <button class="undo" id="dundo" title="この作業で Claude が変えた文字のファイルと、消したもの（取り置き）だけを戻します">UNDO<span>まとめて戻す</span></button>
     <button id="dclose">CLOSE<span>閉じる</span></button>
   </div>
+</div>
+<div id="check">
+  <div class="dhead"><span class="clabel">CHECK</span><span class="jp" id="ctime"></span></div>
+  <ul class="cnotes" id="cnotes"></ul>
+  <div class="cfoot">Claude に「CHECK を見て」と言えば、続きを調べます</div>
+  <div class="cbtns"><button id="cclose" title="今日はもう出しません。知らせが続いていれば明日また出ます">CLOSE<span>閉じる</span></button></div>
 </div>
 <script>
   const $ = id => document.getElementById(id);
@@ -111,8 +128,23 @@
     d.style.bottom = keep;
     if (h > 0 && h !== lastFit) { lastFit = h; window.go.main.App.FitDone(h); }
   }
+  let lastCheckFit = 0;
+  function drawCheck(s) {
+    document.body.classList.add('check'); document.body.classList.remove('compact', 'done', 'open');
+    $('ctime').textContent = '容量の点検の知らせ' + (s.checkTime ? '（' + s.checkTime + '）' : '');
+    const ul = $('cnotes'); ul.innerHTML = '';
+    (s.check || []).forEach(n => { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); });
+    if (!bound()) return;
+    const d = $('check'); const keep = d.style.bottom;
+    d.style.bottom = 'auto'; d.style.height = 'auto';
+    const h = Math.ceil(d.getBoundingClientRect().height);
+    d.style.height = ''; d.style.bottom = keep;
+    if (h > 0 && h !== lastCheckFit) { lastCheckFit = h; window.go.main.App.FitCheck(h); }
+  }
   function draw(s) {
     if (!s) return;
+    if (s.mode === 'check') { drawCheck(s); return; }
+    document.body.classList.remove('check');
     if (s.mode === 'done') { drawDone(s); return; }
     document.body.classList.remove('done', 'open');
     document.body.classList.toggle('compact', !!s.compact);
@@ -134,6 +166,7 @@
     const r = await window.go.main.App.Stop();
     $('title').textContent = r;
   });
+  $('cclose').addEventListener('click', () => bound() && window.go.main.App.CloseCheck());
   $('dopen').addEventListener('click', () => bound() && window.go.main.App.OpenDone(!open));
   $('dclose').addEventListener('click', () => bound() && window.go.main.App.CloseDone());
   $('dundo').addEventListener('click', async () => { if (bound()) { $('dmsg').textContent = '…'; const r = await window.go.main.App.Undo(); $('dmsg').textContent = r; } });

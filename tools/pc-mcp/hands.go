@@ -89,7 +89,7 @@ func appendTimeline(e tlEntry) {
 	_, _ = f.Write(append(b, '\r', '\n'))
 }
 
-var trashHeldRe = regexp.MustCompile(`(?m)^(?:消した（取り置き 30 日・ごみ箱は通さない）|ごみ箱へ（取り置き 30 日）)：(.+?) → (.+?)(?:（元を消せず.*）)?\s*$`)
+var trashHeldRe = regexp.MustCompile(`(?m)^(?:消した（取り置き 30 日・ごみ箱は通さない）|ごみ箱へ（取り置き 30 日）)：(.+?) → (.+?)(?:（(?:元を消せず|空のフォルダ).*）)?\s*$`)
 
 // recordCall：常駐役が受けた道具の呼び出しを TIMELINE に残す
 func recordCall(tool string, args json.RawMessage, rep Reply, d time.Duration) {

@@ -92,3 +92,13 @@ func TestCapacity(t *testing.T) {
 		t.Errorf("C の空きの知らせが出ない：%v", notes)
 	}
 }
+
+func TestCapacityOneDrive(t *testing.T) {
+	m := parseRegQuery("\r\nHKEY_CURRENT_USER\\Software\\Microsoft\\OneDrive\\Accounts\\Personal\r\n    LastKnownIsPaidUser    REG_DWORD    0x1\r\n    LastKnownSubscriptionState    REG_SZ    Active\r\n    LastKnownSubscriptionExpiry    REG_SZ    1797724800\r\n")
+	if regNum(m["LastKnownIsPaidUser"]) != 1 || m["LastKnownSubscriptionState"] != "Active" || regNum(m["LastKnownSubscriptionExpiry"]) != 1797724800 {
+		t.Errorf("reg query の読み方が違う：%v", m)
+	}
+	if regNum("") != -1 || regNum("0x0") != 0 {
+		t.Error("regNum が違う")
+	}
+}
