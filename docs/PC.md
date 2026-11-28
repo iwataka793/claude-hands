@@ -70,7 +70,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | Windows 本体を変える | C:\Windows・Program Files・ProgramData・ドライブの直下・スタートアップ |
 
 - スイッチ・許可の置き場所は、許可があっても触らせない
-- **箱（Sandboxie）の設定も、許可があっても触らせない**（pc-52〜）：SbieIni・SandMan・SbieCtrl・Sandboxie.ini の名前と、Start.exe の設定の窓を開く使い方（run_sbie_ctrl・open_agent）を止める。pc_open で SandMan を開く・SandMan の窓を押すのも止める。Start.exe で箱の中で動かす・中身を空にする（delete_sandbox_silent）は通す。本当の守りは OS の権限：設定は pc-setup.bat（UAC）の hands-protect.ps1 が入れ、Sandboxie の EditAdminOnly=y で管理者以外の書き換えをサービスが断る。pc-setup.bat の最後の box-check.ps1 が、管理者なしで書けないことを毎回確かめる（下の「箱」）
+- **箱（Sandboxie）の設定も、許可があっても触らせない**（pc-52〜）：SbieIni・SandMan・SbieCtrl・Sandboxie.ini の名前と、Start.exe の設定の窓を開く使い方（run_sbie_ctrl・open_agent）を止める。pc_open で SandMan を開く・SandMan の窓を押すのも止める。Start.exe で箱の中で動かす・中身を空にする（delete_sandbox_silent）は通す。本当の守りは Sandboxie の「設定のパスワード」（EditPassword）：設定を書けるのは Sandboxie のサービスだけで、パスワードが無いと管理者でも断る。パスワードはカオルだけが知る（iCloud パスワードの「Sandboxie 設定（PC）」）。pc-setup.bat の最後の box-check.ps1 が、管理者なしで書けないことを毎回確かめる（下の「箱」）
 - 調べ方：PowerShell 自身に台本を読ませて（実行はしない）、呼ぶ命令・メソッド・書き出しを見る。別名（del・rm・iwr など）は元の名前に直して判断する
 - 限り：台本の書き方をわざと工夫すれば、文字で探す守りは抜けられる。止めているのは「うっかり」。抜けられないのは、UAC を通す許可のファイルだけ。だから Claude 側の決まり（CLAUDE.md）と記録（audit.log）を組み合わせる
 
@@ -216,7 +216,12 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 
 - Sandboxie-Plus 1.18.6（`C:\Program Files\Sandboxie-Plus`）。設定は `C:\Windows\Sandboxie.ini`（カオルの普通の権限では読むだけ。書くのは Sandboxie のサービス SbieSvc だけ）。箱の中身は `C:\Sandbox\<ユーザー>\<箱>\`
 - Claude 用の箱は **ClaudeBox**（pc-setup.bat が毎回作り直す。中身のファイルは残る）：ネットを切る（ClosedFilePath=InternetAccessDevices）・管理者なし（DropAdminRights）・ネットワークのファイル共有なし（BlockNetworkFiles）・見せない場所＝守りの場所（%ProgramData%\claude-hands・pc-agent）・devkit\pc-agent・iphone-mcp・hands・backup・browser・go-ios・.ssh・カオルの Chrome と Edge の User Data・OneDrive。「すぐ取り出す（RecoverFolder）」は入れない（本物に入れるのは TRY の窓）
-- 全体に **EditAdminOnly=y**：設定を変えられるのは管理者だけ（サービスが断る。Sandboxie のソースの SbieIniServer::IsCallerAuthorized で確かめた）。ただし SbieIni は断られても何も言わずに 0 を返すので、書いたら読み直して確かめる。UserSettings_（SandMan の見た目の設定）だけは今までどおりカオルが書ける
+- **設定のパスワード（EditPassword。2026-11-28 カオルが入れた）**：設定を書けるのは Sandboxie のサービスだけ（Sandboxie.ini はカオルの普通の権限では読むだけ）。サービスは、パスワードが無い頼みを管理者でも断る（Sandboxie のソースの SbieIniServer::IsCallerAuthorized）。パスワードは iCloud パスワードの「Sandboxie 設定（PC）」にだけあり、Claude は知らない
+  - **EditAdminOnly=y だけでは効かなかった**：カオルのアカウントは管理者のグループに入っていて、Sandboxie は UAC の「はい」の前（制限つきの権限）でも管理者として扱う（TokenIsAdmin が TokenElevationTypeLimited を管理者とみなす）。pc-52 の box-check が「書けてしまった」で見つけた。EditAdminOnly=y は入れたまま（害は無い）
+  - SbieIni は断られても何も言わずに 0 を返す。書いたら必ず読み直して確かめる。UserSettings_（SandMan の見た目の設定）はパスワードなしで書ける
+  - pc-setup.bat（hands-protect.ps1）は、箱の設定が決まりどおりなら何も書かない（パスワードも聞かない）。違うときだけ、黒い窓でパスワードを 1 回聞いて書き直す
+  - カオルが SandMan で設定を変えるときもパスワードが要る（全体設定 → 詳細設定 → Sandboxie.ini タブの「設定の保護」で変える・外す）
+  - **パスワードをなくしたとき**：管理者で（UAC の「はい」）メモ帳を開き、C:\Windows\Sandboxie.ini の [GlobalSettings] の EditPassword= の行を消して保存 → SandMan のオプション →［設定を再読み込み］（未検証。Sandboxie の手で ini を直す使い方どおりなら戻る）。Claude は UAC を押せないので、この戻し方は使えない
 - Claude がするのは：箱の中で動かす（`Start.exe /box:ClaudeBox /wait …`）・中身を空にする（`Start.exe /box:ClaudeBox delete_sandbox_silent`）・箱の中身のファイルを読む。設定を読む・変えるのは道具が止める
 - Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
 

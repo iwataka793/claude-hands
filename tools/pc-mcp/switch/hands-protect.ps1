@@ -54,46 +54,68 @@ try {
   Start-ScheduledTask -TaskPath '\claude-hands\' -TaskName 'RestorePoint'
   "OK 守りの場所：$H"
 
-  # 箱（Sandboxie-Plus。2026-11-28）：Claude 用の箱 ClaudeBox を作り、Sandboxie の設定を管理者だけが変えられるようにする（EditAdminOnly=y）。
-  #   Sandboxie.ini はカオルの普通の権限では書けず、書くのは Sandboxie のサービスだけ。サービスは EditAdminOnly=y だと管理者以外の頼みを断る
-  #   （SbieIni はそのとき何も言わずに 0 を返すので、書いたあとに読み直して確かめる）
+  # 箱（Sandboxie-Plus。2026-11-28）：Claude 用の箱 ClaudeBox を決まりどおりにする。
+  #   設定を書くのは Sandboxie のサービスだけで、「設定のパスワード」（EditPassword。カオルが SandMan で入れる・iCloud パスワードの「Sandboxie 設定（PC）」）が
+  #   あると、管理者でもパスワードなしでは書けない（EditAdminOnly は、カオルのような管理者のアカウントだと UAC の前でも管理者扱いで効かなかった）。
+  #   SbieIni は断られても何も言わずに 0 を返すので、書いたら読み直して確かめる。決まりどおりなら書かない（パスワードも聞かない）
   $ini = Join-Path $env:ProgramFiles 'Sandboxie-Plus\SbieIni.exe'
   $start = Join-Path $env:ProgramFiles 'Sandboxie-Plus\Start.exe'
   if (Test-Path -LiteralPath $ini) {
     $uh = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$($usr.Value)").ProfileImagePath
     $la = Join-Path $uh 'AppData\Local'
     $box = 'ClaudeBox'
-    # 試しの箱 ClaudeTry：中身を空にしてから消す
-    if (& $ini query ClaudeTry Enabled) {
-      Start-Process $start -ArgumentList '/box:ClaudeTry', 'delete_sandbox_silent' -Wait
-      & $ini set ClaudeTry '*' | Out-Null
-    }
-    # ClaudeBox：毎回作り直す（中身のファイルは残る）
-    & $ini set $box '*' | Out-Null
     $set = [ordered]@{
       Enabled = 'y'; ConfigLevel = '10'; BorderColor = '#00FFFF,ttl'
       BlockNetworkFiles = 'y'   # 箱の外のファイル共有（ネットワーク）を使わせない
       DropAdminRights = 'y'     # 箱の中は管理者の権限なし
     }
-    foreach ($k in $set.Keys) { & $ini set $box $k $set[$k] | Out-Null }
-    foreach ($t in 'AutoRecoverIgnore', 'LingerPrograms', 'BlockPorts', 'qWave', 'FileCopy', 'SkipHook', 'OpenBluetooth') { & $ini append $box Template $t | Out-Null }
+    $tpl = @('AutoRecoverIgnore', 'LingerPrograms', 'BlockPorts', 'qWave', 'FileCopy', 'SkipHook', 'OpenBluetooth')
     # 見せない場所：ネット（InternetAccessDevices）・守りの場所・道具の置き場所・鍵・カオルのブラウザのデータ・OneDrive
     $closed = @(
       'InternetAccessDevices',
       "$H", (Join-Path $env:ProgramData 'pc-agent'),
       "$uh\devkit\pc-agent", "$uh\devkit\iphone-mcp", "$uh\devkit\hands", "$uh\devkit\backup", "$uh\devkit\browser", "$uh\devkit\go-ios",
       "$uh\.ssh", "$la\Google\Chrome\User Data", "$la\Microsoft\Edge\User Data", "$uh\OneDrive")
-    foreach ($c in $closed) { & $ini append $box ClosedFilePath $c | Out-Null }
-    # 全体：設定を変えられるのは管理者だけ（いちばん最後に入れる）
-    & $ini set GlobalSettings EditAdminOnly y | Out-Null
-    # 読み直して確かめる
-    $ng = @()
-    if ((& $ini query GlobalSettings EditAdminOnly) -ne 'y') { $ng += 'EditAdminOnly' }
-    foreach ($k in $set.Keys) { if ((& $ini query $box $k) -ne $set[$k]) { $ng += $k } }
-    $got = @(& $ini query $box ClosedFilePath)
-    foreach ($c in $closed) { if ($got -notcontains $c) { $ng += "ClosedFilePath $c" } }
-    if (& $ini query ClaudeTry Enabled) { $ng += 'ClaudeTry が残った' }
-    if ($ng.Count) { "NG 箱の設定：$($ng -join '、')" } else { "OK 箱：$box（ネットなし・見せない場所 $($closed.Count - 1) か所・管理者なし）。設定を変えられるのは管理者だけ" }
+    function Q($sec, $key) { @(& $ini query $sec $key) }
+    function BoxDiff {
+      $d = @()
+      if (((Q GlobalSettings EditAdminOnly) -join '') -ne 'y') { $d += 'EditAdminOnly' }
+      foreach ($k in $set.Keys) { if (((Q $box $k) -join '') -ne $set[$k]) { $d += $k } }
+      if (((Q $box Template) -join '|') -ne ($tpl -join '|')) { $d += 'Template' }
+      if (((Q $box ClosedFilePath) -join '|') -ne ($closed -join '|')) { $d += 'ClosedFilePath' }
+      if ((Q ClaudeTry Enabled).Count) { $d += 'ClaudeTry が残っている' }
+      $d
+    }
+    function W([string[]]$a) { if ($script:pw) { & $ini $a[0] "/passwd:$script:pw" @($a[1..($a.Count - 1)]) | Out-Null } else { & $ini @a | Out-Null } }
+    function ApplyBox {
+      if ((Q ClaudeTry Enabled).Count) {
+        Start-Process $start -ArgumentList '/box:ClaudeTry', 'delete_sandbox_silent' -Wait
+        W set, ClaudeTry, '*'
+      }
+      W set, $box, '*'   # 作り直す（中身のファイルは残る）
+      foreach ($k in $set.Keys) { W set, $box, $k, $set[$k] }
+      foreach ($t in $tpl) { W append, $box, Template, $t }
+      foreach ($c in $closed) { W append, $box, ClosedFilePath, $c }
+      W set, GlobalSettings, EditAdminOnly, y
+    }
+    $script:pw = $null
+    $diff = @(BoxDiff)
+    if (-not $diff.Count) {
+      "OK 箱：$box は決まりどおり（書かなかった）"
+    } else {
+      ApplyBox
+      $diff2 = @(BoxDiff)
+      if ($diff2.Count) {
+        # 断られた：設定のパスワードがある。カオルに 1 回だけ聞く（画面に出さない）
+        Write-Host "箱の設定を直します（違うところ：$($diff -join '、')）。"
+        $sec = Read-Host -AsSecureString 'Sandboxie の設定のパスワードを貼って Enter（iCloud パスワードの「Sandboxie 設定（PC）」）'
+        $script:pw = [Runtime.InteropServices.Marshal]::PtrToStringUni([Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($sec))
+        ApplyBox
+        $script:pw = $null
+        $diff2 = @(BoxDiff)
+      }
+      if ($diff2.Count) { "NG 箱の設定：$($diff2 -join '、')（パスワードが違うかもしれない）" } else { "OK 箱：$box（ネットなし・見せない場所 $($closed.Count - 1) か所・管理者なし）を書いた" }
+    }
   } else {
     "OK 箱：Sandboxie-Plus が入っていないので飛ばした"
   }

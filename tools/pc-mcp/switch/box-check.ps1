@@ -8,7 +8,7 @@ if ($admin) { 'NG 箱の守りの確かめ：管理者の権限で動いてい�
 $v = & $ini query ClaudeBox ClaudeHandsEditTest
 if ($v) {
   & $ini set ClaudeBox ClaudeHandsEditTest | Out-Null
-  'NG 箱の守りの確かめ：管理者なしで箱の設定を書けてしまった（EditAdminOnly が効いていない）'
+  'NG 箱の守りの確かめ：管理者なしで箱の設定を書けてしまった（Sandboxie の設定のパスワードが入っていない）'
 } else {
   'OK 箱の守りの確かめ：管理者なしでは箱の設定を書けない'
 }
