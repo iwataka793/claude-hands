@@ -297,10 +297,11 @@ else:
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     cp = subprocess.Popen([chrome, "--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0",
                            f"--user-data-dir={CHROME_PROF}", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(100):
+    for _ in range(300):  # 60 秒まで待つ（CI の Windows では 20 秒で立ち上がらないことがあった。2026-11-28）
         if (CHROME_PROF / "DevToolsActivePort").exists():
             break
         time.sleep(0.2)
+    print("    試験用の Chrome：", "立ち上がった" if (CHROME_PROF / "DevToolsActivePort").exists() else "60 秒たっても DevToolsActivePort が無い")
     time.sleep(1)
     check("タブを開く", "browser_tabs", {"action": "new", "url": base + "/index.html"}, False, "試験のページ")
     check("部品の一覧", "browser_read", {}, False, "「決める」")
