@@ -67,7 +67,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | `C:\Program Files\Sandboxie-Plus\`・`C:\Windows\Sandboxie.ini`・`C:\Sandbox\` | 箱（Sandboxie-Plus 1.18.6。2026-11-28 カオルが入れた）。Claude 用の箱 ClaudeBox の設定は pc-setup.bat が入れる（変えるには Sandboxie の設定のパスワードが要る。カオルだけが知る）。C:\Sandbox は箱の中身 | 本体と設定は触らない。箱の中身は Claude が Sandboxie の機能で空にする（PC.md の「箱」） |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
-| `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb（mcp-25）・claude-hands-pc.mcpb（pc-58）と pc-switch.zip（pc-58。常駐役・スイッチと許可の窓・LIVE と DONE の窓・予備の PowerShell の窓・守りの場所と箱の台本）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい（取り置きへ） |
+| `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb（mcp-25）・claude-hands-pc.mcpb（pc-60）と pc-switch.zip（pc-60。常駐役・スイッチと許可の窓・LIVE と DONE の窓・予備の PowerShell の窓・守りの場所と箱の台本）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい（取り置きへ） |
 | Claude の拡張機能 | `AppData\Local\Claude-Data\…\Claude Extensions\local.mcpb.iwataka793.iphone-dev-kit`・`…pc-dev-kit`（.mcpb を入れるとできる）。2026-11-26 に名前を claude-hands に変えたが、拡張機能の中の名前（iphone-dev-kit・pc-dev-kit）はそのまま（変えると別の拡張機能として二重に入るため）。見える名前は「iPhone（claude-hands）」「PC（claude-hands）」 | 触らない（入れ直しは設定の画面から） |
 | `ドキュメント\pwtest-docker-code.zip` | Docker に残っていた pwtest（2026-02 の PC 版。CityRank の前身）のイメージ 3 つ（cloudv2:run・cloudv2:test・pwtest-core）から取り出した Python のコード。ほかに写しが無かったので残した | カオルが決める |
 | Docker Desktop | 2026-11-25 にアンインストールした。どの開発でも PC の Docker は使っていない（CityRank の観測の箱は GitHub の上で作る）。Git（`C:\Program Files\Git`）は残した（今は使っていないが軽い） | — |
