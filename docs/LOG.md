@@ -2,6 +2,25 @@
 
 新しいものが上。
 
+## 2026-11-28 箱の守り（ClaudeBox・設定のパスワード）を作ってカオルの PC で確かめた（pc-52・pc-53）
+
+- **決めたこと（カオル）**：箱の名前は ClaudeBox。Claude 用の Chrome は箱に入れない（今の別の Chrome のまま。箱だと 1〜2 秒遅い・ネットありの箱が別に要る・ログインもパスワードも入っていないので守れるものが少ない）
+- 作ったもの：hands-protect.ps1（pc-setup の UAC）が試しの箱 ClaudeTry を空にして消し、ClaudeBox を作る（ネットなし・管理者なし・見せない場所 12 か所・「すぐ取り出す」なし）。box-check.ps1 が管理者なしで箱の設定を書けないことを毎回確かめる。道具の守り（guard.go）は SbieIni・SandMan・SbieCtrl・Sandboxie.ini・Start.exe の run_sbie_ctrl／open_agent を許可があっても止める（台本・pc_open・窓）
+- **pc-52 の box-check が NG**：EditAdminOnly=y を入れても、管理者なしの権限で書けてしまった。Sandboxie のソース（SbieIniServer::TokenIsAdmin）を読むと、管理者のグループのアカウントは UAC の前（TokenElevationTypeLimited）でも管理者扱い。カオルのアカウントは管理者のグループ → 効かない。しかも SbieIni は断られても 0 を返す（書いたら読み直して確かめないと分からない）
+- **守りを Sandboxie の「設定のパスワード」（EditPassword）に変えた**（カオルが選んだ）：パスワードがあると、サービスは管理者でもパスワードなしの書き換えを断る。パスワードは iCloud パスワードの「Sandboxie 設定（PC）」（カオルだけ。忘れても管理者で ini から消せば戻る見込み・未検証）。入れたのはカオル：Claude が computer use で全体設定 → 詳細設定 → Sandboxie.ini →「変更を行うにはパスワードの入力が必要です」→［パスワードの変更］の入力欄まで進め、貼るのと［OK］はカオル（claude-hands の道具は SandMan の窓を押さないので、カオルの頼みで computer use を使った）
+- pc-53：hands-protect は箱の設定が決まりどおりなら書かない（パスワードを聞かない）。違うときだけ 1 回聞く
+- **pc-53 をカオルの PC で（10:27）**：「OK 箱：ClaudeBox は決まりどおり（書かなかった）」「OK 箱の守りの確かめ：管理者なしでは箱の設定を書けない」
+- 道具から `SbieIni.exe set ClaudeBox BlockNetworkFiles n` → 止まった（許可があっても）
+- 箱の中で動かした（Start.exe /box:ClaudeBox /wait）：example.com・github.com はつながらない／Chrome の User Data・OneDrive・devkit\backup は見えない（UnauthorizedAccessException）／管理者 False／箱の中で作ったファイルは C:\Sandbox\iwata\ClaudeBox\… にだけでき、本物の側には無い
+- 箱を空にする（delete_sandbox_silent）は設定のパスワードがあっても動く
+- これで LOG の「見つかった穴（Claude が道具から Sandboxie の設定を書き換えられる）」はふさいだ
+- 手元で pc-mcp の試験を回すとき：GOPROXY=off は部品が手元に無いと失敗する。`GOPROXY=direct GOSUMDB=off`（GitHub から直接取る）で通った（proxy.golang.org はこのセッションの外への道で断られる）
+
+### 次にやること
+
+1. 5 番の本体の残り：B の道（ネットから来たもの・devkit\downloads のもの → Defender の検査 → ClaudeBox で試す）・TRY の窓（［箱の中で開く］［本物に入れる］［捨てる］）・終わったら箱を空にする・箱の上限 5 GB を容量の点検に足す
+2. そのあとは朝の引き継ぎの 4〜6（7 番・8 番・全体の点検）
+
 ## 2026-11-28 朝の区切り（次のセッションへの引き継ぎ）
 
 **次のセッションの Claude へ**：CLAUDE.md の「最初にやること」のとおり、docs/OPERATIONS.md を全部・この LOG.md の上の方（少なくともこの引き継ぎから下の 2026-11-27 夜の区切りまで）・docs/ASK-DESIGN.md を全部・docs/PC.md の「容量の点検」「取り置き」「Claude 用の Chrome」を読んでから始める。前のセッションは最初に md を読み足りず、理解がずれたところがあった（カオル）。
