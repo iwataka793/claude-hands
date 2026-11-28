@@ -113,3 +113,47 @@ func TestSendApp(t *testing.T) {
 		}
 	}
 }
+
+func TestBoxConf(t *testing.T) {
+	// 止める：箱の設定を変える・読む命令と場所（許可があっても）
+	for _, src := range []string{
+		`& 'C:\Program Files\Sandboxie-Plus\SbieIni.exe' set ClaudeBox BlockNetworkFiles n`,
+		`$ini = 'C:\Program Files\Sandboxie-Plus\SbieIni.exe'; & $ini query ClaudeBox`,
+		`Start-Process "$env:ProgramFiles\Sandboxie-Plus\SandMan.exe"`,
+		`Get-Content C:\Windows\Sandboxie.ini`,
+		`& 'C:\Program Files\Sandboxie-Plus\Start.exe' /run_sbie_ctrl`,
+		`& 'C:\Program Files\Sandboxie-Plus\Start.exe' /open_agent:sandman.exe`,
+		`SbieCtrl.exe`,
+	} {
+		block, _, _, _ := checkScriptWhat(scriptInfo{}, src)
+		if !strings.Contains(block, "箱（Sandboxie）") {
+			t.Errorf("止まらない：%q → %q", src, block)
+		}
+	}
+	// 通す：箱でものを動かす・中身を空にする
+	for _, src := range []string{
+		`& 'C:\Program Files\Sandboxie-Plus\Start.exe' /box:ClaudeBox /wait notepad.exe`,
+		`Start-Process 'C:\Program Files\Sandboxie-Plus\Start.exe' -ArgumentList '/box:ClaudeBox','delete_sandbox_silent' -Wait`,
+		`Get-ChildItem C:\Sandbox\iwata\ClaudeBox`,
+	} {
+		if block, _, _, _ := checkScriptWhat(scriptInfo{}, src); block != "" {
+			t.Errorf("止めすぎ：%q → %q", src, block)
+		}
+	}
+	if c, _ := pathClass(`C:\Program Files\Sandboxie-Plus\SandMan.exe`); c != "switch" {
+		t.Errorf("SandMan.exe を開ける：%q", c)
+	}
+	if c, _ := pathClass(`C:\Program Files\Sandboxie-Plus\Start.exe`); c == "switch" {
+		t.Errorf("Start.exe まで止めている")
+	}
+	for _, w := range []string{"  「Sandboxie-Plus v1.18.6」 SandMan（pid 1234） 0,0 800x600 ← いま前", "Sandboxie-Plus", "Sandboxie Control"} {
+		if !isBoxWindow(w) {
+			t.Errorf("箱の設定の窓と分からない：%q", w)
+		}
+	}
+	for _, w := range []string{"  「Sandboxie-Plus · GitHub - Google Chrome」 chrome（pid 99） 0,0 800x600", "[#] メモ帳 [#]", "無題 - メモ帳"} {
+		if isBoxWindow(w) {
+			t.Errorf("箱の設定の窓ではないのに止める：%q", w)
+		}
+	}
+}

@@ -40,6 +40,8 @@ echo.
 echo 守りの場所（取り置き）と毎日の点検を作ります。UAC が出たら「はい」を押してください...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"%~dp0hands-protect.ps1\"','-User','%USERDOMAIN%\%USERNAME%'"
 powershell -NoProfile -Command "Get-Content -Encoding UTF8 -LiteralPath (Join-Path $env:TEMP 'claude-hands-protect.txt') -ErrorAction SilentlyContinue | Where-Object { $_ -match '^(OK|NG)' }"
+rem 箱（Sandboxie）の設定を、管理者なし（Claude の道具と同じ権限）では変えられないことを確かめる
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0box-check.ps1"
 echo 置きました：
 echo   常駐役 %D%\pc-agent.exe
 echo   スイッチの窓 %H%\claude-hands-switch.exe（デスクトップの「Claude 操作スイッチ」。Claude が頼むと真ん中に出ます。右下の通知領域にも丸）

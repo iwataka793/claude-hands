@@ -336,6 +336,10 @@ func (a *Agent) checkWindow(ctx context.Context, window string) *Reply {
 		r := errText("窓「%s」はカオルの窓です。スイッチ・許可・LIVE・DONE の窓は Claude からは押せない・打てない（押すのはカオルだけ。許可があっても）", strings.TrimSpace(name))
 		return &r
 	}
+	if isBoxWindow(name) {
+		r := errText("窓「%s」は%sの窓です。Claude からは押せない・打てない（許可があっても）", strings.TrimSpace(name), boxConfWhy)
+		return &r
+	}
 	if m := sensitiveWindowRe.FindString(name); m != "" {
 		if ok, _ := a.st.Allowed(); !ok {
 			r := errText("窓「%s」：%s", strings.TrimSpace(name), allowMsg("パスワード・セキュリティ・お金にかかわりそうな窓（"+m+"）")).needs(windowWhat(m, "押す・打つ"))
@@ -371,6 +375,8 @@ func (a *Agent) uiDo(ctx context.Context, raw json.RawMessage) Reply {
 		y, _ := in["y"].(float64)
 		if t := windowTitleAt(int(x), int(y)); handsWindowRe.MatchString(t) {
 			return errText("そこはカオルの窓（%s）です。スイッチ・許可・LIVE・DONE の窓は Claude からは押せません（押すのはカオルだけ）", t)
+		} else if isBoxWindow(t) {
+			return errText("そこは%sの窓（%s）です。Claude からは押せません", boxConfWhy, t)
 		}
 		// E：その位置の部品の名前が「送信」などなら押さない
 		if name := a.nameAt(ctx, x, y); finalWord(name) != "" {

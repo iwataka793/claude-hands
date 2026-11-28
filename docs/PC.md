@@ -70,6 +70,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | Windows 本体を変える | C:\Windows・Program Files・ProgramData・ドライブの直下・スタートアップ |
 
 - スイッチ・許可の置き場所は、許可があっても触らせない
+- **箱（Sandboxie）の設定も、許可があっても触らせない**（pc-52〜）：SbieIni・SandMan・SbieCtrl・Sandboxie.ini の名前と、Start.exe の設定の窓を開く使い方（run_sbie_ctrl・open_agent）を止める。pc_open で SandMan を開く・SandMan の窓を押すのも止める。Start.exe で箱の中で動かす・中身を空にする（delete_sandbox_silent）は通す。本当の守りは OS の権限：設定は pc-setup.bat（UAC）の hands-protect.ps1 が入れ、Sandboxie の EditAdminOnly=y で管理者以外の書き換えをサービスが断る。pc-setup.bat の最後の box-check.ps1 が、管理者なしで書けないことを毎回確かめる（下の「箱」）
 - 調べ方：PowerShell 自身に台本を読ませて（実行はしない）、呼ぶ命令・メソッド・書き出しを見る。別名（del・rm・iwr など）は元の名前に直して判断する
 - 限り：台本の書き方をわざと工夫すれば、文字で探す守りは抜けられる。止めているのは「うっかり」。抜けられないのは、UAC を通す許可のファイルだけ。だから Claude 側の決まり（CLAUDE.md）と記録（audit.log）を組み合わせる
 
@@ -210,6 +211,14 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 確かめたこと（2026-11-27・カオルの PC）：Claude の権限では、取り置きのファイルを消す・書き換える・付け足す・名前を変える・取り出す、フォルダごと消す・名前を変える、権限・持ち主を書き換える、取り置きごと消す、の 10 通りが全部「アクセス拒否」。10 分 許可があっても同じ（許可は文字の守りを外すだけ）
 - 写すのに失敗したら、元は消さない。途中でできた空の日時フォルダは消せないまま残る（30 日で点検が消す）
 - **ごみ箱は通さない**（2026-11-28。pc-49 から）：取り置きに写して大きさが合ったら、元はその場で消す（取り置きとごみ箱で C を 2 回使わないため）。元を消せなかったときだけごみ箱へ送る。ごみ箱はカオルが自分で消したものだけになり、ストレージ センサーが 30 日で空にする。`recycle: true`（取り置きなし）は今までどおりごみ箱へ
+
+## 箱（Sandboxie-Plus。2026-11-28 から。ASK-DESIGN.md の 2 の「箱」）
+
+- Sandboxie-Plus 1.18.6（`C:\Program Files\Sandboxie-Plus`）。設定は `C:\Windows\Sandboxie.ini`（カオルの普通の権限では読むだけ。書くのは Sandboxie のサービス SbieSvc だけ）。箱の中身は `C:\Sandbox\<ユーザー>\<箱>\`
+- Claude 用の箱は **ClaudeBox**（pc-setup.bat が毎回作り直す。中身のファイルは残る）：ネットを切る（ClosedFilePath=InternetAccessDevices）・管理者なし（DropAdminRights）・ネットワークのファイル共有なし（BlockNetworkFiles）・見せない場所＝守りの場所（%ProgramData%\claude-hands・pc-agent）・devkit\pc-agent・iphone-mcp・hands・backup・browser・go-ios・.ssh・カオルの Chrome と Edge の User Data・OneDrive。「すぐ取り出す（RecoverFolder）」は入れない（本物に入れるのは TRY の窓）
+- 全体に **EditAdminOnly=y**：設定を変えられるのは管理者だけ（サービスが断る。Sandboxie のソースの SbieIniServer::IsCallerAuthorized で確かめた）。ただし SbieIni は断られても何も言わずに 0 を返すので、書いたら読み直して確かめる。UserSettings_（SandMan の見た目の設定）だけは今までどおりカオルが書ける
+- Claude がするのは：箱の中で動かす（`Start.exe /box:ClaudeBox /wait …`）・中身を空にする（`Start.exe /box:ClaudeBox delete_sandbox_silent`）・箱の中身のファイルを読む。設定を読む・変えるのは道具が止める
+- Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
 
 ## 容量の点検（2026-11-28 から。pc-49〜。ASK-DESIGN.md の「容量の決まり」）
 

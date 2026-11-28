@@ -124,7 +124,7 @@ jobs:
       - name: 守りの場所の台本が読めるか（UTF-8 の BOM 付き）
         shell: powershell
         run: |
-          foreach ($n in 'hands-protect.ps1','hands-daily.ps1') {
+          foreach ($n in 'hands-protect.ps1','hands-daily.ps1','box-check.ps1') {
             $f = (Resolve-Path "tools/pc-mcp/switch/$n").Path
             $b = [IO.File]::ReadAllBytes($f)
             if (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { "no BOM: $n"; exit 1 }

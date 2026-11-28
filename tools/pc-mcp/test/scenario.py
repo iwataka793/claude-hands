@@ -160,6 +160,8 @@ check("資格情報は許可が要る", "pc_powershell", {"script": "cmdkey /lis
 check("外への通信は許可が要る", "pc_powershell", {"script": "Invoke-WebRequest https://example.com -UseBasicParsing"}, True, "許可")
 check("スイッチの置き場所は触れない", "pc_powershell", {"script": f"Get-Content '{SD / 'mode.txt'}'"}, True, "置き場所")
 check("許可の置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{AD / 'allow.txt'}' x"}, True, "置き場所")
+check("箱（Sandboxie）の設定は触れない", "pc_powershell", {"script": r"& 'C:\Program Files\Sandboxie-Plus\SbieIni.exe' set ClaudeBox BlockNetworkFiles n"}, True, "箱（Sandboxie）")
+check("箱の設定の窓は開けない", "pc_open", {"target": r"C:\Program Files\Sandboxie-Plus\SandMan.exe"}, True, "箱（Sandboxie）")
 check("鍵の場所の中身は許可が要る", "pc_files", {"action": "read", "path": "~/.ssh/id_rsa"}, True, "許可")
 if WIN:
     check("取り置きに写してから元を消す（ごみ箱は通さない）", "pc_trash", {"paths": [str(f)]}, False, "ごみ箱は通さない")

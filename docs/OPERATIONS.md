@@ -64,6 +64,7 @@ Claude の手元のシェル（Bash）はクラウドの Linux で、PC では�
 | 予定のタスク `\claude-hands\` | RestorePoint（SYSTEM・毎日 12:00 に復元ポイント・30 日たった取り置きを消す・status\daily.txt に結果。pc-15 から台本は bin\hands-daily.ps1）・CopyToOneDrive（カオル・毎時とサインイン時に OneDrive へ写す） | 消さない |
 | `OneDrive\PC-Backup\` | デスクトップ・ドキュメント・ピクチャ・ビデオ・ミュージックの写し（元の場所はそのまま）。「クラウドだけ」の印つき（PC には 0.1 MB だけ。ショートカットは OneDrive の決まりで PC に残る）。2026-11-28 に「常に保持」から変えた | 消さない（中身は毎時作り直す） |
 | `OneDrive\デスクトップ` ほか | 2026-06-10 に OneDrive のフォルダのバックアップが止まったときに残った前のデスクトップなど（クラウドだけ） | カオルが決める |
+| `C:\Program Files\Sandboxie-Plus\`・`C:\Windows\Sandboxie.ini`・`C:\Sandbox\` | 箱（Sandboxie-Plus 1.18.6。2026-11-28 カオルが入れた）。Claude 用の箱 ClaudeBox の設定は pc-setup.bat が入れる（管理者だけが変えられる）。C:\Sandbox は箱の中身 | 本体と設定は触らない。箱の中身は Claude が Sandboxie の機能で空にする（PC.md の「箱」） |
 | `devkit\go-ios\` | ios.exe・wintun.dll・鍵 selfIdentity.plist（iPhone の信頼はこれと結びついている。消すと iPhone で「信頼」をやり直す） | 消さない |
 | `devkit\setup\` | go.bat / go.ps1（道具が無いときの古いやり方）・config.ps1（ID など。公開しない）・files\・記録 | 消さない |
 | `devkit\installers\` | 入れ直し用：claude-hands-iphone.mcpb（mcp-25）・claude-hands-pc.mcpb（pc-51）と pc-switch.zip（pc-51。常駐役・スイッチと許可の窓・LIVE と DONE の窓・予備の PowerShell の窓・守りの場所の台本）・iloader の .msi・Apple Devices のインストーラー・WebDriverAgentRunner-ss.ipa・Microsoft.Services.Store.winmd | 新しい版が来たら古い版は消してよい（取り置きへ） |

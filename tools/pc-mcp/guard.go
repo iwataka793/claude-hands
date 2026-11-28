@@ -37,6 +37,25 @@ var sensitivePathRe = regexp.MustCompile(`(?i)(` + strings.Join([]string{
 // スイッチの置き場所：許可があっても触らせない
 var switchPathRe = regexp.MustCompile(`(?i)(\\devkit\\pc-agent\b|\\devkit\\browser\\(mode|last-used)\.txt|\\ProgramData\\pc-agent\b|\\devkit\\iphone-mcp\\(mode|allow|last-used)\.txt|pc-agent\.exe|\bmode\.txt\b|\ballow\.txt\b)`)
 
+// 箱（Sandboxie）の設定：許可があっても触らせない（2026-11-28）。設定は pc-setup.bat（UAC）が入れ、
+// Sandboxie の EditAdminOnly=y でカオルの普通の権限からは変えられない。ここはその手前の「うっかり」止め。
+// Start.exe は箱でものを動かすのに使うので止めない。設定の窓を開く使い方（run_sbie_ctrl・open_agent）だけ止める。
+var boxConfRe = regexp.MustCompile(`(?i)(\bsbieini(\.exe)?\b|\bsandman(\.exe)?\b|\bsbiectrl(\.exe)?\b|\bsandboxie\.ini\b|\brun_sbie_ctrl\b|\bopen_agent\b)`)
+
+// 箱の設定の窓（SandMan・SbieCtrl）の題名。ブラウザの窓（タブの題名）は除く
+var boxWindowRe = regexp.MustCompile(`(?i)^[\s「]*sandboxie(-plus| control)\b`)
+var browserWindowRe = regexp.MustCompile(`(?i)(google chrome|microsoft ?edge|firefox|chrome（pid|msedge（pid)`)
+
+const boxConfWhy = "箱（Sandboxie）の設定（変えるのは pc-setup.bat だけ）"
+
+// isBoxConf：箱の設定にかかわる名前に触れているか。
+func isBoxConf(s string) bool { return boxConfRe.MatchString(s) }
+
+// isBoxWindow：箱の設定の窓か（プログラムの名前か、窓の題名で見る）。
+func isBoxWindow(s string) bool {
+	return isBoxConf(s) || (boxWindowRe.MatchString(s) && !browserWindowRe.MatchString(s))
+}
+
 // Windows 本体：読むのはよいが、変えるには許可が要る
 var systemPathRe = regexp.MustCompile(`(?i)^([a-z]:\\?$|[a-z]:\\windows\b|[a-z]:\\program files|[a-z]:\\programdata\b|[a-z]:\\\$recycle\.bin|[a-z]:\\system volume information|[a-z]:\\users\\[^\\]+\\?$|.*\\start menu\\programs\\startup\b)`)
 
@@ -88,6 +107,8 @@ func pathClass(p string) (string, string) {
 	switch {
 	case isSwitchPlace(n):
 		return "switch", "スイッチ・許可・守り（取り置き）の置き場所"
+	case isBoxConf(n):
+		return "switch", boxConfWhy
 	case sensitivePathRe.MatchString(n):
 		return "sensitive", "パスワード・セキュリティ・お金にかかわる場所（" + sensitivePathRe.FindString(n) + "）"
 	case systemPathRe.MatchString(n):
@@ -161,6 +182,9 @@ func checkScriptWhat(info scriptInfo, src string) (block, needAllow, viewNG, wha
 	text := strings.ReplaceAll(src, "/", `\`)
 	if isSwitchPlace(text) {
 		return "スイッチ・許可・守り（取り置き）の置き場所は触れません", "", "", ""
+	}
+	if m := boxConfRe.FindString(text); m != "" {
+		return boxConfWhy + "には触れません（" + m + "）。Claude からは変えない決まり。変えるときはカオルに頼む", "", "", ""
 	}
 	if len(info.Errors) > 0 {
 		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", "", ""
