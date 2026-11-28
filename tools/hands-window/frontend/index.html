@@ -74,7 +74,14 @@
   .tfile { font-size:13px; font-weight:700; overflow-wrap:anywhere; }
   .tline { font-size:11px; color:var(--sub); line-height:1.5; }
   .tcounts { font-size:12px; line-height:1.5; }
-  .tlist { margin:0; padding-left:16px; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+  .tlist { margin:0; padding:0; list-style:none; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+  .tlist li { display:flex; flex-direction:column; padding:2px 0; border-top:1px solid var(--line); }
+  .tlist li:first-child { border-top:none; }
+  .trow { display:flex; gap:6px; align-items:center; }
+  .trow .tt { flex:1; }
+  .trow button { padding:1px 7px; font-size:10px; border-color:var(--line); color:var(--try); flex-shrink:0; }
+  .tsub { font-family:ui-monospace,Consolas,monospace; font-size:10px; color:var(--sub); white-space:pre-wrap; padding-left:8px; }
+  .tsub .p { color:var(--try); } .tsub .m { color:var(--stop); }
   .tnotes { font-size:10px; color:var(--sub); line-height:1.5; white-space:pre-wrap; }
   .tmsg { font-size:11px; color:var(--try); white-space:pre-wrap; overflow-wrap:anywhere; }
   .tbtns { display:flex; gap:6px; margin-top:auto; flex-shrink:0; flex-wrap:wrap; }
@@ -181,10 +188,24 @@
     $('tdef').textContent = t.done ? '' : (t.defender || '');
     $('tcounts').textContent = t.done ? '' : (t.counts || '');
     const ul = $('tlist'); ul.innerHTML = '';
-    if (!t.done) (t.lines || []).forEach(n => { const li = document.createElement('li'); li.textContent = n; ul.appendChild(li); });
+    if (!t.done) (t.rows || []).forEach(r => {
+      const li = document.createElement('li');
+      const row = document.createElement('div'); row.className = 'trow';
+      const tt = document.createElement('span'); tt.className = 'tt'; tt.textContent = r.text; row.appendChild(tt);
+      if (r.index >= 0) {
+        const b = document.createElement('button'); b.textContent = 'VIEW 見る'; b.title = '箱の中で開いて中身を見ます（本物は変わりません）';
+        b.addEventListener('click', async () => { if (bound()) { const m = await window.go.main.App.TryView(r.index); if (m) $('tmsg').textContent = m; } });
+        row.appendChild(b);
+      }
+      li.appendChild(row);
+      (r.sub || []).forEach(x => { const d = document.createElement('div'); d.className = 'tsub'; const sp = document.createElement('span');
+        sp.className = x.startsWith('+') ? 'p' : (x.startsWith('-') ? 'm' : ''); sp.textContent = x; d.appendChild(sp); li.appendChild(d); });
+      ul.appendChild(li);
+    });
     $('tnotes').textContent = t.done ? '' : (t.notes || []).join('\n');
     $('tmsg').textContent = t.msg || '';
     $('tbtns').style.display = t.done ? 'none' : 'flex';
+    $('topen').style.display = t.openable ? '' : 'none';
     $('tdone').style.display = t.done ? 'flex' : 'none';
     $('tapply').classList.toggle('armed', t.armed === 'apply');
     $('tdiscard').classList.toggle('armed', t.armed === 'discard');

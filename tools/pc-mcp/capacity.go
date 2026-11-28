@@ -334,8 +334,8 @@ func capBox(ctx context.Context, r *capResult) {
 	}
 	tryMu.Lock()
 	defer tryMu.Unlock()
-	if s, err := loadTry(); err == nil && s.Status == "waiting" {
-		r.note("箱（ClaudeBox）が %d GB を超えた（%s）。TRY の窓の返事待ちなので空にしていない", boxCapGB, mb(n))
+	if s, err := loadTry(); err == nil && (s.Status == "waiting" || s.Status == "working") {
+		r.note("箱（ClaudeBox）が %d GB を超えた（%s）。試しの途中・TRY の窓の返事待ちなので空にしていない", boxCapGB, mb(n))
 		return
 	}
 	if err := emptyBox(ctx); err != nil {

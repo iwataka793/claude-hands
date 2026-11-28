@@ -165,6 +165,7 @@ check("箱の設定の窓は開けない", "pc_open", {"target": r"C:\Program Fi
 check("落としたものを箱の外で動かさない", "pc_powershell", {"script": r"Start-Process 'C:\Users\x\devkit\downloads\setup.exe'"}, True, "pc_try")
 check("落としたものを開かない", "pc_open", {"target": r"C:\Users\x\devkit\downloads\setup.exe"}, True, "pc_try")
 check("箱の中身は台本から触らない", "pc_powershell", {"script": r"Copy-Item C:\Sandbox\x\ClaudeBox\a.txt C:\Users\x\a.txt"}, True, "TRY の窓")
+check("箱が無ければ作業場も動かさない", "pc_try", {"script": "Write-Output hi"}, True, "Sandboxie")
 check("本物に入れるのは TRY の窓だけ", "pc_try", {"action": "apply", "id": "x"}, True, "TRY の窓")
 check("鍵の場所の中身は許可が要る", "pc_files", {"action": "read", "path": "~/.ssh/id_rsa"}, True, "許可")
 if WIN:

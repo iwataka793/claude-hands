@@ -56,9 +56,10 @@ func tryDir() string       { return filepath.Join(handsUserDir(), "try") }
 func tryStateFile() string { return filepath.Join(tryDir(), "current.json") }
 
 type tryItem struct {
-	Kind string `json:"kind"` // new・changed・deleted・admin（管理者の場所。入れない）
-	Real string `json:"real"`
-	Size int64  `json:"size"`
+	Kind  string   `json:"kind"` // new・changed・deleted・admin（管理者の場所。入れない）
+	Real  string   `json:"real"`
+	Size  int64    `json:"size"`
+	Lines []string `json:"lines,omitempty"` // 文字のファイル：変わった行（- 前・+ 後）・増えたものの先頭
 }
 
 type tryState struct {
@@ -73,7 +74,8 @@ type tryState struct {
 	Items    []tryItem `json:"items"`
 	Noise    int       `json:"noise"`    // Windows・PowerShell が勝手に作るもの（入れない）
 	Registry bool      `json:"registry"` // レジストリの変更（箱の中だけ。入れない）
-	Status   string    `json:"status"`   // waiting・applied・discarded
+	Runs     []tryRun  `json:"runs,omitempty"`
+	Status   string    `json:"status"` // working（Claude が試している）・waiting（TRY の窓）・applied・discarded
 	Result   string    `json:"result,omitempty"`
 	By       string    `json:"by,omitempty"`
 	At       time.Time `json:"at,omitempty"`
@@ -130,6 +132,7 @@ var tryNoise = []string{
 	`user\current\appdata\local\microsoft\windows\explorer\`,
 	`user\current\appdata\local\microsoft\windows\caches\`,
 	`user\current\appdata\local\temp\`,
+	`user\current\devkit\boxwork\`, // 作業用（包みの台本・画面の文字の記録）
 	`user\current\appdata\local\packages\`,
 	`user\current\appdata\local\connecteddevicesplatform\`,
 }
@@ -355,16 +358,44 @@ func inDownloads(p string) bool {
 
 // ---- 道具 ----
 
+// 作業用のフォルダ（本物の側。箱から見える）：包みの台本・Claude の台本を置く。結果（画面の文字・終わりのコード）は箱の中にだけできる
+func boxWorkDir() string { return filepath.Join(homeDir(), "devkit", "boxwork") }
+
+// 包みの台本：対象を動かし、画面の文字とエラーを UTF-8 で out に、終わりのコードを code に書く（2026-11-28 に記録で確かめた形）
+const boxWrap = `param([string]$target, [string]$out, [string]$code)
+$c = 0
+try {
+  & $target @args *>&1 | ForEach-Object { "$_" } | Out-File -LiteralPath $out -Encoding utf8 -Width 400
+  $c = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }
+} catch { ($_ | Out-String) | Out-File -LiteralPath $out -Append -Encoding utf8; $c = 1 }
+Set-Content -LiteralPath $code -Value $c -Encoding ascii
+exit $c
+`
+
+type tryRun struct {
+	N       int       `json:"n"`
+	What    string    `json:"what"` // 動かしたもの（ファイルか「台本」）
+	At      time.Time `json:"at"`
+	Exit    *int      `json:"exit,omitempty"`
+	Running bool      `json:"running,omitempty"`
+	Out     string    `json:"out"` // 画面の文字のファイル（本物の場所。中身は箱の中）
+}
+
+type tryArgs struct {
+	Action  string   `json:"action"`
+	Path    string   `json:"path"`
+	Script  string   `json:"script"`
+	Args    []string `json:"args"`
+	Seconds int      `json:"seconds"`
+	Offer   *bool    `json:"offer"`
+	ID      string   `json:"id"`
+	Sig     string   `json:"sig"`
+	By      string   `json:"by"`
+	Lines   int      `json:"lines"`
+}
+
 func (a *Agent) try(ctx context.Context, raw json.RawMessage) Reply {
-	var in struct {
-		Action  string   `json:"action"`
-		Path    string   `json:"path"`
-		Args    []string `json:"args"`
-		Seconds int      `json:"seconds"`
-		ID      string   `json:"id"`
-		Sig     string   `json:"sig"`
-		By      string   `json:"by"`
-	}
+	var in tryArgs
 	_ = json.Unmarshal(raw, &in)
 	tryMu.Lock()
 	defer tryMu.Unlock()
@@ -373,9 +404,14 @@ func (a *Agent) try(ctx context.Context, raw json.RawMessage) Reply {
 		if a.st.Mode() != ModeOperate {
 			return errText("pc_try（箱で試す）は「操作も可」のときだけ")
 		}
-		return a.tryRun(ctx, in.Path, in.Args, in.Seconds)
-	case "status":
-		return tryStatus()
+		return a.tryRun(ctx, in)
+	case "status", "show":
+		return a.tryShow(ctx, in.Lines)
+	case "offer":
+		if a.st.Mode() != ModeOperate {
+			return errText("pc_try は「操作も可」のときだけ")
+		}
+		return a.tryOffer(ctx)
 	case "discard":
 		if a.st.Mode() != ModeOperate {
 			return errText("捨てるのは「操作も可」のときだけ。スイッチの窓で PC を「操作も可」にしてから、もう一度押してください")
@@ -394,68 +430,305 @@ func (a *Agent) try(ctx context.Context, raw json.RawMessage) Reply {
 		}
 		return a.tryApply(ctx, in.ID)
 	}
-	return errText("action は run・status・discard のどれか（本物に入れるのは TRY の窓だけ）")
+	return errText("action は run・show・offer・discard のどれか（本物に入れるのは TRY の窓だけ）")
 }
 
-func (a *Agent) tryRun(ctx context.Context, path string, args []string, secs int) Reply {
-	if strings.TrimSpace(path) == "" {
-		return errText("path（試すファイル。devkit\\downloads の中）を指定してください")
+func (a *Agent) tryRun(ctx context.Context, in tryArgs) Reply {
+	script := strings.TrimSpace(in.Script)
+	if script == "" && strings.TrimSpace(in.Path) == "" {
+		return errText("path（動かすファイル）か script（PowerShell の台本）のどちらかを指定してください")
 	}
-	p := normPath(path)
-	if !inDownloads(p) {
-		return errText("箱で試せるのは devkit\\downloads（%s）の中のものだけ。ほかの場所のものは、カオルに聞いてからそこへ写す", downloadsDir())
-	}
-	fi, err := os.Stat(p)
-	if err != nil || fi.IsDir() {
-		return errText("ファイルがありません：%s", p)
+	if script != "" && strings.TrimSpace(in.Path) != "" {
+		return errText("path と script はどちらか一方だけ")
 	}
 	if !fileExists(filepath.Join(sbieDir(), "Start.exe")) && os.Getenv("HANDS_SBIE_START") == "" {
 		return errText("箱（Sandboxie-Plus）が入っていません")
 	}
-	if s, err := loadTry(); err == nil && s.Status == "waiting" {
-		return errText("前の試し（%s）がカオルの返事待ちです（TRY の窓）。待つか、pc_try action=discard で捨ててから", filepath.Base(s.Path))
+	var target string
+	var scan []string // Defender で調べるもの（devkit\downloads のもの）
+	if script == "" {
+		target = normPath(in.Path)
+		fi, err := os.Stat(target)
+		if err != nil || fi.IsDir() {
+			return errText("ファイルがありません：%s", target)
+		}
+		if cls, why := pathClass(target); cls == "switch" || cls == "sensitive" {
+			return errText("%s：%sのものは箱でも動かしません", target, why)
+		}
+		if inDownloads(target) {
+			scan = append(scan, target)
+		}
+	} else {
+		for _, m := range riskyDownloadRe.FindAllString(script, -1) {
+			if p := filepath.Join(homeDir(), m); fileExists(p) {
+				scan = append(scan, p)
+			}
+		}
 	}
+	offer := script == "" && inDownloads(target)
+	if in.Offer != nil {
+		offer = *in.Offer
+	}
+	secs := in.Seconds
 	if secs <= 0 {
 		secs = 60
 	}
 	if secs > 110 {
 		secs = 110
 	}
-	// 前の箱の中身は Claude の試しの残りなので空にしてから
-	if _, err := os.Stat(boxRoot()); err == nil {
-		if err := emptyBox(ctx); err != nil {
-			return errText("箱を空にできませんでした：%v", err)
+
+	s, err := loadTry()
+	switch {
+	case err == nil && s.Status == "waiting":
+		return errText("前の試し（%s）がカオルの返事待ちです（TRY の窓）。待つか、pc_try action=discard で捨ててから", s.label())
+	case err == nil && s.Status == "working":
+		// 続けて試す（箱はそのまま）
+	default:
+		if _, e := os.Stat(boxRoot()); e == nil {
+			if err := emptyBox(ctx); err != nil {
+				return errText("箱を空にできませんでした：%v", err)
+			}
 		}
+		_ = os.RemoveAll(boxWorkDir())
+		s = &tryState{ID: time.Now().Format("20060102-150405"), Started: time.Now(), Status: "working"}
 	}
-	s := &tryState{ID: time.Now().Format("20060102-150405"), Path: p, Args: args, Started: time.Now(), Status: "waiting"}
-	found, err := defenderScan(ctx, p)
-	if err != nil {
-		return errText("%v。検査できないものは箱でも動かさない", err)
+	var def []string
+	for _, p := range scan {
+		found, err := defenderScan(ctx, p)
+		if err != nil {
+			return errText("%v。検査できないものは箱でも動かさない", err)
+		}
+		if found != "" {
+			return errText("%s（%s）。箱でも動かさずに止めました（ファイルはそのまま。消すかはカオルに聞く）", found, p)
+		}
+		def = append(def, filepath.Base(p))
 	}
-	if found != "" {
-		return errText("%s。箱でも動かさずに止めました（ファイルはそのまま。消すかはカオルに聞く）", found)
+	if len(def) > 0 {
+		s.Defender = "見つからなかった（" + strings.Join(def, "・") + "）"
+	} else if s.Defender == "" {
+		s.Defender = "調べるもの無し（Claude の台本・devkit\\downloads の外のもの）"
 	}
-	s.Defender = "見つからなかった"
-	runArgs := append([]string{"/box:" + tryBox, "/wait", p}, args...)
-	timedOut, err := sbieWait(ctx, time.Duration(secs)*time.Second, runArgs...)
+
+	wd := boxWorkDir()
+	if err := os.MkdirAll(wd, 0o755); err != nil {
+		return errText("作業用のフォルダを作れません：%v", err)
+	}
+	wrap := filepath.Join(wd, "wrap.ps1")
+	if err := os.WriteFile(wrap, append([]byte{0xEF, 0xBB, 0xBF}, []byte(boxWrap)...), 0o644); err != nil {
+		return errText("包みの台本を書けません：%v", err)
+	}
+	n := len(s.Runs) + 1
+	what := target
+	if script != "" {
+		target = filepath.Join(wd, fmt.Sprintf("run-%d.ps1", n))
+		if err := os.WriteFile(target, append([]byte{0xEF, 0xBB, 0xBF}, []byte(script)...), 0o644); err != nil {
+			return errText("台本を書けません：%v", err)
+		}
+		what = "台本 " + filepath.Base(target)
+	}
+	out := filepath.Join(wd, fmt.Sprintf("run-%d.out", n))
+	code := filepath.Join(wd, fmt.Sprintf("run-%d.code", n))
+	args := append([]string{"/box:" + tryBox, "/wait", "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", wrap, target, out, code}, in.Args...)
+	run := tryRun{N: n, What: what, At: time.Now(), Out: out}
+	timedOut, err := sbieWait(ctx, time.Duration(secs)*time.Second, args...)
 	var ee *exec.ExitError
 	switch {
 	case timedOut:
-		s.Running = true
+		run.Running = true
+	case err == nil:
+		z := 0
+		run.Exit = &z
 	case errors.As(err, &ee):
-		s.Exit = fmt.Sprintf("終わりのコード %d", ee.ExitCode())
-	case err != nil:
+		c := ee.ExitCode()
+		run.Exit = &c
+	default:
 		return errText("箱の中で動かせませんでした：%v", err)
 	}
+	if s.Path == "" {
+		s.Path, s.Args = what, in.Args
+	}
+	s.Runs = append(s.Runs, run)
 	s.Ended = time.Now()
+	s.Running = run.Running
+	if run.Exit != nil {
+		s.Exit = fmt.Sprintf("終わりのコード %d", *run.Exit)
+	}
 	s.Items, s.Noise, s.Registry, err = scanBox()
 	if err != nil {
 		return errText("箱の中身を読めませんでした：%v", err)
 	}
+	a.itemLines(ctx, s.Items)
+	if offer {
+		s.Status = "waiting"
+	}
 	if err := saveTry(s); err != nil {
 		return errText("試しの記録を書けませんでした：%v", err)
 	}
-	return okText(tryReport(s) + "\nTRY の窓（右下）に出しました。カオルが［箱の中で開く］で使ってみて、［本物に入れる］か［捨てる］を押します。返事は pc_try action=status。待つ間はほかの作業を進めてよい")
+	tail := 40
+	if in.Lines > 0 {
+		tail = in.Lines
+	}
+	msg := tryReport(s) + "\n" + runOutput(run, tail)
+	if offer {
+		msg += "\nTRY の窓（右下）に出しました。カオルが［本物に入れる］か［捨てる］を押します。返事は pc_try action=show。待つ間はほかの作業を進めてよい"
+	} else {
+		msg += "\n（まだカオルには見せていない。直して続けて試すなら pc_try をもう一度・本物に入れたいものがあれば action=offer・試しだけなら action=discard）"
+	}
+	return okText(msg)
+}
+
+func (s *tryState) label() string {
+	if s.Path == "" {
+		return s.ID
+	}
+	return filepath.Base(s.Path)
+}
+
+// runOutput：その回の画面の文字（箱の中の out）と終わりのコード
+func runOutput(r tryRun, tail int) string {
+	var l []string
+	switch {
+	case r.Running:
+		l = append(l, fmt.Sprintf("%d 回目（%s）：まだ箱の中で動いている（待ち時間を過ぎた）", r.N, r.What))
+	case r.Exit != nil && *r.Exit == 0:
+		l = append(l, fmt.Sprintf("%d 回目（%s）：終わった（終わりのコード 0＝成功）", r.N, r.What))
+	case r.Exit != nil:
+		l = append(l, fmt.Sprintf("%d 回目（%s）：終わった（終わりのコード %d＝失敗の合図）", r.N, r.What, *r.Exit))
+	}
+	b, err := os.ReadFile(realToBox(boxRoot(), r.Out))
+	if err != nil {
+		l = append(l, "画面の文字：無し（記録ができていない）")
+		return strings.Join(l, "\n")
+	}
+	txt := strings.TrimPrefix(string(b), "\ufeff")
+	ls := strings.Split(strings.TrimRight(strings.ReplaceAll(txt, "\r\n", "\n"), "\n"), "\n")
+	if len(ls) == 1 && ls[0] == "" {
+		l = append(l, "画面の文字：無し")
+		return strings.Join(l, "\n")
+	}
+	if len(ls) > tail {
+		l = append(l, fmt.Sprintf("画面の文字（%d 行のうち最後の %d 行。全部は lines を増やして action=show）：", len(ls), tail))
+		ls = ls[len(ls)-tail:]
+	} else {
+		l = append(l, fmt.Sprintf("画面の文字（%d 行）：", len(ls)))
+	}
+	for _, x := range ls {
+		l = append(l, "  │ "+oneLine(x, 400))
+	}
+	return strings.Join(l, "\n")
+}
+
+// itemLines：文字のファイルの「前 → 後」（変わった行）と、増えたファイルの先頭
+func (a *Agent) itemLines(ctx context.Context, items []tryItem) {
+	root := boxRoot()
+	read := func(p string) (string, bool) {
+		fi, err := os.Stat(p)
+		if err != nil || fi.Size() > 256<<10 {
+			return "", false
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return "", false
+		}
+		t, enc := a.decodeText(ctx, b, p)
+		if enc == "バイナリ" {
+			return "", false
+		}
+		return t, true
+	}
+	for i := range items {
+		it := &items[i]
+		switch it.Kind {
+		case "new":
+			if t, ok := read(realToBox(root, it.Real)); ok {
+				it.Lines = headLines(t, 4)
+			}
+		case "changed":
+			nt, ok1 := read(realToBox(root, it.Real))
+			ot, ok2 := read(it.Real)
+			if ok1 && ok2 {
+				it.Lines = diffLines(ot, nt, 6)
+			}
+		}
+	}
+}
+
+func splitLines(t string) []string {
+	t = strings.TrimPrefix(strings.ReplaceAll(t, "\r\n", "\n"), "\ufeff")
+	t = strings.TrimRight(t, "\n")
+	if t == "" {
+		return nil
+	}
+	return strings.Split(t, "\n")
+}
+
+func headLines(t string, n int) []string {
+	ls := splitLines(t)
+	var o []string
+	for i, x := range ls {
+		if i >= n {
+			o = append(o, fmt.Sprintf("…（ほか %d 行）", len(ls)-n))
+			break
+		}
+		o = append(o, "+ "+oneLine(x, 120))
+	}
+	return o
+}
+
+// diffLines：前と後で違う行だけ（- 前・+ 後）。行の並びの共通部分（LCS）で比べる。長いファイルは前後の同じ部分を除いてから
+func diffLines(oldT, newT string, n int) []string {
+	a, b := splitLines(oldT), splitLines(newT)
+	p := 0
+	for p < len(a) && p < len(b) && a[p] == b[p] {
+		p++
+	}
+	ea, eb := len(a), len(b)
+	for ea > p && eb > p && a[ea-1] == b[eb-1] {
+		ea--
+		eb--
+	}
+	a, b = a[p:ea], b[p:eb]
+	var o []string
+	if len(a)*len(b) > 400*400 {
+		for _, x := range a {
+			o = append(o, "- "+oneLine(x, 120))
+		}
+		for _, x := range b {
+			o = append(o, "+ "+oneLine(x, 120))
+		}
+	} else {
+		L := make([][]int, len(a)+1)
+		for i := range L {
+			L[i] = make([]int, len(b)+1)
+		}
+		for i := len(a) - 1; i >= 0; i-- {
+			for j := len(b) - 1; j >= 0; j-- {
+				if a[i] == b[j] {
+					L[i][j] = L[i+1][j+1] + 1
+				} else {
+					L[i][j] = max(L[i+1][j], L[i][j+1])
+				}
+			}
+		}
+		i, j := 0, 0
+		for i < len(a) || j < len(b) {
+			switch {
+			case i < len(a) && j < len(b) && a[i] == b[j]:
+				i++
+				j++
+			case j < len(b) && (i == len(a) || L[i][j+1] >= L[i+1][j]):
+				o = append(o, "+ "+oneLine(b[j], 120))
+				j++
+			default:
+				o = append(o, "- "+oneLine(a[i], 120))
+				i++
+			}
+		}
+	}
+	if len(o) > n {
+		o = append(o[:n], fmt.Sprintf("…（ほか %d 行）", len(o)-n))
+	}
+	return o
 }
 
 func tryReport(s *tryState) string {
@@ -464,21 +737,16 @@ func tryReport(s *tryState) string {
 		n[it.Kind]++
 	}
 	l := []string{
-		"箱で試した：" + s.Path,
+		fmt.Sprintf("箱で試した：%s（試しの番号 %s・%d 回）", s.Path, s.ID, max(len(s.Runs), 1)),
 		"Defender：" + s.Defender,
-		fmt.Sprintf("箱の中で：増えた %d・変わった %d・消えた %d・管理者の場所 %d（入れない）", n["new"], n["changed"], n["deleted"], n["admin"]),
+		fmt.Sprintf("箱の中で（はじめから合わせて）：増えた %d・変わった %d・消えた %d・管理者の場所 %d（入れない）", n["new"], n["changed"], n["deleted"], n["admin"]),
 		"ネット：切ってある（箱の中から外へはつながらない）",
-	}
-	if s.Running {
-		l = append(l, "まだ箱の中で動いている（待ち時間を過ぎた。カオルが箱の中で使える）")
-	} else if s.Exit != "" {
-		l = append(l, "終わった："+s.Exit)
 	}
 	if s.Registry {
 		l = append(l, "レジストリの変更あり（箱の中だけ。本物には入れない）")
 	}
 	if s.Noise > 0 {
-		l = append(l, fmt.Sprintf("Windows が勝手に作ったもの %d（入れない）", s.Noise))
+		l = append(l, fmt.Sprintf("Windows が勝手に作ったもの・作業用のもの %d（入れない）", s.Noise))
 	}
 	kw := map[string]string{"new": "増えた", "changed": "変わった", "deleted": "消えた", "admin": "管理者の場所"}
 	for i, it := range s.Items {
@@ -488,29 +756,72 @@ func tryReport(s *tryState) string {
 		}
 		if it.Kind == "deleted" {
 			l = append(l, fmt.Sprintf("  %s：%s", kw[it.Kind], it.Real))
-			continue
+		} else {
+			l = append(l, fmt.Sprintf("  %s：%s（%s）", kw[it.Kind], it.Real, mb(it.Size)))
 		}
-		l = append(l, fmt.Sprintf("  %s：%s（%s）", kw[it.Kind], it.Real, mb(it.Size)))
+		for _, x := range it.Lines {
+			l = append(l, "      "+x)
+		}
 	}
 	switch s.Status {
+	case "working":
+		l = append(l, "状態：Claude が試している（カオルにはまだ見せていない）")
+	case "waiting":
+		l = append(l, "返事：まだ（カオルの TRY の窓）")
 	case "applied", "discarded":
 		w := map[string]string{"applied": "本物に入れた", "discarded": "捨てた"}[s.Status]
 		l = append(l, fmt.Sprintf("返事：%s（%s・%s）", w, s.By, s.At.Format("15:04")))
 		if s.Result != "" {
 			l = append(l, s.Result)
 		}
-	case "waiting":
-		l = append(l, "返事：まだ（カオルの TRY の窓）")
 	}
 	return strings.Join(l, "\n")
 }
 
-func tryStatus() Reply {
+// tryShow：いまの試し（箱の中身を読み直す）と、最後の回の画面の文字
+func (a *Agent) tryShow(ctx context.Context, lines int) Reply {
 	s, err := loadTry()
 	if err != nil {
 		return okText("箱で試しているものはありません")
 	}
-	return okText(tryReport(s))
+	if s.Status == "working" || s.Status == "waiting" {
+		if items, noise, reg, err := scanBox(); err == nil {
+			a.itemLines(ctx, items)
+			if s.Status == "working" || sameItems(s.Items, items) {
+				s.Items, s.Noise, s.Registry = items, noise, reg
+				_ = saveTry(s)
+			}
+		}
+	}
+	msg := tryReport(s)
+	if len(s.Runs) > 0 {
+		if lines <= 0 {
+			lines = 200
+		}
+		msg += "\n" + runOutput(s.Runs[len(s.Runs)-1], lines)
+	}
+	return okText(msg)
+}
+
+// tryOffer：Claude の試しを、カオルの TRY の窓に出す
+func (a *Agent) tryOffer(ctx context.Context) Reply {
+	s, err := loadTry()
+	if err != nil || s.Status != "working" {
+		return errText("見せる試しがありません（Claude が試しているものだけ見せられる）")
+	}
+	items, noise, reg, err := scanBox()
+	if err != nil {
+		return errText("箱の中身を読めませんでした：%v", err)
+	}
+	if len(items) == 0 {
+		return errText("本物に入れるファイルがありません。試しだけなら action=discard で捨てる")
+	}
+	a.itemLines(ctx, items)
+	s.Items, s.Noise, s.Registry, s.Status = items, noise, reg, "waiting"
+	if err := saveTry(s); err != nil {
+		return errText("試しの記録を書けませんでした：%v", err)
+	}
+	return okText(tryReport(s) + "\nTRY の窓（右下）に出しました。カオルが［本物に入れる］か［捨てる］を押します")
 }
 
 func (a *Agent) tryDiscard(ctx context.Context, id, by string) Reply {
@@ -521,7 +832,8 @@ func (a *Agent) tryDiscard(ctx context.Context, id, by string) Reply {
 	if err := emptyBox(ctx); err != nil {
 		return errText("箱を空にできませんでした：%v", err)
 	}
-	if s != nil && s.Status == "waiting" {
+	_ = os.RemoveAll(boxWorkDir())
+	if s != nil && (s.Status == "waiting" || s.Status == "working") {
 		s.Status, s.By, s.At = "discarded", by, time.Now()
 		s.Result = "箱を空にした（本物は何も変えていない）"
 		_ = saveTry(s)
@@ -545,6 +857,7 @@ func (a *Agent) tryApply(ctx context.Context, id string) Reply {
 	}
 	// 窓に出したもの（記録）と、いまの箱の中身が同じかを確かめる（窓の表示と違うものは入れない）
 	if !sameItems(s.Items, items) {
+		a.itemLines(ctx, items)
 		s.Items = items
 		_ = saveTry(s)
 		return errText("箱の中身が TRY の窓に出していたものから変わっていました（箱の中で使った分など）。窓の一覧を新しくしたので、確かめてからもう一度押してください（まだ何も入れていない）")
@@ -612,6 +925,7 @@ func (a *Agent) tryApply(ctx context.Context, id string) Reply {
 	if err := emptyBox(ctx); err != nil {
 		res = append(res, "箱を空にできなかった："+err.Error())
 	}
+	_ = os.RemoveAll(boxWorkDir())
 	s.Status, s.By, s.At, s.Result = "applied", "カオル（TRY の窓）", time.Now(), strings.Join(res, "。")
 	_ = saveTry(s)
 	return okText("本物に入れた：" + s.Result)

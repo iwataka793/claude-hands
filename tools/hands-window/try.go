@@ -23,22 +23,36 @@ const (
 )
 
 type tryItem struct {
-	Kind string `json:"kind"`
-	Real string `json:"real"`
-	Size int64  `json:"size"`
+	Kind  string   `json:"kind"`
+	Real  string   `json:"real"`
+	Size  int64    `json:"size"`
+	Lines []string `json:"lines"`
+}
+
+type tryRunRec struct {
+	Exit    *int `json:"exit"`
+	Running bool `json:"running"`
+}
+
+// TryRow：一覧の 1 行（［見る］で箱の中で開ける・変わった行）
+type TryRow struct {
+	Text  string   `json:"text"`
+	Index int      `json:"index"` // ［見る］で開くもの（-1 は開けない）
+	Sub   []string `json:"sub,omitempty"`
 }
 
 type tryState struct {
-	ID       string    `json:"id"`
-	Path     string    `json:"path"`
-	Defender string    `json:"defender"`
-	Running  bool      `json:"running"`
-	Exit     string    `json:"exit"`
-	Items    []tryItem `json:"items"`
-	Noise    int       `json:"noise"`
-	Registry bool      `json:"registry"`
-	Status   string    `json:"status"`
-	Result   string    `json:"result"`
+	ID       string      `json:"id"`
+	Path     string      `json:"path"`
+	Defender string      `json:"defender"`
+	Running  bool        `json:"running"`
+	Exit     string      `json:"exit"`
+	Items    []tryItem   `json:"items"`
+	Noise    int         `json:"noise"`
+	Registry bool        `json:"registry"`
+	Status   string      `json:"status"`
+	Result   string      `json:"result"`
+	Runs     []tryRunRec `json:"runs"`
 }
 
 // TryView：画面に出す中身
@@ -47,11 +61,12 @@ type TryView struct {
 	File     string   `json:"file"`
 	Defender string   `json:"defender"`
 	Counts   string   `json:"counts"`
-	Lines    []string `json:"lines"`
+	Rows     []TryRow `json:"rows"`
 	Notes    []string `json:"notes"`
 	Armed    string   `json:"armed,omitempty"` // apply・discard（1 回押した）
 	Msg      string   `json:"msg,omitempty"`
-	Done     bool     `json:"done"` // 押し終わった（結果だけ出す）
+	Done     bool     `json:"done"`     // 押し終わった（結果だけ出す）
+	Openable bool     `json:"openable"` // ［箱の中で開く］が使える（試したものがファイル）
 }
 
 func tryFile() string { return filepath.Join(handsDir(), "try", "current.json") }
@@ -70,6 +85,9 @@ func loadTry() *tryState {
 
 func tryView(s *tryState) *TryView {
 	v := &TryView{ID: s.ID, File: filepath.Base(s.Path), Defender: "Defender：" + s.Defender}
+	if fi, err := os.Stat(s.Path); err == nil && !fi.IsDir() {
+		v.Openable = true
+	}
 	n := map[string]int{}
 	kw := map[string]string{"new": "増えた", "changed": "変わった", "deleted": "消えた", "admin": "管理者の場所（入れない）"}
 	for _, it := range s.Items {
@@ -82,17 +100,36 @@ func tryView(s *tryState) *TryView {
 	hd := strings.ToLower(home())
 	for i, it := range s.Items {
 		if i >= 8 {
-			v.Lines = append(v.Lines, fmt.Sprintf("ほか %d", len(s.Items)-8))
+			v.Rows = append(v.Rows, TryRow{Text: fmt.Sprintf("ほか %d", len(s.Items)-8), Index: -1})
 			break
 		}
 		p := it.Real
 		if strings.HasPrefix(strings.ToLower(p), hd+`\`) {
 			p = "~" + p[len(hd):]
 		}
-		v.Lines = append(v.Lines, kw[it.Kind]+"："+p)
+		idx := i
+		if it.Kind == "deleted" || it.Kind == "admin" {
+			idx = -1
+		}
+		sub := it.Lines
+		if len(sub) > 4 {
+			sub = append(append([]string{}, sub[:4]...), "…")
+		}
+		v.Rows = append(v.Rows, TryRow{Text: kw[it.Kind] + "：" + p, Index: idx, Sub: sub})
 	}
 	if len(s.Items) == 0 {
-		v.Lines = append(v.Lines, "本物に入れるファイルはありません")
+		v.Rows = append(v.Rows, TryRow{Text: "本物に入れるファイルはありません", Index: -1})
+	}
+	if n := len(s.Runs); n > 0 {
+		r := s.Runs[n-1]
+		switch {
+		case r.Running:
+			v.Notes = append(v.Notes, fmt.Sprintf("Claude が箱で %d 回試した（最後の回はまだ動いている）", n))
+		case r.Exit != nil && *r.Exit == 0:
+			v.Notes = append(v.Notes, fmt.Sprintf("Claude が箱で %d 回試した（最後の回は成功で終わった）", n))
+		case r.Exit != nil:
+			v.Notes = append(v.Notes, fmt.Sprintf("Claude が箱で %d 回試した（最後の回は終わりのコード %d）", n, *r.Exit))
+		}
 	}
 	if s.Running {
 		v.Notes = append(v.Notes, "まだ箱の中で動いています")
@@ -153,6 +190,9 @@ func (a *App) TryOpen() string {
 	if s == nil || s.Status != "waiting" {
 		return ""
 	}
+	if fi, err := os.Stat(s.Path); err != nil || fi.IsDir() {
+		return "Claude の台本の試しなので、開くものはありません（一覧の［見る］で中身を見られます）"
+	}
 	pf := os.Getenv("ProgramFiles")
 	if pf == "" {
 		pf = `C:\Program Files`
@@ -163,6 +203,30 @@ func (a *App) TryOpen() string {
 	msg := "箱の中で開きました（ネットなし・窓のふちが水色）。使い終わったら閉じて、［本物に入れる］か［捨てる］を押してください"
 	a.mu.Lock()
 	a.tryMsg, a.tryArmed = msg, ""
+	a.mu.Unlock()
+	return msg
+}
+
+// TryView：一覧の［見る］：そのファイルを箱の中で開く（箱の中では本物の場所が箱の中身に見える）
+func (a *App) TryView(i int) string {
+	s := loadTry()
+	if s == nil || s.Status != "waiting" || i < 0 || i >= len(s.Items) {
+		return ""
+	}
+	it := s.Items[i]
+	if it.Kind == "deleted" || it.Kind == "admin" {
+		return ""
+	}
+	pf := os.Getenv("ProgramFiles")
+	if pf == "" {
+		pf = `C:\Program Files`
+	}
+	if err := startProc(filepath.Join(pf, "Sandboxie-Plus", "Start.exe"), "/box:ClaudeBox", it.Real); err != nil {
+		return "箱の中で開けませんでした：" + err.Error()
+	}
+	msg := filepath.Base(it.Real) + " を箱の中で開きました（ふちが水色の窓。ネットなし）"
+	a.mu.Lock()
+	a.tryMsg = msg
 	a.mu.Unlock()
 	return msg
 }

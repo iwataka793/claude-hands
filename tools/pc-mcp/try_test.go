@@ -120,9 +120,59 @@ func TestTry(t *testing.T) {
 	if _, err := os.Stat(box); err == nil {
 		t.Errorf("箱が空にならない")
 	}
-	// 外の場所のものは試さない
-	if r := call(map[string]any{"action": "run", "path": filepath.Join(home, "x.exe")}); !r.IsError || !strings.Contains(r.Text, "devkit") {
-		t.Errorf("devkit\\downloads の外を試した：%s", r.Text)
+	// 作業場：Claude の台本・downloads の外のファイルは、カオルに見せずに続けて試す
+	tool := filepath.Join(home, "tools", "x.bat")
+	w(tool, "@echo off")
+	r = call(map[string]any{"action": "run", "path": tool})
+	if r.IsError || !strings.Contains(r.Text, "まだカオルには見せていない") || !strings.Contains(r.Text, "終わりのコード 0") {
+		t.Errorf("作業場の run：%s", r.Text)
+	}
+	r = call(map[string]any{"action": "run", "script": "Write-Output hi"})
+	if r.IsError || !strings.Contains(r.Text, "2 回") {
+		t.Errorf("続けて試せない：%s", r.Text)
+	}
+	if _, err := os.Stat(filepath.Join(home, "devkit", "boxwork", "run-2.ps1")); err != nil {
+		t.Errorf("台本が作業用のフォルダに無い")
+	}
+	if r := call(map[string]any{"action": "run", "path": tool, "script": "x"}); !r.IsError {
+		t.Errorf("path と script の両方を受けた")
+	}
+	if r := call(map[string]any{"action": "offer"}); !r.IsError || !strings.Contains(r.Text, "入れるファイルがありません") {
+		t.Errorf("入れるものが無いのに見せた：%s", r.Text)
+	}
+	// 箱の中で増えたものがあれば見せられる（TRY の窓）
+	_ = os.MkdirAll(box, 0o755)
+	w(filepath.Join(box, "user", "current", "tools", "out.txt"), "a\nb\n")
+	if r := call(map[string]any{"action": "offer"}); r.IsError || !strings.Contains(r.Text, "TRY の窓") || !strings.Contains(r.Text, "+ a") {
+		t.Errorf("見せられない：%s", r.Text)
+	}
+	if r := call(map[string]any{"action": "run", "script": "x"}); !r.IsError || !strings.Contains(r.Text, "返事待ち") {
+		t.Errorf("返事待ちなのに続けた：%s", r.Text)
+	}
+	if r := call(map[string]any{"action": "discard"}); r.IsError {
+		t.Errorf("捨てられない：%s", r.Text)
+	}
+	if _, err := os.Stat(filepath.Join(home, "devkit", "boxwork")); err == nil {
+		t.Errorf("捨てたのに作業用のフォルダが残った")
+	}
+	// 鍵の場所のものは箱でも動かさない
+	key := filepath.Join(home, ".ssh", "x.bat")
+	w(key, "x")
+	if r := call(map[string]any{"action": "run", "path": key}); !r.IsError {
+		t.Errorf("鍵の場所のものを動かした")
+	}
+}
+
+func TestDiffLines(t *testing.T) {
+	got := strings.Join(diffLines("a\nb\nc\nd", "a\nB\nc\nd\ne", 10), "|")
+	if got != "+ B|- b|+ e" && got != "- b|+ B|+ e" {
+		t.Errorf("diff %q", got)
+	}
+	if l := diffLines("same", "same", 5); len(l) != 0 {
+		t.Errorf("同じなのに %v", l)
+	}
+	if l := headLines("1\n2\n3\n4\n5\n6", 4); len(l) != 5 || l[4] != "…（ほか 2 行）" {
+		t.Errorf("head %v", l)
 	}
 }
 

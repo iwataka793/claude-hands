@@ -91,7 +91,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 | pc_open | 操作も可 | アプリ・ファイル・フォルダ・URL を開く |
 | pc_ui_do | 操作も可 | 部品を名前か id で探して click・set_value・toggle・expand・select など。位置で押す click_xy（`from_image` で画像の座標のまま） |
 | pc_keys | 操作も可 | 打つ（`text`、日本語は `paste: true` が確実）・特別なキー（`keys`：^s・%{F4}・{TAB} など）・`enter`。`window` を前に出せなければ打たない |
-| pc_try | 操作も可 | 箱で試す（B の道）：devkit\downloads のファイルを Defender で検査 → ClaudeBox（ネットなし）の中で動かす → 増えた・変わった・消えたファイルをまとめて TRY の窓に出す。`action`：run（既定。`path`・`args`・`seconds` 既定 60 最大 110）・status・discard（捨てる）。本物に入れるのは TRY の窓（カオル）だけ（下の「箱」） |
+| pc_try | 操作も可 | 箱で試す（Claude の作業場。pc-57〜）：ClaudeBox の中でファイル（`path`）か PowerShell の台本（`script`）を動かす。返事に終わりのコード・画面の文字・増えた／変わった（前 → 後）／消えたファイル。続けて run できる。`action`：run（既定。`args`・`seconds` 既定 60 最大 110・`offer`・`lines`）・show・offer（TRY の窓に出す）・discard。本物に入れるのは TRY の窓（カオル）だけ（下の「箱で試す」） |
 | hands | 見るだけ〜（undo は操作も可） | 作業のまとまり：start・done（DONE の報告）・log（TIMELINE）・undo（まとめて戻す）。下の「作業のまとまり」 |
 | pc_trash | 操作も可 | 消す（完全には消さない）：**取り置き**（30 日）に写して中身が合うのを確かめてから、元を消す（ごみ箱は通さない。2026-11-28 から。C を 2 回使わないため）。取り置きに入らない大きいもの・C の空きが少ないときは止まる → カオルに聞いてから `recycle: true`（ごみ箱だけ）。消す前にカオルに確かめる決まり（下の「取り置き」） |
 
@@ -227,6 +227,14 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
 
 ### 箱で試す（B の道・TRY の窓。pc-55〜。2026-11-28 カオルの PC で確かめた）
+
+**Claude の作業場（pc-57〜）**：
+- `pc_try path=…`（どこのファイルでもよい。鍵などの場所のものは止める）か `script=…`（PowerShell の台本）。devkit\downloads のものは Defender で調べてから。台本の中に devkit\downloads の動くものが書いてあれば、それも調べる
+- 動かし方：作業用のフォルダ `%USERPROFILE%\devkit\boxwork`（箱から見える。包みの台本 wrap.ps1・Claude の台本 run-N.ps1）に置き、`Start.exe /box:ClaudeBox /wait powershell -File wrap.ps1 <対象> <out> <code>`。包みが画面の文字とエラーを UTF-8 で run-N.out に、終わりのコードを run-N.code に書く（箱の中にだけできる。Claude は箱の中を読む）。Start.exe /wait の終わりのコードも対象のものと同じ（2026-11-28 に記録で確かめた：bat の exit 3・ps1 の exit 5 がそのまま返った。bat の日本語も読めた。箱 1 回の立ち上がりは約 1 秒）
+- 状態：working（Claude が試している。窓は出ない。続けて run すると箱はそのまま）→ offer で waiting（TRY の窓）→ applied／discarded。devkit\downloads のファイルは既定ですぐ waiting（`offer:false` で続けて試せる）
+- 文字のファイル（256 KB まで・UTF-8／UTF-16／Shift_JIS）は、変わったものに「- 前・+ 後」の行、増えたものに先頭の行を付ける
+- 捨てる・本物に入れるのあとで、作業用のフォルダは消す（道具の作業用。カオルのファイルではない）
+- TRY の窓：一覧の行ごとに［VIEW 見る］（そのファイルを箱の中で開く。箱の中では本物の場所が箱の中身に見える）・変わった行（+ 青緑・- 赤）・「Claude が箱で N 回試した（最後の回は成功）」。台本の試しのときは［箱の中で開く］を出さない
 
 - **devkit\downloads のもの（Claude が落としたもの。印が無くてもネットから来た扱い）の動くもの**（exe・msi・bat・ps1・vbs・js・lnk・マクロ入りの文書など）は、**箱の外では動かさない**。道具の守りが pc_powershell（Start-Process・Invoke-Item・msiexec・cmd などで動かす）と pc_open を止めて「pc_try を使って」と返す。Defender の検査（MpCmdRun）・zip を開く・印を読むのは通す。Start.exe /box:ClaudeBox で箱の中で動かすのも通す
 - **pc_try**（Claude）：Defender で検査（見つかったら止める。検査できなければ動かさない）→ 箱が残っていれば空にしてから → ClaudeBox の中で動かして seconds 秒待つ（過ぎたら箱の中で動いたまま）→ 箱の中身をまとめて `devkit\hands\try\current.json` に書く → TRY の窓が出る（通知音 1 回）。返事待ちの間は次の pc_try はできない（discard で捨てれば次へ）
