@@ -373,7 +373,20 @@ try {
   Set-ItemProperty -Path $is -Name ProxyEnable -Value 1 -Type DWord -ErrorAction Stop
   Set-ItemProperty -Path $is -Name ProxyServer -Value '127.0.0.1:60230' -ErrorAction Stop
 } catch {}
+# 進み具合の表示を切る（箱の中では見えない窓に書けず Invoke-WebRequest が失敗した。2026-11-28 の記録）
+$ProgressPreference = 'SilentlyContinue'
 $c = 0
+# 文書（.hta・.html・.xlsx など）は中継の形では動かせない（CantActivateDocumentInPipeline）ので、窓を開くだけにする
+$ext = [IO.Path]::GetExtension($target).ToLower()
+if ($ext -notin '.ps1', '.bat', '.cmd', '.exe', '.com') {
+  try {
+    $h = @{ '.hta' = "$env:SystemRoot\System32\mshta.exe"; '.txt' = "$env:SystemRoot\System32\notepad.exe"; '.log' = "$env:SystemRoot\System32\notepad.exe"; '.csv' = "$env:SystemRoot\System32\notepad.exe" }[$ext]
+    if ($h) { $p = Start-Process $h -ArgumentList ('"' + $target + '"') -PassThru } else { $p = Start-Process -FilePath $target -PassThru }
+    "窓を開いた：$target（pid $($p.Id)。画面を持つものなので、窓を見て確かめる）" | Out-File -LiteralPath $out -Encoding utf8
+  } catch { ($_ | Out-String) | Out-File -LiteralPath $out -Encoding utf8; $c = 1 }
+  Set-Content -LiteralPath $code -Value $c -Encoding ascii
+  exit $c
+}
 try {
   & $target @args *>&1 | ForEach-Object { "$_" } | Out-File -LiteralPath $out -Encoding utf8 -Width 400
   $c = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } elseif ($?) { 0 } else { 1 }

@@ -235,7 +235,11 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - 箱の中の設定（包みの台本 wrap.ps1 が毎回入れる。箱の中だけ）：HTTP(S)_PROXY・PowerShell の既定の中継・Internet Settings の中継
 - 記録：`devkit\hands\try\net.log`（通した・止めた）。pc_try の返事に「この回に中継が通したサイト・止めたもの」が出る
 - pc-setup.bat の最後（box-check.ps1）が、箱から直接 example.com・1.1.1.1 につながらないことを毎回確かめる
-- **画面を持つ道具**：pc_try の返事に「箱の中の窓」（題名に [#]）が出る。pc_screenshot・pc_ui・pc_ui_do で見て・押して確かめる
+- **画面を持つ道具**（2026-11-28 に試しの HTA で確かめた）：pc_try の返事に「箱の中の窓」（題名に [#]）が出る。文書（.hta・.html・.xlsx など）は包みの台本が窓を開くだけにする（PowerShell は文書を中継の形で動かせない。.hta は mshta.exe、.txt・.log・.csv は notepad.exe を名指し）
+  - **pc_ui は箱の中の窓の中身が見えない**：外から読めたのは題名の帯と最小化・閉じるだけ（HTML の入力欄・ボタンは出ない）。→ **pc_screenshot で見て、pc_ui_do の click_xy（from_image）で押す**
+  - **打つのは pc_keys の text（キーを打つ）で届いた。paste（クリップボードから貼る）は箱の中に届かなかった**（日本語を打つときは要注意）
+  - 確かめた流れ：入力欄を押す → kaoru と打つ →［作る］を押す → 画面に「できました：kaoru」・箱の中に gui-result.txt（名前：kaoru）。HTA のまちがい（ボタンの言葉の指定が無く「MakeIt は定義されていません」）も画面で見つけて直した
+- 包みの台本は、進み具合の表示を切る（$ProgressPreference。箱の中の見えない窓に書けず Invoke-WebRequest が「コンソール出力バッファー…アクセスが拒否」で失敗した）
 
 **Claude の作業場（pc-57〜）**：
 - `pc_try path=…`（どこのファイルでもよい。鍵などの場所のものは止める）か `script=…`（PowerShell の台本）。devkit\downloads のものは Defender で調べてから。台本の中に devkit\downloads の動くものが書いてあれば、それも調べる
