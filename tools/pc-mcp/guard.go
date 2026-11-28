@@ -296,6 +296,52 @@ func checkScriptWhat(info scriptInfo, src string) (block, needAllow, viewNG, wha
 	return
 }
 
+// boxScriptCheck：箱（ClaudeBox）の中で動かす台本の決まり（2026-11-28 カオルが決めた B）。
+// 箱の中では、消す・書く・レジストリ・ネット（許可したサイトだけ）・別の PowerShell などは本物に届かないので、許可は要らない。
+// ただし、パスワード・鍵・証明書にかかわるもの（資格情報の命令・Protect/Unprotect・鍵などの場所）は、
+// 箱の中からでも本物の中身を読めてしまう場所があるので、本物と同じくカオルの許可が要る。
+// スイッチ・許可・守りの置き場所・箱の設定・箱の中身（C:\Sandbox）は、箱からでも触らない。
+func boxScriptCheck(info scriptInfo, src string) (block, needAllow, what string) {
+	text := strings.ReplaceAll(src, "/", `\`)
+	if isSwitchPlace(text) {
+		return "スイッチ・許可・守り（取り置き）の置き場所は触れません", "", ""
+	}
+	if m := boxConfRe.FindString(text); m != "" {
+		return boxConfWhy + "には触れません（" + m + "）。Claude からは変えない決まり。変えるときはカオルに頼む", "", ""
+	}
+	if boxDataRe.MatchString(text) {
+		return "箱の中身（C:\\Sandbox）は台本から触りません。箱の中のファイルはそのままの場所の名前で読み書きできる（箱が読み替える）。中を見るのは pc_files、本物に入れるのはカオルの TRY の窓だけ", "", ""
+	}
+	if len(info.Errors) > 0 {
+		return "台本の書き方に誤りがあります：" + strings.Join(info.Errors, " / "), "", ""
+	}
+	var allowWhy, whats []string
+	for _, c := range info.Cmds {
+		if why, ok := allowCmds[strings.ToLower(c)]; ok && (why == "資格情報" || why == "証明書") {
+			allowWhy = append(allowWhy, c+"（"+why+"）")
+			whats = append(whats, cmdWhat[why])
+		}
+	}
+	for _, m := range info.Members {
+		if lm := strings.ToLower(m); lm == "protect" || lm == "unprotect" {
+			allowWhy = append(allowWhy, "."+m+"()")
+			whats = append(whats, memberWhat(m))
+		}
+	}
+	if m := sensitivePathRe.FindString(text); m != "" {
+		allowWhy = append(allowWhy, "場所 "+m)
+		whats = append(whats, targetName(m)+"を読む・変える")
+	}
+	if len(allowWhy) > 0 {
+		needAllow = strings.Join(uniq(allowWhy), "、")
+		what = joinWhat(whats)
+		if what == "" {
+			what = "パスワード・鍵にかかわる台本を箱で動かす"
+		}
+	}
+	return
+}
+
 func uniq(xs []string) []string {
 	seen := map[string]bool{}
 	var out []string

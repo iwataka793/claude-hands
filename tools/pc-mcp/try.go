@@ -427,6 +427,22 @@ func (a *Agent) try(ctx context.Context, raw json.RawMessage) Reply {
 		if a.st.Mode() != ModeOperate {
 			return errText("pc_try（箱で試す）は「操作も可」のときだけ")
 		}
+		if strings.TrimSpace(in.Script) != "" {
+			// 台本は pc_powershell の箱と同じ決まり（パスワード・鍵の場所は許可が要る・置き場所や箱の設定は触れない）
+			info, err := a.inspect(ctx, in.Script)
+			if err != nil {
+				return errText("%v", err)
+			}
+			block, needAllow, what := boxScriptCheck(info, in.Script)
+			if block != "" {
+				return errText("%s", block)
+			}
+			if needAllow != "" {
+				if ok, _ := a.st.Allowed(); !ok {
+					return errText("%s（箱の中で動かすときも）", allowMsg(needAllow)).needs(what)
+				}
+			}
+		}
 		return a.tryRun(ctx, in)
 	case "status", "show":
 		return a.tryShow(ctx, in.Lines)

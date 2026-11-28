@@ -51,7 +51,8 @@ type Agent struct {
 	br    *Browser // カオルの Chrome とのつながり（profile=kaoru で最初に使ったときにつなぐ）
 	brc   *Browser // Claude 用の Chrome（既定。最初に使ったときに起動してつなぐ）
 	brMu  sync.Mutex
-	bst   *State // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
+	bst   *State                           // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
+	insp  func(string) (scriptInfo, error) // 試験用：台本を調べる（PowerShell の無いところで）
 }
 
 func isBrowserTool(t string) bool { return strings.HasPrefix(t, "browser_") }

@@ -71,6 +71,15 @@ func TestTry(t *testing.T) {
 	}
 
 	a := &Agent{st: NewState(t.TempDir(), time.Minute), ps: NewRunner()}
+	a.insp = func(src string) (scriptInfo, error) {
+		var info scriptInfo
+		for _, f := range strings.Fields(src) {
+			if strings.Contains(f, "-") && !strings.HasPrefix(f, "-") || strings.EqualFold(f, "cmdkey") {
+				info.Cmds = append(info.Cmds, f)
+			}
+		}
+		return info, nil
+	}
 	_ = os.WriteFile(a.st.path("mode.txt"), []byte("operate"), 0o644)
 	ctx := context.Background()
 	// 試しの記録を作る（run の後半と同じ）
@@ -160,6 +169,46 @@ func TestTry(t *testing.T) {
 	w(key, "x")
 	if r := call(map[string]any{"action": "run", "path": key}); !r.IsError {
 		t.Errorf("鍵の場所のものを動かした")
+	}
+	// 箱の台本も、鍵の場所・資格情報は許可が要る。置き場所は触れない
+	if r := call(map[string]any{"action": "run", "script": `Get-Content C:\Users\x\.ssh\id_ed25519`}); !r.IsError || !strings.Contains(r.Text, "カオルの許可が要ります") {
+		t.Errorf("鍵の場所を許可なしで箱に：%s", r.Text)
+	}
+	if r := call(map[string]any{"action": "run", "script": "cmdkey /list"}); !r.IsError || !strings.Contains(r.Text, "資格情報") {
+		t.Errorf("資格情報を許可なしで箱に：%s", r.Text)
+	}
+	if r := call(map[string]any{"action": "run", "script": `Set-Content C:\ProgramData\pc-agent\mode.txt operate`}); !r.IsError || !strings.Contains(r.Text, "置き場所") {
+		t.Errorf("置き場所を箱から：%s", r.Text)
+	}
+}
+
+// 箱の台本の決まり：本物に届かないもの（消す・ネット・レジストリ・別の PowerShell）は許可なし、鍵・資格情報は許可が要る
+func TestBoxScriptCheck(t *testing.T) {
+	free := []scriptInfo{
+		{Cmds: []string{"Remove-Item"}}, {Cmds: []string{"Invoke-WebRequest"}}, {Cmds: []string{"Set-ItemProperty"}},
+		{Cmds: []string{"powershell.exe"}}, {Cmds: []string{"Invoke-Expression"}}, {Dynamic: 1}, {Members: []string{"Delete"}},
+	}
+	for _, info := range free {
+		if b, need, _ := boxScriptCheck(info, "x"); b != "" || need != "" {
+			t.Errorf("%v：block=%q need=%q", info, b, need)
+		}
+	}
+	for _, c := range []struct {
+		info scriptInfo
+		src  string
+	}{{scriptInfo{Cmds: []string{"cmdkey"}}, "cmdkey /list"}, {scriptInfo{Cmds: []string{"certutil"}}, "certutil"},
+		{scriptInfo{Members: []string{"Unprotect"}}, "x"}, {scriptInfo{}, `Get-Content $env:APPDATA\GitHub CLI\hosts.yml`}} {
+		if _, need, what := boxScriptCheck(c.info, c.src); need == "" || what == "" {
+			t.Errorf("%q：許可が要らなかった", c.src)
+		}
+	}
+	for _, src := range []string{`Get-Content C:\ProgramData\pc-agent\x`, `SbieIni set ClaudeBox X y`, `dir C:\Sandbox\x`} {
+		if b, _, _ := boxScriptCheck(scriptInfo{}, src); b == "" {
+			t.Errorf("%q：止まらなかった", src)
+		}
+	}
+	if b, _, _ := boxScriptCheck(scriptInfo{Errors: []string{"e"}}, "x"); b == "" {
+		t.Errorf("文法の誤りが止まらなかった")
 	}
 }
 

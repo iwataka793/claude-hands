@@ -2,7 +2,8 @@ package main
 
 // 作業の分け方 A〜E（ASK-DESIGN.md の 2）。どの道かは道具が決め、TIMELINE と DONE の報告に残す。
 //   A 読む・調べる：そのまま
-//   B 箱で試せる変更：箱（5 番）ができるまでは C と同じ
+//   B 箱で試せる変更：何かを変える PowerShell の台本は既定で箱（ClaudeBox）の中（2026-11-28 カオルが決めた B）。本物は変わらない。本物に入れるのはカオルの TRY の窓
+//      本物で変えるのは real: true のときだけ（そのときは C）
 //   C 箱で試せない変更（PowerShell で何かを変える）：先に控え（Git）を取る → 本物でやる → 道具が確かめる
 //      （エラーが出たか・Windows のエラーの記録が増えたか）→ エラーが出て決まったフォルダが変わっていたら自動で戻す
 //   D 小さくて戻せる変更（決めた操作：ごみ箱へ・開く・窓の部品を押す・打つ・ページの操作）：そのまま。取り置きと記録
@@ -103,7 +104,10 @@ func laneOf(tool string, args map[string]any) string {
 		}
 		return "D"
 	case "pc_powershell":
-		return "C"
+		if r, _ := args["real"].(bool); r {
+			return "C"
+		}
+		return "B"
 	}
 	return "D"
 }

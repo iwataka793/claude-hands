@@ -154,15 +154,21 @@ check("見るだけではごみ箱に送れない", "pc_trash", {"paths": [str(t
 print("=== 3. 操作も可")
 set_mode("operate")
 f = tmp / "trash-me.txt"
-check("ファイルを作る", "pc_powershell", {"script": f"Set-Content -Path '{f}' -Value 'test'; Test-Path '{f}'"}, False, "True")
-check("完全に消すのは許可が要る", "pc_powershell", {"script": f"Remove-Item '{f}'"}, True, "許可")
-check("資格情報は許可が要る", "pc_powershell", {"script": "cmdkey /list"}, True, "許可")
-check("外への通信は許可が要る", "pc_powershell", {"script": "Invoke-WebRequest https://example.com -UseBasicParsing"}, True, "許可")
+check("ファイルを作る（本物で）", "pc_powershell", {"script": f"Set-Content -Path '{f}' -Value 'test'; Test-Path '{f}'", "real": True}, False, "True")
+nb = tmp / "box-only.txt"
+check("変える台本は既定で箱（箱が無ければ動かさない）", "pc_powershell", {"script": f"Set-Content -Path '{nb}' -Value 'x'"}, True, "Sandboxie")
+if nb.exists():
+    fails.append("箱で動かすはずの台本が本物を変えた")
+check("完全に消すのは許可が要る（本物で）", "pc_powershell", {"script": f"Remove-Item '{f}'", "real": True}, True, "許可")
+check("資格情報は許可が要る", "pc_powershell", {"script": "cmdkey /list", "real": True}, True, "許可")
+check("資格情報は箱でも許可が要る", "pc_powershell", {"script": "cmdkey /list"}, True, "許可")
+check("外への通信は許可が要る（本物で）", "pc_powershell", {"script": "Invoke-WebRequest https://example.com -UseBasicParsing", "real": True}, True, "許可")
+check("鍵の場所は箱でも許可が要る", "pc_try", {"script": r"Get-Content C:\Users\x\.ssh\id_rsa"}, True, "許可")
 check("スイッチの置き場所は触れない", "pc_powershell", {"script": f"Get-Content '{SD / 'mode.txt'}'"}, True, "置き場所")
 check("許可の置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{AD / 'allow.txt'}' x"}, True, "置き場所")
 check("箱（Sandboxie）の設定は触れない", "pc_powershell", {"script": r"& 'C:\Program Files\Sandboxie-Plus\SbieIni.exe' set ClaudeBox BlockNetworkFiles n"}, True, "箱（Sandboxie）")
 check("箱の設定の窓は開けない", "pc_open", {"target": r"C:\Program Files\Sandboxie-Plus\SandMan.exe"}, True, "箱（Sandboxie）")
-check("落としたものを箱の外で動かさない", "pc_powershell", {"script": r"Start-Process 'C:\Users\x\devkit\downloads\setup.exe'"}, True, "pc_try")
+check("落としたものを箱の外で動かさない", "pc_powershell", {"script": r"Start-Process 'C:\Users\x\devkit\downloads\setup.exe'", "real": True}, True, "pc_try")
 check("落としたものを開かない", "pc_open", {"target": r"C:\Users\x\devkit\downloads\setup.exe"}, True, "pc_try")
 check("箱の中身は台本から触らない", "pc_powershell", {"script": r"Copy-Item C:\Sandbox\x\ClaudeBox\a.txt C:\Users\x\a.txt"}, True, "TRY の窓")
 check("箱が無ければ作業場も動かさない", "pc_try", {"script": "Write-Output hi"}, True, "Sandboxie")
@@ -197,7 +203,7 @@ if WIN:
 if WIN:
     print("=== 3b. 作業のまとまり（hands）")
     check("作業を始める", "hands", {"action": "start", "title": "試しの作業"}, False, "作業を始めた")
-    check("Git で記録するファイルを変える", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'keep.txt'}' -Value 'after' -NoNewline; Set-Content -Path '{GT / 'new.txt'}' -Value 'new' -NoNewline; 'done'"}, False)
+    check("Git で記録するファイルを変える", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'keep.txt'}' -Value 'after' -NoNewline; Set-Content -Path '{GT / 'new.txt'}' -Value 'new' -NoNewline; 'done'", "real": True}, False)
     h = tmp / "hands-trash.txt"
     h.write_text("held")
     check("作業の中で消す", "pc_trash", {"paths": [str(h)]}, False, "取り置き 30 日")
@@ -222,13 +228,13 @@ if WIN:
 
 if WIN:
     print("=== 3c. 作業の道（A〜E）")
-    check("C：変える台本には確かめが付く", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ok.txt'}' -Value 'ok' -NoNewline; 'done'"}, False, "C（変更）の確かめ")
-    check("C：エラーが出たら決まったフォルダの変更を自動で戻す", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ng.txt'}' -Value 'ng' -NoNewline; Write-Error 'わざとのエラー'"}, True, "自動で戻した")
+    check("C：変える台本には確かめが付く", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ok.txt'}' -Value 'ok' -NoNewline; 'done'", "real": True}, False, "C（変更）の確かめ")
+    check("C：エラーが出たら決まったフォルダの変更を自動で戻す", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-ng.txt'}' -Value 'ng' -NoNewline; Write-Error 'わざとのエラー'", "real": True}, True, "自動で戻した")
     if (GT / "c-ng.txt").exists():
         fails.append("C：エラーのあと、作ったファイルが残っている")
     if not (GT / "c-ok.txt").exists():
         fails.append("C：エラーの無い変更まで戻した")
-    check("C：黙らせたエラーは数えない", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-quiet.txt'}' -Value 'q' -NoNewline; Get-Item 'C:\\no-such-file' -ErrorAction SilentlyContinue; 'done'"}, False, "黙らせたもの")
+    check("C：黙らせたエラーは数えない", "pc_powershell", {"script": f"Set-Content -Path '{GT / 'c-quiet.txt'}' -Value 'q' -NoNewline; Get-Item 'C:\\no-such-file' -ErrorAction SilentlyContinue; 'done'", "real": True}, False, "黙らせたもの")
     if not (GT / "c-quiet.txt").exists():
         fails.append("C：黙らせたエラーで戻した")
     err, text, _, _ = call("pc_powershell", {"script": "1+2"})
@@ -253,8 +259,8 @@ print("=== 4. 許可（ALLOW）")
 (AD / "allow.txt").write_text("allow\r\n")
 check("状態（許可あり）", "pc_status", {}, False, "あり")
 if WIN:
-    check("許可があれば資格情報の一覧を見られる", "pc_powershell", {"script": "cmdkey /list | Select-Object -First 3"}, False)
-check("許可があれば完全に消せる", "pc_powershell", {"script": f"Set-Content '{tmp / 'b.txt'}' x; Remove-Item '{tmp / 'b.txt'}'; Test-Path '{tmp / 'b.txt'}'"}, False, "False")
+    check("許可があれば資格情報の一覧を見られる", "pc_powershell", {"script": "cmdkey /list | Select-Object -First 3", "real": True}, False)
+check("許可があれば完全に消せる", "pc_powershell", {"script": f"Set-Content '{tmp / 'b.txt'}' x; Remove-Item '{tmp / 'b.txt'}'; Test-Path '{tmp / 'b.txt'}'", "real": True}, False, "False")
 check("許可があってもスイッチの置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{SD / 'mode.txt'}' operate"}, True, "置き場所")
 set_mode("operate")
 check("スイッチを切り替えると許可は取り消し", "pc_status", {}, False, "許可（ALLOW）：なし")
@@ -272,14 +278,14 @@ if WIN:
     look("打ったあとの窓の一覧", "pc_windows", {"all": True})
     look("打ったあとの前の窓の部品（window なし）", "pc_ui", {"max": 8})
     look("Notepad（大文字）で探す", "pc_ui", {"window": "Notepad", "max": 5})
-    look("診断：窓を素で数える", "pc_powershell", {"script": "Add-Type -AssemblyName UIAutomationClient; $r=[System.Windows.Automation.AutomationElement]::RootElement; $c=$r.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition); foreach($w in $c){ '{0} | {1} | {2}' -f $w.Current.Name,$w.Current.ProcessId,$w.Current.ClassName }; Get-Process notepad -ErrorAction SilentlyContinue | ForEach-Object { 'proc {0} {1} [{2}]' -f $_.Id,$_.MainWindowHandle,$_.MainWindowTitle }"})
+    look("診断：窓を素で数える", "pc_powershell", {"script": "Add-Type -AssemblyName UIAutomationClient; $r=[System.Windows.Automation.AutomationElement]::RootElement; $c=$r.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition); foreach($w in $c){ '{0} | {1} | {2}' -f $w.Current.Name,$w.Current.ProcessId,$w.Current.ClassName }; Get-Process notepad -ErrorAction SilentlyContinue | ForEach-Object { 'proc {0} {1} [{2}]' -f $_.Id,$_.MainWindowHandle,$_.MainWindowTitle }", "real": True})
     look("文字を入れる（set_value）", "pc_ui_do", {"window": "Notepad", "target": "Text Editor", "action": "set_value", "value": "set_value で入れた"})
     look("メモ帳の中身（打った文字）", "pc_ui", {"window": "notepad", "max": 3})
     err, text = look("メモ帳の中身（set_value のあと）", "pc_ui", {"window": "notepad", "filter": "入れた"})
     if "set_value で入れた" not in text:
         fails.append("メモ帳に入れた文字が読めない")
     look("メモ帳の窓", "pc_screenshot", {"window": "notepad"})
-    look("メモ帳を閉じる（保存しない）", "pc_powershell", {"script": "Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force; 'closed'"})
+    look("メモ帳を閉じる（保存しない）", "pc_powershell", {"script": "Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force; 'closed'", "real": True})
 
 
 def find_chrome():

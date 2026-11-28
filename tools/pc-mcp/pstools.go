@@ -153,9 +153,13 @@ type psIn struct {
 	Script  string `json:"script"`
 	Seconds int    `json:"seconds"`
 	Max     int    `json:"max_chars"`
+	Real    bool   `json:"real"` // 本物の PC で（何かを変える台本も）。既定は箱の中（2026-11-28 カオルが決めた B）
 }
 
 func (a *Agent) inspect(ctx context.Context, src string) (scriptInfo, error) {
+	if a.insp != nil {
+		return a.insp(src)
+	}
 	out, err := a.ps.Run(ctx, script("astinfo.ps1"), map[string]string{"src": src}, 30*time.Second)
 	if err != nil {
 		return scriptInfo{}, err
@@ -177,6 +181,16 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 		return errText("%v", err)
 	}
 	block, needAllow, viewNG, what := checkScriptWhat(info, in.Script)
+	// 何かを変える台本は、既定で箱（ClaudeBox）の中で動かす。本物を変えるのは real: true のときだけ（守りは今までどおり）
+	if !in.Real && (viewNG != "" || block == tryMsg) {
+		if a.st.Mode() != ModeOperate {
+			if viewNG == "" {
+				viewNG = "落としたものを動かす"
+			}
+			return errText("スイッチが「見るだけ」なので、この台本は使えません（%s）。見るだけで使えるのは Get- / Test- / Measure- / Select- などの読む命令だけ。要るならカオルに PC-OPERATE.bat を押してもらう", viewNG)
+		}
+		return a.psInBox(ctx, in, info, viewNG)
+	}
 	if block != "" {
 		return errText("%s", block)
 	}
@@ -226,6 +240,40 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 	r := okText(out + tail)
 	r.Lane = lane
 	r.IsError = reverted
+	return r
+}
+
+// psInBox：何かを変える台本を箱の中で動かす（道 B）。pc_try の作業場と同じ箱（続けて試せる・offer で TRY の窓へ）
+func (a *Agent) psInBox(ctx context.Context, in psIn, info scriptInfo, why string) Reply {
+	block, needAllow, what := boxScriptCheck(info, in.Script)
+	if block != "" {
+		return errText("%s", block)
+	}
+	if needAllow != "" {
+		if ok, _ := a.st.Allowed(); !ok {
+			return errText("%s（箱の中で動かすときも）", allowMsg(needAllow)).needs(what)
+		}
+	}
+	if in.Max <= 0 {
+		in.Max = 30000
+	}
+	note := ""
+	if in.Seconds > 110 {
+		note = fmt.Sprintf("（待つのは 110 秒まで。%d 秒は箱では待てない。過ぎても箱の中では動いたまま。pc_try action=show で続きを見る）\n", in.Seconds)
+	}
+	tryMu.Lock()
+	r := a.tryRun(ctx, tryArgs{Script: in.Script, Seconds: in.Seconds})
+	tryMu.Unlock()
+	head := "箱（ClaudeBox）の中で動かした（" + why + "があるので。本物の PC は変わらない）。\n" + note
+	if r.IsError {
+		r.Text = head + r.Text + "\n（本物の PC で変える必要がある作業なら real: true。そのときは今までどおりの守り（許可・控え・確かめ）を通る）"
+	} else {
+		r.Text = head + r.Text + "\n本物に入れたいものは pc_try action=offer でカオルの TRY の窓へ。頼まれた作業で本物を変える必要があるときだけ real: true"
+	}
+	if rs := []rune(r.Text); len(rs) > in.Max {
+		r.Text = string(rs[:in.Max]) + fmt.Sprintf("\n（出力が長いので %d 文字で切った。全部は pc_try action=show）", in.Max)
+	}
+	r.Lane = "B"
 	return r
 }
 

@@ -275,6 +275,7 @@ type psIn2 struct {
 	Script   string `json:"script" jsonschema:"PowerShell の台本（Windows PowerShell 5.1）"`
 	Seconds  int    `json:"seconds,omitempty" jsonschema:"時間の上限（既定 60・最大 600）"`
 	MaxChars int    `json:"max_chars,omitempty" jsonschema:"出力の文字数の上限（既定 30000）"`
+	Real     bool   `json:"real,omitempty" jsonschema:"true で、何かを変える台本も本物の PC で動かす（頼まれた作業で本物を変える必要があるときだけ。許可・控え・確かめは今までどおり）。既定 false：変える台本は箱（ClaudeBox）の中で動かす"`
 }
 
 type openIn struct {
@@ -343,12 +344,12 @@ func runMCP() {
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_screenshot", Description: "画面全体か 1 つの窓を撮る（縮めた JPEG）。返事に、画像の座標と画面の座標の換算が付く。見るだけで使える"}, forward[shotIn]("pc_screenshot", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_windows", Description: "開いている窓の一覧（題名・プログラム・pid・位置。いま前の窓に印）。見るだけで使える"}, forward[windowsIn]("pc_windows", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_ui", Description: "窓の中の部品（ボタン・入力欄・文字など）を名前・id・値・位置で一覧にする（Windows の UI オートメーション）。押す前に使う。見るだけで使える"}, forward[uiIn]("pc_ui", 2*time.Minute))
-	mcp.AddTool(s, &mcp.Tool{Name: "pc_powershell", Description: "PowerShell の台本を実行する（開きっぱなしなので速い）。「見るだけ」では Get- などの読む命令だけ。「操作も可」で何でも使えるが、パスワード・セキュリティ・お金・完全に消す（Remove-Item）・外への通信・レジストリなどはカオルの許可が要る（ごみ箱は pc_trash）"}, forward[psIn2]("pc_powershell", 11*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "pc_powershell", Description: "PowerShell の台本を実行する。読むだけの台本（Get- など）は本物の PC でそのまま（開きっぱなしなので速い）。何かを変える台本（書く・消す・入れる・外への通信など）は、既定で箱（ClaudeBox）の中で動かす：本物は変わらず、返事に終わりのコード・画面の文字・増えた／変わったファイルが出る（pc_try の作業場と同じ箱。続けて試せる・本物に入れたいものは pc_try action=offer でカオルの TRY の窓へ）。箱ではパスワード・鍵・証明書にかかわるものだけカオルの許可が要る。real: true で本物の PC を変える（頼まれた作業で本物を変える必要があるときだけ。パスワード・セキュリティ・お金・完全に消す（Remove-Item）・外への通信・レジストリなどはカオルの許可が要る。ごみ箱は pc_trash）。「見るだけ」では読む台本だけ"}, forward[psIn2]("pc_powershell", 11*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_open", Description: "アプリ・ファイル・フォルダ・URL を開く。操作も可のときだけ"}, forward[openIn]("pc_open", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_ui_do", Description: "窓の部品を名前で探して押す・文字を入れる・切り替える・開く（UI オートメーション）。位置で押す（click_xy、pc_screenshot の画像の座標でもよい）もできる。操作も可のときだけ"}, forward[uiDoIn]("pc_ui_do", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_keys", Description: "キーボードで打つ（文字・特別なキー・Enter）。window で先に窓を前に出せる。操作も可のときだけ"}, forward[keysIn]("pc_keys", 90*time.Second))
 	mcp.AddTool(s, &mcp.Tool{Name: "pc_trash", Description: "ファイル・フォルダを消す（完全には消さない）：取り置き（30 日。Claude には取り出せない・消せない。戻すのはカオル）に写して確かめてから、元を消す（ごみ箱は通さない。C を 2 回使わない）。取り置きに入らない大きいものは止まるので、カオルに聞いてから recycle: true。Windows 本体・パスワードなどの場所はカオルの許可が要る。消す前にカオルに確かめる決まり。操作も可のときだけ"}, forward[trashIn]("pc_trash", 6*time.Minute))
-	mcp.AddTool(s, &mcp.Tool{Name: "pc_try", Description: "箱で試す（Claude の作業場）：ClaudeBox（ネットなし・管理者なし・鍵などは見えない）の中で、ファイルか PowerShell の台本を動かす。本物の PC は何も変わらない。返事に、終わりのコード・画面の文字とエラー・増えた／変わった（前 → 後の行）／消えたファイルが出る。だめなら直して、もう一度 run（箱はそのまま続く）。本物に入れたいものができたら action=offer でカオルの TRY の窓に出す（本物に入れるかはカオルが決める。Claude からは入れられない）。試しだけなら action=discard。devkit\\downloads のもの（ネットから来たもの）は Defender で調べてから動かし、すぐ TRY の窓に出す。それらを箱の外で動かすのは止まるので、これを使う。操作も可のときだけ"}, forward[tryIn]("pc_try", 4*time.Minute))
+	mcp.AddTool(s, &mcp.Tool{Name: "pc_try", Description: "箱で試す（Claude の作業場）：ClaudeBox（ネットは許可したサイトだけ・管理者なし・鍵などは見えない）の中で、ファイルか PowerShell の台本を動かす。本物の PC は何も変わらない。返事に、終わりのコード・画面の文字とエラー・増えた／変わった（前 → 後の行）／消えたファイルが出る。だめなら直して、もう一度 run（箱はそのまま続く）。本物に入れたいものができたら action=offer でカオルの TRY の窓に出す（本物に入れるかはカオルが決める。Claude からは入れられない）。試しだけなら action=discard。devkit\\downloads のもの（ネットから来たもの）は Defender で調べてから動かし、すぐ TRY の窓に出す。それらを箱の外で動かすのは止まるので、これを使う。操作も可のときだけ"}, forward[tryIn]("pc_try", 4*time.Minute))
 	mcp.AddTool(s, &mcp.Tool{Name: "hands", Description: "作業のまとまり：PC・ブラウザ・iPhone の操作を 1 本の記録（TIMELINE）に残し、作業ごとに区切る。PC やファイルを変える作業は、始める前に action=start（題名）、終わったら action=done（記録から「何を変えたか」の報告）。action=undo で、その作業で Claude が変えた文字のファイル（決まったフォルダ）と消したもの（取り置き）だけを戻す（あとで変わったものは戻さない）。action=log で最近の記録"}, forward[handsIn]("hands", 10*time.Minute))
 	// ブラウザ（カオルのいつもの Chrome。画面を撮らずに文字と番号で読んで動かす）
 	mcp.AddTool(s, &mcp.Tool{Name: "browser_tabs", Description: "Chrome のタブの一覧（番号・題名・URL）。action=new で URL を新しいタブで開く・select で前に出す・close で Claude が開いたタブを閉じる（一覧は見るだけで使える、ほかは操作も可）。ブラウザの道具は既定で Claude 用の Chrome（profile=claude。道具が起動する・カオルのログインは無い・ログインやお金のページは開かない）を使う。カオルのいつもの Chrome は、カオルに頼まれたときだけ profile=kaoru（初めてつなぐとき Chrome が「許可しますか？」を出す）"}, forward[brTabsIn]("browser_tabs", 2*time.Minute))

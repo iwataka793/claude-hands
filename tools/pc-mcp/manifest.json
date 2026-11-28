@@ -59,7 +59,7 @@
     },
     {
       "name": "pc_powershell",
-      "description": "PowerShell を実行"
+      "description": "PowerShell を実行（変える台本は箱の中で）"
     },
     {
       "name": "pc_open",
@@ -79,7 +79,7 @@
     },
     {
       "name": "pc_try",
-      "description": "落としたものを箱で試す"
+      "description": "箱で試す（Claude の作業場）"
     },
     {
       "name": "browser_tabs",
