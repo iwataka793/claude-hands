@@ -2,6 +2,52 @@
 
 新しいものが上。
 
+## 2026-11-28 朝の区切り（次のセッションへの引き継ぎ）
+
+**次のセッションの Claude へ**：CLAUDE.md の「最初にやること」のとおり、docs/OPERATIONS.md を全部・この LOG.md の上の方（少なくともこの引き継ぎから下の 2026-11-27 夜の区切りまで）・docs/ASK-DESIGN.md を全部・docs/PC.md の「容量の点検」「取り置き」「Claude 用の Chrome」を読んでから始める。前のセッションは最初に md を読み足りず、理解がずれたところがあった（カオル）。
+
+### いまの状態（2026-11-28 09:52）
+
+- 入っている版：常駐役・SWITCH・LIVE/DONE の窓 **pc-51**、拡張機能 PC **pc-51**・iPhone **mcp-25**。入れ直し用（devkit\installers）も同じ版
+- 箱：**Sandboxie-Plus 1.18.6 を入れた**（C:\Program Files\Sandboxie-Plus。カオルが入れた）。HVCI オンのまま動く。試しの箱 ClaudeTry（ネット切り・見せない場所 4 つ・管理者なし）と DefaultBox が設定に残っている。中身は空にした
+- OneDrive：PC に出すフォルダは PC-Backup だけ（ほかはブラウザで見る。OneDrive の中に「OneDrive をクラウドで開く」リンク＝マイファイル）。PC-Backup の写しは「クラウドだけ」（PC に 0.1 MB）。契約は有料・有効・次の期限 2026-12-20・自動更新（カードはカオルが更新した）
+- ストレージ センサー：毎日・ごみ箱 30 日・OneDrive 1 日・ダウンロードは触らない
+- 容量の決まり：**全部作った**（pc_trash はごみ箱を通さない・常駐役の容量の点検・CHECK の窓・OneDrive の契約の知らせ・iPhone のログ 200 MB まで）。PC.md「容量の点検」
+
+### 決めたこと（カオル。今日）
+
+- OneDrive のホームの「最近」は消す・隠す方法が無い → そのまま（リンクの行き先をマイファイルにした）
+- 箱は Sandboxie-Plus に決まり
+- **箱の設定は pc-setup.bat（UAC）で入れ、Sandboxie の EditAdminOnly=y で Claude から変えられないようにする。道具の守りにも SbieIni.exe・SandMan.exe・Sandboxie.ini を「止める」側に足す（Start.exe は箱で動かすのに使うので止めない。設定を変える使い方だけ止める）**（おすすめの方法で、と了承）
+- それまでの間、Claude は Sandboxie の設定に触らない
+- 箱のファイルの扱い：見るだけ（文字として読む）は A・アプリで開くなら箱。Claude が落とすものは devkit\downloads（印が無くてもネットから来たもの扱い・道具で落とすときは印を付ける）
+- 80% の知らせの代わりに OneDrive の契約を見る（使用量は PC の中に無い）
+
+### 見つかった穴（まだふさいでいない）
+
+- **Claude が道具から Sandboxie の設定を書き換えられる**：`& 'C:\Program Files\Sandboxie-Plus\SbieIni.exe' set …` と場所をそのまま書くと、道具の守りの一覧に無いので「操作も可」で許可なしに通る（`& $変数` の形なら「中身が決まっていない呼び出し」で許可が要る）。今は箱を本番で使っていないので実害なし。次の最初にふさぐ
+
+### 次にやること（この順）
+
+1. **5 番の本体の最初**：①hands-protect.ps1（pc-setup.bat が UAC で動かす）に箱の設定を足す：Claude 用の箱（名前は決めてから。ClaudeTry は試し）＝BlockNetworkFiles=y・DropAdminRights=y・ClosedFilePath=InternetAccessDevices（ネットを切る）と見せない場所（%ProgramData%\claude-hands・%ProgramData%\pc-agent・devkit\pc-agent・devkit\iphone-mcp・devkit\hands・devkit\backup・devkit\browser・.ssh・カオルの Chrome と Edge の User Data・OneDrive）、全体に EditAdminOnly=y。②道具の守り（guard.go）に Sandboxie の設定を変える命令を足す。③試しの箱 ClaudeTry を消す。④pc-50 以降と同じく CI → 実機で「Claude が許可ありでも SbieIni で書き換えられない」を確かめる
+2. 5 番の本体：B の道（ネットから来たもの・devkit\downloads のもの → Defender の検査 → 箱で試す）・TRY の窓（［箱の中で開く］［本物に入れる］［捨てる］）・終わったら箱を空にする・箱の上限 5 GB を容量の点検に足す
+3. **カオルに聞くこと**：Claude 用の Chrome をふだんから箱の中で動かすか（遅くなるのは 1〜2 秒。落としたもの・キャッシュが箱にたまり丸ごと捨てられる。CDP の DevToolsActivePort が箱の中の場所にできるので、道具の読み先を合わせる必要がある）
+4. 7 番（iPhone の操作の記録と iCloud の「今すぐバックアップ」。実機で画面が読めるかから）
+5. 8 番（連動。Wi-Fi の go-ios から）
+6. 全体の点検（LOG の「まだ試していないところ」）→ 直し
+- ほか：Claude が画面を撮るとき LIVE を隠す／WDA の LAN への開き／道具の数を 30 台にまとめる／12/1 18:25〜12/2 06:54 の SideStore の Refresh（OPERATIONS.md 3-x の 10）
+
+### つまずき・コツ（今日分かったこと）
+
+- **管理者の権限で動く窓（インストーラーなど）は、Claude の道具からは押せない**（Windows の UIPI）。カオルに押してもらう
+- **道具の守りは、守りの場所の名前を台本に書いただけで止める**（設定ファイルに「見せない場所」として書く場合も）。名前を組み立ててかわすのはしない → そういう設定は pc-setup（UAC）側に置く
+- リモートの道具は 1 回 140 秒を超えると返事を待ちきれずに切れる（PC では最後まで動く）。長く待つのは 120 秒までに分ける
+- 手元で pc-mcp を作るとき：/tmp/pcb に写し、go.mod の `go 1.26.0` を `go 1.25` にして /usr/local/go1.25.1/bin の go で `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=-mod=mod`。Wails の窓（switch-window・hands-window）は手元で作れないので gofmt で文法だけ見て、見た目は /home/claude/preview/shot.py（Playwright）で撮る
+- CI の Windows の試験で、試験用の Chrome が 20 秒で立ち上がらず落ちたことがある → 60 秒まで待つようにした（pc-50）。CI の「もう一度回す」はこのセッションの権限では使えない（直して push する）
+- pc-setup.bat を zip のフォルダから動かすと、そこから起動したものがフォルダを握る → LIVE は /D で devkit\hands から起動するように直した（pc-51）
+- OneDrive の設定の窓は `OneDrive.exe /settings` では出ない。タスクバーの OneDrive → 歯車 →［設定］
+- Microsoft アカウントの画面は本人確認にかかわるページとして ALLOW が要る。サインインのページでは、離れる操作も守りで止まる（タブはカオルが閉じる）。プロフィールの「電話番号：なし」はサインイン ID の話で、本人確認の電話（SMS）は別（取り違えた）
+
 ## 2026-11-28 箱（Sandboxie-Plus 1.18.6）をカオルの PC で確かめた
 
 - 入れたのはカオル（インストーラーは管理者の権限で動くので、Claude の道具の操作は Windows に届かない。UIPI）。追加のタスクは Templates.ini の更新だけオン・ImDisk ドライバーはオフ
