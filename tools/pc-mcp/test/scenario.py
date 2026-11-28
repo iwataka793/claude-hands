@@ -394,13 +394,13 @@ if WIN:
     # 控えが取れなければ本物では変えない（記録するフォルダを空にして試す）
     set_mode("operate")
     gf = HU / "git-folders.txt"
-    keep_gf = gf.read_text()
-    gf.write_text("# なし\n")
+    keep_gf = gf.read_text(encoding="utf-8")
+    gf.write_text("# none\n", encoding="utf-8")
     nf = tmp / "no-snapshot.txt"
     check("控えが取れなければ本物では変えない", "pc_powershell", {"script": f"Set-Content -Path '{nf}' -Value 'x'", "real": True}, True, "控え")
     if nf.exists():
         fails.append("控えが取れないのに本物を変えた")
-    gf.write_text(keep_gf)
+    gf.write_text(keep_gf, encoding="utf-8")
 
 print("=== 6. オフにすると常駐役が終わる")
 set_mode("off")

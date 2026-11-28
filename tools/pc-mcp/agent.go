@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -103,7 +104,8 @@ func runAgent() {
 	a.st.Audit("（起動）", "版 "+version, "ok", 0)
 
 	srv := &http.Server{Handler: http.HandlerFunc(a.handle), ReadHeaderTimeout: 10 * time.Second}
-	go boxProxy() // 箱のネットの中継（許可したサイトだけ。boxnet.go）
+	shutDone := make(chan struct{}) // 終わるとき：動いている道具が終わったら閉じる
+	go boxProxy()                   // 箱のネットの中継（許可したサイトだけ。boxnet.go）
 	// 容量の決まり：動き出して 1 分後と、その後 1 時間ごとに、前の点検から 20 時間たっていれば点検する
 	go func() {
 		time.Sleep(time.Minute)
@@ -133,14 +135,19 @@ func runAgent() {
 			}
 			if !pcOn && !brOn {
 				a.st.Audit("（終了）", "スイッチがオフ", "ok", 0)
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				// 動いている道具の終わりを待ってから終わる（STOP で切った台本の後の確かめ・控えに戻す・取り置きへ送る、を途中で捨てない）。
+				// 切れる道具はすぐ終わるので、長く待つのは取り置きへ送るなどの短い処理だけ
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 				_ = srv.Shutdown(ctx)
 				cancel()
+				close(shutDone)
 				return
 			}
 		}
 	}()
-	_ = srv.Serve(ln)
+	if err := srv.Serve(ln); errors.Is(err, http.ErrServerClosed) {
+		<-shutDone // Serve は Shutdown を始めた時点で返るので、動いている道具の終わりを待つ
+	}
 	a.ps.Close()
 	for _, b := range a.browsers() {
 		b.Quit()
