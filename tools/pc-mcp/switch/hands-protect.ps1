@@ -70,9 +70,10 @@ try {
       DropAdminRights = 'y'     # 箱の中は管理者の権限なし
     }
     $tpl = @('AutoRecoverIgnore', 'LingerPrograms', 'BlockPorts', 'qWave', 'FileCopy', 'SkipHook', 'OpenBluetooth')
-    # 見せない場所：ネット（InternetAccessDevices）・守りの場所・道具の置き場所・鍵・カオルのブラウザのデータ・OneDrive
+    # 見せない場所：守りの場所・道具の置き場所・鍵・カオルのブラウザのデータ・OneDrive
+    # ネット（次の段 1）：直接は全部止め、127.0.0.1 の中継（常駐役・許可したサイトだけ）にだけつなげる。Windows の中核（WFP）で強制する
+    $net = @('*,Block', '*,Allow;Address=127.0.0.1;Port=60230')
     $closed = @(
-      'InternetAccessDevices',
       "$H", (Join-Path $env:ProgramData 'pc-agent'),
       "$uh\devkit\pc-agent", "$uh\devkit\iphone-mcp", "$uh\devkit\hands", "$uh\devkit\backup", "$uh\devkit\browser", "$uh\devkit\go-ios",
       "$uh\.ssh", "$la\Google\Chrome\User Data", "$la\Microsoft\Edge\User Data", "$uh\OneDrive")
@@ -83,6 +84,8 @@ try {
       foreach ($k in $set.Keys) { if (((Q $box $k) -join '') -ne $set[$k]) { $d += $k } }
       if (((Q $box Template) -join '|') -ne ($tpl -join '|')) { $d += 'Template' }
       if (((Q $box ClosedFilePath) -join '|') -ne ($closed -join '|')) { $d += 'ClosedFilePath' }
+      if (((Q $box NetworkAccess) -join '|') -ne ($net -join '|')) { $d += 'NetworkAccess' }
+      if (((Q GlobalSettings NetworkEnableWFP) -join '') -ne 'y') { $d += 'NetworkEnableWFP' }
       if ((Q ClaudeTry Enabled).Count) { $d += 'ClaudeTry が残っている' }
       $d
     }
@@ -96,6 +99,8 @@ try {
       foreach ($k in $set.Keys) { W set, $box, $k, $set[$k] }
       foreach ($t in $tpl) { W append, $box, Template, $t }
       foreach ($c in $closed) { W append, $box, ClosedFilePath, $c }
+      foreach ($r in $net) { W append, $box, NetworkAccess, $r }
+      W set, GlobalSettings, NetworkEnableWFP, y
       W set, GlobalSettings, EditAdminOnly, y
     }
     $script:pw = $null
@@ -114,7 +119,23 @@ try {
         $script:pw = $null
         $diff2 = @(BoxDiff)
       }
-      if ($diff2.Count) { "NG 箱の設定：$($diff2 -join '、')（パスワードが違うかもしれない）" } else { "OK 箱：$box（ネットなし・見せない場所 $($closed.Count - 1) か所・管理者なし）を書いた" }
+      if ($diff2.Count) { "NG 箱の設定：$($diff2 -join '、')（パスワードが違うかもしれない）" } else { "OK 箱：$box（ネットは中継だけ・見せない場所 $($closed.Count) か所・管理者なし）を書いた" }
+    }
+    # 箱から通してよいサイトの一覧（無いときだけ作る。変えるのはカオル：管理者でメモ帳を開いて直す。Claude は読むだけ）
+    $allow = "$H\net-allow.txt"
+    if (-not (Test-Path -LiteralPath $allow)) {
+      @(
+        '# claude-hands：箱（ClaudeBox）から中継を通して行けるサイト（HTTPS だけ）。1 行 1 つ。github.com と書けばその下の名前も通る',
+        '# 変えるのはカオルだけ（管理者で開いて直す）。Claude は読むだけ',
+        'github.com', 'githubusercontent.com',
+        'pypi.org', 'pythonhosted.org',
+        'npmjs.org',
+        'proxy.golang.org', 'sum.golang.org',
+        'powershellgallery.com'
+      ) | Set-Content -LiteralPath $allow -Encoding UTF8
+      "OK 箱から通すサイトの一覧を作った：$allow"
+    } else {
+      "OK 箱から通すサイトの一覧：$allow（そのまま）"
     }
   } else {
     "OK 箱：Sandboxie-Plus が入っていないので飛ばした"

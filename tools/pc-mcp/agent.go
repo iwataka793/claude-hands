@@ -99,6 +99,7 @@ func runAgent() {
 	a.st.Audit("（起動）", "版 "+version, "ok", 0)
 
 	srv := &http.Server{Handler: http.HandlerFunc(a.handle), ReadHeaderTimeout: 10 * time.Second}
+	go boxProxy() // 箱のネットの中継（許可したサイトだけ。boxnet.go）
 	// 容量の決まり：動き出して 1 分後と、その後 1 時間ごとに、前の点検から 20 時間たっていれば点検する
 	go func() {
 		time.Sleep(time.Minute)

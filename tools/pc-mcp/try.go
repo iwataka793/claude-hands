@@ -363,6 +363,16 @@ func boxWorkDir() string { return filepath.Join(homeDir(), "devkit", "boxwork") 
 
 // 包みの台本：対象を動かし、画面の文字とエラーを UTF-8 で out に、終わりのコードを code に書く（2026-11-28 に記録で確かめた形）
 const boxWrap = `param([string]$target, [string]$out, [string]$code)
+# ネットは中継（127.0.0.1:60230・許可したサイトだけ）を通す。箱の中の設定なので本物は変わらない
+$px = 'http://127.0.0.1:60230'
+foreach ($n in 'HTTP_PROXY','HTTPS_PROXY','http_proxy','https_proxy') { Set-Item -Path "env:$n" -Value $px }
+[System.Net.WebRequest]::DefaultWebProxy = New-Object System.Net.WebProxy($px, $true)
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+try {
+  $is = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+  Set-ItemProperty -Path $is -Name ProxyEnable -Value 1 -Type DWord -ErrorAction Stop
+  Set-ItemProperty -Path $is -Name ProxyServer -Value '127.0.0.1:60230' -ErrorAction Stop
+} catch {}
 $c = 0
 try {
   & $target @args *>&1 | ForEach-Object { "$_" } | Out-File -LiteralPath $out -Encoding utf8 -Width 400
@@ -569,12 +579,31 @@ func (a *Agent) tryRun(ctx context.Context, in tryArgs) Reply {
 		tail = in.Lines
 	}
 	msg := tryReport(s) + "\n" + runOutput(run, tail)
+	if w := a.boxWindows(ctx); len(w) > 0 {
+		msg += "\n箱の中の窓（いま開いている。pc_screenshot・pc_ui・pc_ui_do で見て・押して確かめられる）：\n  " + strings.Join(w, "\n  ")
+	}
 	if offer {
 		msg += "\nTRY の窓（右下）に出しました。カオルが［本物に入れる］か［捨てる］を押します。返事は pc_try action=show。待つ間はほかの作業を進めてよい"
 	} else {
 		msg += "\n（まだカオルには見せていない。直して続けて試すなら pc_try をもう一度・本物に入れたいものがあれば action=offer・試しだけなら action=discard）"
 	}
 	return okText(msg)
+}
+
+// boxWindows：箱の中で開いている窓（題名に [#] が付く）
+func (a *Agent) boxWindows(ctx context.Context) []string {
+	time.Sleep(1500 * time.Millisecond) // 窓が出るのを少し待つ
+	out, err := a.ps.Run(ctx, uiScript("windows.ps1"), map[string]any{}, 30*time.Second)
+	if err != nil {
+		return nil
+	}
+	var w []string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, "[#]") {
+			w = append(w, strings.TrimSpace(l))
+		}
+	}
+	return w
 }
 
 func (s *tryState) label() string {
@@ -594,6 +623,14 @@ func runOutput(r tryRun, tail int) string {
 		l = append(l, fmt.Sprintf("%d 回目（%s）：終わった（終わりのコード 0＝成功）", r.N, r.What))
 	case r.Exit != nil:
 		l = append(l, fmt.Sprintf("%d 回目（%s）：終わった（終わりのコード %d＝失敗の合図）", r.N, r.What, *r.Exit))
+	}
+	if al, bl := netSince(r.At); len(al)+len(bl) > 0 {
+		if len(al) > 0 {
+			l = append(l, "この回に中継が通したサイト："+strings.Join(al, "・"))
+		}
+		if len(bl) > 0 {
+			l = append(l, "この回に中継が止めたもの："+strings.Join(bl, "・")+"（要るならカオルに一覧へ足してもらう）")
+		}
 	}
 	b, err := os.ReadFile(realToBox(boxRoot(), r.Out))
 	if err != nil {
@@ -740,7 +777,7 @@ func tryReport(s *tryState) string {
 		fmt.Sprintf("箱で試した：%s（試しの番号 %s・%d 回）", s.Path, s.ID, max(len(s.Runs), 1)),
 		"Defender：" + s.Defender,
 		fmt.Sprintf("箱の中で（はじめから合わせて）：増えた %d・変わった %d・消えた %d・管理者の場所 %d（入れない）", n["new"], n["changed"], n["deleted"], n["admin"]),
-		"ネット：切ってある（箱の中から外へはつながらない）",
+		"ネット：許可したサイトだけ（中継を通す・一覧はカオルが決める。ほかは箱から直接つながらない）",
 	}
 	if s.Registry {
 		l = append(l, "レジストリの変更あり（箱の中だけ。本物には入れない）")

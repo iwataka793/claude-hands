@@ -216,7 +216,7 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 ## 箱（Sandboxie-Plus。2026-11-28 から。ASK-DESIGN.md の 2 の「箱」）
 
 - Sandboxie-Plus 1.18.6（`C:\Program Files\Sandboxie-Plus`）。設定は `C:\Windows\Sandboxie.ini`（カオルの普通の権限では読むだけ。書くのは Sandboxie のサービス SbieSvc だけ）。箱の中身は `C:\Sandbox\<ユーザー>\<箱>\`
-- Claude 用の箱は **ClaudeBox**（pc-setup.bat が毎回作り直す。中身のファイルは残る）：ネットを切る（ClosedFilePath=InternetAccessDevices）・管理者なし（DropAdminRights）・ネットワークのファイル共有なし（BlockNetworkFiles）・見せない場所＝守りの場所（%ProgramData%\claude-hands・pc-agent）・devkit\pc-agent・iphone-mcp・hands・backup・browser・go-ios・.ssh・カオルの Chrome と Edge の User Data・OneDrive。「すぐ取り出す（RecoverFolder）」は入れない（本物に入れるのは TRY の窓）
+- Claude 用の箱は **ClaudeBox**（pc-setup.bat が毎回作り直す。中身のファイルは残る）：ネットは中継だけ（pc-59〜。下の「箱のネット」。前は ClosedFilePath=InternetAccessDevices で全部切っていた）・管理者なし（DropAdminRights）・ネットワークのファイル共有なし（BlockNetworkFiles）・見せない場所＝守りの場所（%ProgramData%\claude-hands・pc-agent）・devkit\pc-agent・iphone-mcp・hands・backup・browser・go-ios・.ssh・カオルの Chrome と Edge の User Data・OneDrive。「すぐ取り出す（RecoverFolder）」は入れない（本物に入れるのは TRY の窓）
 - **設定のパスワード（EditPassword。2026-11-28 カオルが入れた）**：設定を書けるのは Sandboxie のサービスだけ（Sandboxie.ini はカオルの普通の権限では読むだけ）。サービスは、パスワードが無い頼みを管理者でも断る（Sandboxie のソースの SbieIniServer::IsCallerAuthorized）。パスワードは iCloud パスワードの「Sandboxie 設定（PC）」にだけあり、Claude は知らない
   - **EditAdminOnly=y だけでは効かなかった**：カオルのアカウントは管理者のグループに入っていて、Sandboxie は UAC の「はい」の前（制限つきの権限）でも管理者として扱う（TokenIsAdmin が TokenElevationTypeLimited を管理者とみなす）。pc-52 の box-check が「書けてしまった」で見つけた。EditAdminOnly=y は入れたまま（害は無い）
   - SbieIni は断られても何も言わずに 0 を返す。書いたら必ず読み直して確かめる。UserSettings_（SandMan の見た目の設定）はパスワードなしで書ける
@@ -227,6 +227,15 @@ Claude が Windows の PC を、画面を撮って押す（computer use）ので
 - Claude 用の Chrome は箱に入れない（2026-11-28 カオル。今の別の Chrome のまま）
 
 ### 箱で試す（B の道・TRY の窓。pc-55〜。2026-11-28 カオルの PC で確かめた）
+
+**箱のネット：許可したサイトだけ（次の段 1。pc-59〜）**：
+- 箱の設定（pc-setup.bat が入れる・設定のパスワードが要る）：`NetworkAccess=*,Block` と `NetworkAccess=*,Allow;Address=127.0.0.1;Port=60230`、全体に `NetworkEnableWFP=y`（Windows の中核 WFP で強制。Sandboxie のソースで確かめた：有料の証明書は要らない・設定を読み直せば効く）。前の `ClosedFilePath=InternetAccessDevices`（ネットを全部切る）はやめた（それだと 127.0.0.1 の中継にもつながらないため）
+- 中継（常駐役の中。boxnet.go）：127.0.0.1:60230。HTTPS（CONNECT・443 番）で、一覧のサイト（とその下の名前）だけ通す。IP の数字では通さない。常駐役が動いている間だけ（スイッチがオフなら箱のネットも無い）。箱から常駐役の口（60210）など、ほかの 127.0.0.1 にはつながらない
+- 一覧：`%ProgramData%\claude-hands\net-allow.txt`（pc-setup.bat が無いときだけ作る。カオルの権限では読むだけ＝Claude は足せない。足すときはカオルが管理者のメモ帳で直す）。最初の中身：github.com・githubusercontent.com・pypi.org・pythonhosted.org・npmjs.org・proxy.golang.org・sum.golang.org・powershellgallery.com（2026-11-28 カオルが了承）。一覧が無い・読めないときは何も通さない
+- 箱の中の設定（包みの台本 wrap.ps1 が毎回入れる。箱の中だけ）：HTTP(S)_PROXY・PowerShell の既定の中継・Internet Settings の中継
+- 記録：`devkit\hands\try\net.log`（通した・止めた）。pc_try の返事に「この回に中継が通したサイト・止めたもの」が出る
+- pc-setup.bat の最後（box-check.ps1）が、箱から直接 example.com・1.1.1.1 につながらないことを毎回確かめる
+- **画面を持つ道具**：pc_try の返事に「箱の中の窓」（題名に [#]）が出る。pc_screenshot・pc_ui・pc_ui_do で見て・押して確かめる
 
 **Claude の作業場（pc-57〜）**：
 - `pc_try path=…`（どこのファイルでもよい。鍵などの場所のものは止める）か `script=…`（PowerShell の台本）。devkit\downloads のものは Defender で調べてから。台本の中に devkit\downloads の動くものが書いてあれば、それも調べる
