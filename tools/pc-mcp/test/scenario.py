@@ -367,6 +367,41 @@ else:
     cp.kill()
     srv.shutdown()
 
+if WIN:
+    print("=== 5b. STOP（スイッチをオフ）で、動いている台本も止まる")
+    set_mode("operate")
+    box = {}
+    def long_run():
+        t0 = time.time()
+        box["r"] = call("pc_powershell", {"script": "Start-Sleep -Seconds 40; 'done'", "real": True, "seconds": 120})
+        box["dt"] = time.time() - t0
+    th = threading.Thread(target=long_run)
+    th.start()
+    time.sleep(4)
+    set_mode("off")
+    th.join(60)
+    err, text, _, _ = box.get("r", (False, "（返事なし）", False, 0))
+    print(f"    {box.get('dt', -1):.1f} 秒・エラー={err}：" + text[:300].replace("\n", "\n    "))
+    if not err or "STOP" not in text or box.get("dt", 99) > 25:
+        fails.append("STOP で動いている台本が止まらない")
+    if "C（変更）の確かめ" not in text:
+        fails.append("STOP で止めたあとの確かめ（控えに戻す）が切れた")
+    for _ in range(20):  # 常駐役が終わるのを待ってから起こし直す（ブラウザがオンなら終わらない）
+        if not (SD / "token.txt").exists():
+            break
+        time.sleep(0.5)
+    start_agent()
+    # 控えが取れなければ本物では変えない（記録するフォルダを空にして試す）
+    set_mode("operate")
+    gf = HU / "git-folders.txt"
+    keep_gf = gf.read_text()
+    gf.write_text("# なし\n")
+    nf = tmp / "no-snapshot.txt"
+    check("控えが取れなければ本物では変えない", "pc_powershell", {"script": f"Set-Content -Path '{nf}' -Value 'x'", "real": True}, True, "控え")
+    if nf.exists():
+        fails.append("控えが取れないのに本物を変えた")
+    gf.write_text(keep_gf)
+
 print("=== 6. オフにすると常駐役が終わる")
 set_mode("off")
 time.sleep(4)

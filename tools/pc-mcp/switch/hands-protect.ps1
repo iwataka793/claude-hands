@@ -70,13 +70,11 @@ try {
       DropAdminRights = 'y'     # 箱の中は管理者の権限なし
     }
     $tpl = @('AutoRecoverIgnore', 'LingerPrograms', 'BlockPorts', 'qWave', 'FileCopy', 'SkipHook', 'OpenBluetooth')
-    # 見せない場所：守りの場所・道具の置き場所・鍵・カオルのブラウザのデータ・OneDrive
+    # 見せない場所：守りの場所・道具の置き場所・鍵・資格情報・開発のトークン・ブラウザのデータ・OneDrive（box-closed.ps1）
     # ネット（次の段 1）：直接は全部止め、127.0.0.1 の中継（常駐役・許可したサイトだけ）にだけつなげる。Windows の中核（WFP）で強制する
     $net = @('*,Block', '*,Allow;Address=127.0.0.1;Port=60230')
-    $closed = @(
-      "$H", (Join-Path $env:ProgramData 'pc-agent'),
-      "$uh\devkit\pc-agent", "$uh\devkit\iphone-mcp", "$uh\devkit\hands", "$uh\devkit\backup", "$uh\devkit\browser", "$uh\devkit\go-ios",
-      "$uh\.ssh", "$la\Google\Chrome\User Data", "$la\Microsoft\Edge\User Data", "$uh\OneDrive")
+    . (Join-Path $PSScriptRoot 'box-closed.ps1')   # 見せない場所の一覧（box-check.ps1 と同じ）
+    $closed = @(ClaudeBoxClosed $uh $H | ForEach-Object { $_[1] })
     function Q($sec, $key) { @(& $ini query $sec $key) }
     function BoxDiff {
       $d = @()

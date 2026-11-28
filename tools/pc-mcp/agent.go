@@ -45,14 +45,17 @@ func (r Reply) withImage(b []byte, m string) Reply {
 }
 
 type Agent struct {
-	st    *State
-	ps    *Runner
-	token string
-	br    *Browser // カオルの Chrome とのつながり（profile=kaoru で最初に使ったときにつなぐ）
-	brc   *Browser // Claude 用の Chrome（既定。最初に使ったときに起動してつなぐ）
-	brMu  sync.Mutex
-	bst   *State                           // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
-	insp  func(string) (scriptInfo, error) // 試験用：台本を調べる（PowerShell の無いところで）
+	st     *State
+	ps     *Runner
+	token  string
+	br     *Browser // カオルの Chrome とのつながり（profile=kaoru で最初に使ったときにつなぐ）
+	brc    *Browser // Claude 用の Chrome（既定。最初に使ったときに起動してつなぐ）
+	brMu   sync.Mutex
+	bst    *State                                                        // ブラウザのスイッチ（PC とは別。%USERPROFILE%\devkit\browser）
+	insp   func(string) (scriptInfo, error)                              // 試験用：台本を調べる（PowerShell の無いところで）
+	holdFn func(context.Context, []string) (map[string]heldItem, string) // 試験用：取り置きへ送る
+	pcStop stopScope                                                     // PC のスイッチがオフになったら、動いている PC の道具を切る（stop.go）
+	brStop stopScope                                                     // ブラウザのスイッチで同じ
 }
 
 func isBrowserTool(t string) bool { return strings.HasPrefix(t, "browser_") }
@@ -119,6 +122,7 @@ func runAgent() {
 		for range time.Tick(2 * time.Second) {
 			pcOn := !a.st.IdleExpired() && a.st.Mode() != ModeOff
 			brOn := !a.bst.IdleExpired() && a.bst.Mode() != ModeOff
+			a.watchStop(pcOn, brOn) // STOP：動いている台本・箱の中のものも止める
 			if !brOn {
 				for _, b := range a.browsers() {
 					if b.Connected() {
@@ -159,7 +163,9 @@ func (a *Agent) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	start := time.Now()
-	rep := a.call(r.Context(), req.Tool, req.Args)
+	ctx, cancel := a.callCtx(r.Context(), req.Tool, req.Args)
+	rep := a.call(ctx, req.Tool, req.Args)
+	cancel()
 	res := "ok"
 	if rep.IsError {
 		first := strings.SplitN(rep.Text, "\n", 2)[0]

@@ -7,6 +7,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -218,16 +219,28 @@ func (a *Agent) powershell(ctx context.Context, raw json.RawMessage) Reply {
 	}
 	var c *cRun
 	if lane == "C" {
-		c = a.beginC(ctx, in.Script)
+		var err error
+		if c, err = a.beginC(ctx, in.Script); err != nil {
+			// 控えが取れないと、エラーのときに戻せない。戻せない形では本物を変えない（2026-11-28）
+			r := errText("控え（Git の記録）が取れなかったので、本物では何も変えずに止めました：%v\n（Git の記録の場所か Git の具合を直してから。急ぐならカオルに聞く）", err)
+			r.Lane = lane
+			return r
+		}
 	}
 	out, err := a.ps.Run(ctx, in.Script, nil, time.Duration(in.Seconds)*time.Second)
+	if err != nil && stoppedBySwitch(ctx) {
+		err = errors.New(stopMsg + "（台本の中で起動した別のプログラムは動いたままのことがある）")
+	}
 	if r := []rune(out); len(r) > in.Max {
 		out = string(r[:in.Max]) + fmt.Sprintf("\n（出力が長いので %d 文字で切った。全部で %d 文字）", in.Max, len(r))
 	}
 	var tail string
 	reverted := false
 	if c != nil {
-		tail, reverted = a.endC(ctx, c, out, err)
+		// 後の確かめ（エラーなら決まったフォルダを控えに戻す）は、STOP で止めたあとも切らずにやる
+		cc, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		tail, reverted = a.endC(cc, c, out, err)
+		cancel()
 	}
 	if err != nil {
 		r := errText("%v\n%s%s", err, out, tail)
@@ -284,13 +297,19 @@ type cRun struct {
 	start time.Time
 }
 
-func (a *Agent) beginC(ctx context.Context, script string) *cRun {
+// beginC：控え（Git の記録）を取る。取れなければ err（本物は変えない）
+func (a *Agent) beginC(ctx context.Context, script string) (*cRun, error) {
 	c := &cRun{start: time.Now()}
-	if s, err := gitSnapshot(ctx, "C の前："+oneLine(script, 80)); err == nil {
-		c.snap = s
+	s, err := gitSnapshot(ctx, "C の前："+oneLine(script, 80))
+	if err != nil {
+		return nil, err
 	}
+	if s == "" {
+		return nil, errors.New("記録の番号が返らなかった")
+	}
+	c.snap = s
 	_, _ = a.ps.Run(ctx, "$Error.Clear()", nil, 10*time.Second)
-	return c
+	return c, nil
 }
 
 // endC：確かめる（エラーが出たか・Windows のエラーの記録が増えたか・決まったフォルダの変更）。エラーが出て決まったフォルダが変わっていたら戻す。
@@ -335,6 +354,8 @@ func (a *Agent) endC(ctx context.Context, c *cRun, out string, runErr error) (st
 		default:
 			ls = append(ls, fmt.Sprintf("決まったフォルダの変更：%d 件（DONE の［まとめて戻す］で戻せる）", len(cs)))
 		}
+	} else {
+		ls = append(ls, "後の記録が取れなかった（"+oneLine(err.Error(), 80)+"）。前の控え "+shortID(c.snap)+" は残っている（戻すのは hands action=undo か Git の記録から）")
 	}
 	return "\n—— C（変更）の確かめ ——\n" + strings.Join(ls, "\n"), reverted
 }
@@ -515,4 +536,12 @@ func (a *Agent) windowLine(ctx context.Context, spec string) string {
 		}
 	}
 	return ""
+}
+
+// shortID：Git の記録の番号の先頭 8 文字
+func shortID(s string) string {
+	if len(s) > 8 {
+		return s[:8]
+	}
+	return s
 }

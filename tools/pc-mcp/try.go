@@ -59,6 +59,7 @@ type tryItem struct {
 	Kind  string   `json:"kind"` // new・changed・deleted・admin（管理者の場所。入れない）
 	Real  string   `json:"real"`
 	Size  int64    `json:"size"`
+	Hash  string   `json:"hash,omitempty"`  // 箱の中のファイルの SHA-256（窓に出した中身。入れるときに照らす）
 	Lines []string `json:"lines,omitempty"` // 文字のファイル：変わった行（- 前・+ 後）・増えたものの先頭
 }
 
@@ -232,7 +233,7 @@ func scanBox() (items []tryItem, noise int, registry bool, err error) {
 		if adminPlace(real) {
 			kind = "admin"
 		}
-		items = append(items, tryItem{Kind: kind, Real: real, Size: fi.Size()})
+		items = append(items, tryItem{Kind: kind, Real: real, Size: fi.Size(), Hash: fileHash(p)})
 		return nil
 	})
 	sort.Slice(items, func(i, j int) bool { return items[i].Real < items[j].Real })
@@ -264,12 +265,17 @@ func sbie(ctx context.Context, d time.Duration, args ...string) error {
 	return err
 }
 
+// sbieStart：Sandboxie の Start.exe（試験では HANDS_SBIE_START）
+func sbieStart() string {
+	if v := os.Getenv("HANDS_SBIE_START"); v != "" {
+		return v
+	}
+	return filepath.Join(sbieDir(), "Start.exe")
+}
+
 // sbieWait：Start.exe を動かす。待ち時間を過ぎたら Start.exe だけ止めて timedOut（箱の中のものは動いたまま）
 func sbieWait(ctx context.Context, d time.Duration, args ...string) (timedOut bool, err error) {
-	exe := filepath.Join(sbieDir(), "Start.exe")
-	if v := os.Getenv("HANDS_SBIE_START"); v != "" {
-		exe = v
-	}
+	exe := sbieStart()
 	c, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 	cmd := exec.CommandContext(c, exe, args...)
@@ -401,7 +407,8 @@ type tryRun struct {
 	At      time.Time `json:"at"`
 	Exit    *int      `json:"exit,omitempty"`
 	Running bool      `json:"running,omitempty"`
-	Out     string    `json:"out"` // 画面の文字のファイル（本物の場所。中身は箱の中）
+	Stopped bool      `json:"stopped,omitempty"` // STOP（スイッチがオフ）で途中で止めた
+	Out     string    `json:"out"`               // 画面の文字のファイル（本物の場所。中身は箱の中）
 }
 
 type tryArgs struct {
@@ -480,7 +487,7 @@ func (a *Agent) tryRun(ctx context.Context, in tryArgs) Reply {
 	if script != "" && strings.TrimSpace(in.Path) != "" {
 		return errText("path と script はどちらか一方だけ")
 	}
-	if !fileExists(filepath.Join(sbieDir(), "Start.exe")) && os.Getenv("HANDS_SBIE_START") == "" {
+	if !fileExists(sbieStart()) {
 		return errText("箱（Sandboxie-Plus）が入っていません")
 	}
 	var target string
@@ -572,6 +579,13 @@ func (a *Agent) tryRun(ctx context.Context, in tryArgs) Reply {
 	timedOut, err := sbieWait(ctx, time.Duration(secs)*time.Second, args...)
 	var ee *exec.ExitError
 	switch {
+	case stoppedBySwitch(ctx):
+		// STOP：箱の中のものを止めて、ここまでの結果（箱の中身・画面の文字）は残す
+		run.Stopped = true
+		bg, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		_ = sbie(bg, 30*time.Second, "/box:"+tryBox, "/terminate")
+		cancel()
+		ctx = context.Background()
 	case timedOut:
 		run.Running = true
 	case err == nil:
@@ -646,6 +660,8 @@ func (s *tryState) label() string {
 func runOutput(r tryRun, tail int) string {
 	var l []string
 	switch {
+	case r.Stopped:
+		l = append(l, fmt.Sprintf("%d 回目（%s）：%s（箱の中のものも止めた。箱の中身はそのまま）", r.N, r.What, stopMsg))
 	case r.Running:
 		l = append(l, fmt.Sprintf("%d 回目（%s）：まだ箱の中で動いている（待ち時間を過ぎた）", r.N, r.What))
 	case r.Exit != nil && *r.Exit == 0:
@@ -928,63 +944,138 @@ func (a *Agent) tryApply(ctx context.Context, id string) Reply {
 		_ = saveTry(s)
 		return errText("箱の中身が TRY の窓に出していたものから変わっていました（箱の中で使った分など）。窓の一覧を新しくしたので、確かめてからもう一度押してください（まだ何も入れていない）")
 	}
+	return a.tryCommit(ctx, s, items)
+}
+
+// 試験で差し替える：取り置きへ送る・置き換える
+var (
+	tryRename = os.Rename
+)
+
+// heldItem：取り置きへ送ったもの（元の場所と、取り置きの中のフォルダ）
+type heldItem struct{ From, Dir string }
+
+// tryHold：元のファイルを取り置きへ送り、送れたものを返す（キーは元の場所の小文字。送れなかったものは入らない）
+func (a *Agent) tryHold(ctx context.Context, paths []string) (map[string]heldItem, string) {
+	if a.holdFn != nil {
+		return a.holdFn(ctx, paths)
+	}
+	b, _ := json.Marshal(map[string]any{"paths": paths})
+	r := a.trash(ctx, b)
+	held := map[string]heldItem{}
+	for _, m := range trashHeldRe.FindAllStringSubmatch(r.Text, -1) {
+		held[strings.ToLower(m[1])] = heldItem{m[1], m[2]}
+	}
+	return held, r.Text
+}
+
+// tryCommit：本物に入れる（2026-11-28 直し：全部入れるか、何も入れないか）
+//  1. 先に全部を確かめる：試しのあとで本物が変わったもの・消すはずのものが無い/変わった・箱の中の場所が分からない → 1 つでもあれば何も入れずに止める
+//  2. 全部を一時ファイルに写し、窓に出した中身（SHA-256）と同じかを確かめる → 違えば何も入れずに止める
+//  3. 変わるものの元と消すものを取り置きへ → 1 つでも送れなければ、送った分を取り置きから戻して止める
+//  4. 置き換える → 途中で失敗したら、置いた分を外し、取り置きから元を戻す（戻せたかも確かめて返事に出す）
+func (a *Agent) tryCommit(ctx context.Context, s *tryState, items []tryItem) Reply {
 	root := boxRoot()
-	var done, skipped, del, olds []string
-	type put struct{ tmp, dst string }
+	var conflicts, skipped, del, olds []string
+	type put struct{ tmp, dst, hash, kind string }
 	var puts []put
 	for _, it := range items {
 		switch it.Kind {
 		case "admin":
 			skipped = append(skipped, it.Real+"（管理者の場所。本物でもう一度入れ直す）")
 		case "deleted":
-			del = append(del, it.Real)
+			rf, e := os.Stat(it.Real)
+			switch {
+			case e != nil:
+				conflicts = append(conflicts, it.Real+"（消すはずのものが本物にもう無い）")
+			case rf.ModTime().After(s.Started):
+				conflicts = append(conflicts, it.Real+"（試しのあとで本物が変わった。消すと変わった分がなくなる）")
+			default:
+				del = append(del, it.Real)
+			}
 		case "new", "changed":
-			if rf, e := os.Stat(it.Real); e == nil && rf.ModTime().After(s.Started) {
-				skipped = append(skipped, it.Real+"（試しのあとで本物が変わった）")
-				continue
-			}
-			src := realToBox(root, it.Real)
-			if src == "" {
-				skipped = append(skipped, it.Real+"（箱の中の場所が分からない）")
-				continue
-			}
-			tmp, err := copyVerified(src, it.Real)
-			if err != nil {
-				skipped = append(skipped, it.Real+"（"+err.Error()+"）")
-				continue
-			}
-			puts = append(puts, put{tmp, it.Real})
-			if it.Kind == "changed" {
-				olds = append(olds, it.Real)
+			rf, e := os.Stat(it.Real)
+			switch {
+			case e == nil && rf.ModTime().After(s.Started):
+				conflicts = append(conflicts, it.Real+"（試しのあとで本物が変わった）")
+			case e == nil && it.Kind == "new":
+				conflicts = append(conflicts, it.Real+"（試しのあとで本物に同じ名前のものができた）")
+			case e != nil && it.Kind == "changed":
+				conflicts = append(conflicts, it.Real+"（変えるはずの本物がもう無い）")
+			case realToBox(root, it.Real) == "":
+				conflicts = append(conflicts, it.Real+"（箱の中の場所が分からない）")
+			case it.Hash == "":
+				conflicts = append(conflicts, it.Real+"（窓に出した中身の記録が無い）")
+			default:
+				puts = append(puts, put{dst: it.Real, hash: it.Hash, kind: it.Kind})
+				if it.Kind == "changed" {
+					olds = append(olds, it.Real)
+				}
 			}
 		}
 	}
-	// 変わったものの元の中身と、箱の中で消えたものは、取り置きへ（30 日戻せる）
-	var res []string
-	if hold := append(append([]string{}, olds...), del...); len(hold) > 0 {
-		b, _ := json.Marshal(map[string]any{"paths": hold})
-		if r := a.trash(ctx, b); r.IsError {
-			for _, p := range puts {
+	if len(conflicts) > 0 {
+		return errText("本物と食い違うものがあるので、何も入れずに止めました（一部だけ入れることはしない）：%s。捨てるか、Claude に試し直してもらう", strings.Join(conflicts, "、"))
+	}
+	cleanTmp := func() {
+		for _, p := range puts {
+			if p.tmp != "" {
 				_ = os.Remove(p.tmp)
 			}
-			return errText("元のファイルを取り置きへ送れなかったので、何も入れずに止めました：%s", oneLine(r.Text, 200))
-		}
-		if len(olds) > 0 {
-			res = append(res, fmt.Sprintf("変わったものの元 %d を取り置きへ", len(olds)))
-		}
-		if len(del) > 0 {
-			res = append(res, fmt.Sprintf("箱の中で消えたもの %d を取り置きへ", len(del)))
 		}
 	}
-	for _, p := range puts {
-		if err := os.Rename(p.tmp, p.dst); err != nil {
-			_ = os.Remove(p.tmp)
-			skipped = append(skipped, p.dst+"（置き換えられない："+err.Error()+"）")
-			continue
+	for i := range puts {
+		tmp, err := copyVerified(realToBox(root, puts[i].dst), puts[i].dst)
+		if err == nil && fileHash(tmp) != puts[i].hash {
+			_ = os.Remove(tmp)
+			err = errors.New("窓に出したときと中身が違う（SHA-256 が合わない）")
 		}
-		done = append(done, p.dst)
+		if err != nil {
+			cleanTmp()
+			return errText("%s：%v。何も入れずに止めました。窓の一覧を確かめてからもう一度押してください", puts[i].dst, err)
+		}
+		puts[i].tmp = tmp
 	}
-	res = append([]string{fmt.Sprintf("入れた %d", len(done))}, res...)
+	// 元を取り置きへ（30 日戻せる）
+	hold := append(append([]string{}, olds...), del...)
+	held := map[string]heldItem{}
+	if len(hold) > 0 {
+		var text string
+		held, text = a.tryHold(ctx, hold)
+		var miss []string
+		for _, p := range hold {
+			if _, ok := held[strings.ToLower(p)]; !ok {
+				miss = append(miss, p)
+			}
+		}
+		if len(miss) > 0 {
+			cleanTmp()
+			back := restoreHeld(held)
+			return errText("元のファイルを取り置きへ送れなかったので、何も入れずに止めました（%s：%s）。%s", strings.Join(miss, "、"), oneLine(text, 200), strings.Join(back, "。"))
+		}
+	}
+	var placed []string
+	for i, p := range puts {
+		if err := tryRename(p.tmp, p.dst); err != nil {
+			// 途中で失敗：置いた分を外し、元を取り置きから戻す
+			for _, d := range placed {
+				_ = os.Remove(d)
+			}
+			for _, q := range puts[i:] {
+				_ = os.Remove(q.tmp)
+			}
+			back := restoreHeld(held)
+			return errText("%s を置き換えられなかった（%v）ので、入れた分を外して元に戻しました：%s", p.dst, err, strings.Join(back, "。"))
+		}
+		placed = append(placed, p.dst)
+	}
+	res := []string{fmt.Sprintf("入れた %d", len(placed))}
+	if len(olds) > 0 {
+		res = append(res, fmt.Sprintf("変わったものの元 %d を取り置きへ", len(olds)))
+	}
+	if len(del) > 0 {
+		res = append(res, fmt.Sprintf("箱の中で消えたもの %d を取り置きへ", len(del)))
+	}
 	if len(skipped) > 0 {
 		res = append(res, fmt.Sprintf("入れなかった %d：%s", len(skipped), strings.Join(skipped, "、")))
 	}
@@ -997,12 +1088,46 @@ func (a *Agent) tryApply(ctx context.Context, id string) Reply {
 	return okText("本物に入れた：" + s.Result)
 }
 
+// restoreHeld：取り置きに送った元を、元の場所へ写して戻す（中身が取り置きと同じかも確かめる）。結果の言葉を返す
+func restoreHeld(held map[string]heldItem) []string {
+	if len(held) == 0 {
+		return []string{"元は動かしていない"}
+	}
+	var ok, ng []string
+	for _, h := range held {
+		real, dir := h.From, h.Dir
+		src := filepath.Join(dir, filepath.Base(real))
+		if _, err := os.Stat(src); err != nil {
+			ng = append(ng, real+"（取り置きに写しが見つからない："+dir+"）")
+			continue
+		}
+		if _, err := os.Stat(real); err == nil {
+			if sameFile(src, real) {
+				ok = append(ok, real)
+			} else {
+				ng = append(ng, real+"（元の場所に別のものがある。取り置き："+dir+"）")
+			}
+			continue
+		}
+		if err := copyTree(src, real); err != nil || !sameFile(src, real) {
+			ng = append(ng, real+"（戻せなかった。取り置き："+dir+"）")
+			continue
+		}
+		ok = append(ok, real)
+	}
+	out := []string{fmt.Sprintf("取り置きから元を戻した %d（中身を確かめた）", len(ok))}
+	if len(ng) > 0 {
+		out = append(out, "戻せなかった "+strings.Join(ng, "、")+"。カオルが取り置きから戻す")
+	}
+	return out
+}
+
 func sameItems(a, b []tryItem) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := range a {
-		if a[i].Kind != b[i].Kind || !strings.EqualFold(a[i].Real, b[i].Real) || a[i].Size != b[i].Size {
+		if a[i].Kind != b[i].Kind || !strings.EqualFold(a[i].Real, b[i].Real) || a[i].Size != b[i].Size || a[i].Hash != b[i].Hash {
 			return false
 		}
 	}

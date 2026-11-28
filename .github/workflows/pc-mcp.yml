@@ -37,8 +37,8 @@ jobs:
         run: go mod tidy
       - name: 確かめる（vet）
         run: GOOS=windows GOARCH=amd64 go vet ./...
-      - name: 言い換えの表と説明の受け付けの試験
-        run: go test -run 'TestScriptWhat|TestPathWhat|TestCheckWhy|TestSignSame|TestSendApp|TestLane|TestCapacity|TestCapacityOneDrive' -v .
+      - name: Go の試験（全部。箱・TRY・ネットの守りの試験も。名前で決め打ちすると新しい試験が漏れるので）
+        run: go test -count=1 -v .
       - name: 起動の試験（Linux。常駐役なし＝オフ）
         run: |
           go build -o /tmp/pc-linux .
@@ -124,7 +124,7 @@ jobs:
       - name: 守りの場所の台本が読めるか（UTF-8 の BOM 付き）
         shell: powershell
         run: |
-          foreach ($n in 'hands-protect.ps1','hands-daily.ps1','box-check.ps1') {
+          foreach ($n in 'hands-protect.ps1','hands-daily.ps1','box-check.ps1','box-closed.ps1') {
             $f = (Resolve-Path "tools/pc-mcp/switch/$n").Path
             $b = [IO.File]::ReadAllBytes($f)
             if (-not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { "no BOM: $n"; exit 1 }
@@ -133,6 +133,14 @@ jobs:
             if ($err.Count) { $err | ForEach-Object { $_.ToString() }; exit 1 }
             "OK: $n"
           }
+          # 箱から見せない場所の一覧：鍵・資格情報・トークンの場所が入っているか（hands-protect と box-check が同じ一覧を使う）
+          . (Resolve-Path "tools/pc-mcp/switch/box-closed.ps1").Path
+          $l = @(ClaudeBoxClosed 'C:\Users\u' 'C:\ProgramData\claude-hands')
+          "見せない場所：$($l.Count) か所"
+          foreach ($want in '.ssh', 'Microsoft\Credentials', 'Microsoft\Protect', 'GitHub CLI', 'gcloud', '.git-credentials', 'Chrome\User Data', 'claude-hands') {
+            if (-not ($l | Where-Object { $_[1] -like "*$want*" })) { "見せない場所に無い：$want"; exit 1 }
+          }
+          if (@($l | ForEach-Object { $_[1] } | Sort-Object -Unique).Count -ne $l.Count) { "見せない場所が重なっている"; exit 1 }
       - name: LIVE の窓が出るか（フォーカスを取らない・右下）
         shell: pwsh
         run: |

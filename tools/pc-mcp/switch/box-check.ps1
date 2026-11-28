@@ -34,3 +34,40 @@ Remove-Item -LiteralPath $t -ErrorAction SilentlyContinue
 if (-not $res) { 'NG 箱のネットの確かめ：箱の中の結果が読めなかった' }
 elseif ($res -match 'つながった') { 'NG 箱のネットの確かめ：箱から直接外へつながった（' + ($res -join '・') + '）' }
 else { 'OK 箱のネットの確かめ：箱から直接は外へつながらない（' + ($res -join '・') + '）' }
+
+# 見せない場所（box-closed.ps1）：箱の中から読めないこと。中身は読まない・記録しない（開けるかどうかだけ。名前も数だけ）
+. (Join-Path $PSScriptRoot 'box-closed.ps1')
+$list = @(ClaudeBoxClosed $env:USERPROFILE (Join-Path $env:ProgramData 'claude-hands') | Where-Object { Test-Path -LiteralPath $_[1] })
+$realCred = @(cmdkey /list 2>$null | Where-Object { $_ -match '^\s*(Target|ターゲット)\s*:' }).Count
+$in2 = Join-Path $env:TEMP 'claude-hands-boxclosed-in.txt'
+$out2 = Join-Path $env:TEMP 'claude-hands-boxclosed.txt'
+$t2 = Join-Path $env:TEMP 'claude-hands-boxclosed.ps1'
+Remove-Item -LiteralPath $out2 -ErrorAction SilentlyContinue
+@($list | ForEach-Object { $_[1] }) | Set-Content -LiteralPath $in2 -Encoding UTF8
+@'
+param($in, $out)
+$r = @(foreach ($p in @(Get-Content -LiteralPath $in -Encoding UTF8)) {
+  try {
+    if (-not (Test-Path -LiteralPath $p)) { 'NO' }
+    elseif (Test-Path -LiteralPath $p -PathType Container) { $null = @([IO.Directory]::EnumerateFileSystemEntries($p) | Select-Object -First 1); 'READ' }
+    else { $f = [IO.File]::Open($p, 'Open', 'Read', 'ReadWrite'); $f.Dispose(); 'READ' }
+  } catch { 'NO' }
+})
+$r += 'CRED ' + @(cmdkey /list 2>$null | Where-Object { $_ -match '^\s*(Target|ターゲット)\s*:' }).Count
+$r | Set-Content -LiteralPath $out -Encoding UTF8
+'@ | Set-Content -LiteralPath $t2 -Encoding UTF8
+Start-Process $start -ArgumentList '/box:ClaudeBox', '/wait', 'powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $t2, $in2, $out2 -Wait -WindowStyle Hidden
+$res2 = @()
+$boxOut2 = Join-Path ('C:\Sandbox\' + $env:USERNAME + '\ClaudeBox\user\current') ($out2.Substring($env:USERPROFILE.Length).TrimStart('\'))
+foreach ($f in $out2, $boxOut2) { if (Test-Path -LiteralPath $f) { $res2 = @(Get-Content -LiteralPath $f -Encoding UTF8) } }
+Start-Process $start -ArgumentList '/box:ClaudeBox', 'delete_sandbox_silent' -Wait
+Remove-Item -LiteralPath $t2, $in2, $out2 -ErrorAction SilentlyContinue
+if ($res2.Count -ne $list.Count + 1) { 'NG 箱から見えない場所の確かめ：箱の中の結果が読めなかった' }
+else {
+  $readable = @(for ($i = 0; $i -lt $list.Count; $i++) { if ($res2[$i] -eq 'READ') { $list[$i][0] } })
+  if ($readable.Count) { 'NG 箱から読めてしまう場所：' + ($readable -join '・') }
+  else { 'OK 箱から見えない場所：本物にある ' + $list.Count + ' か所は、箱の中からどれも開けない' }
+  $boxCred = [int](($res2[-1]) -replace '^CRED ', '')
+  if ($realCred -gt 0 -and $boxCred -gt 0) { 'NG 箱の中から Windows の資格情報の一覧が見える（本物 ' + $realCred + ' 件・箱 ' + $boxCred + ' 件。中身は見ていない）' }
+  else { 'OK 箱の中から Windows の資格情報の一覧は見えない（本物 ' + $realCred + ' 件・箱 ' + $boxCred + ' 件）' }
+}
