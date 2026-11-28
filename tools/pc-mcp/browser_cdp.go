@@ -224,12 +224,27 @@ func (b *Browser) Quit() {
 	b.mu.Lock()
 	c := b.cdp
 	b.mu.Unlock()
+	closed := false
 	if b.profile == profClaude && c != nil && c.Alive() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		_ = c.Call(ctx, "", "Browser.close", nil, nil)
 		cancel()
+		closed = true
 	}
 	b.Close()
+	if closed {
+		// 容量の決まり：閉じるたびにキャッシュを消す（Chrome が終わりきるのを少し待つ。まだ動いていれば消さない）
+		go func() {
+			dir := claudeChromeDir()
+			for i := 0; i < 10; i++ {
+				time.Sleep(time.Second)
+				if chromiumIdle(dir) {
+					clearChromeCache(dir)
+					return
+				}
+			}
+		}()
+	}
 }
 
 func (b *Browser) Connected() bool {

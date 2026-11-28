@@ -7,6 +7,13 @@
 """
 import json, os, subprocess, sys, time, pathlib, tempfile, shutil, threading, http.server, functools
 
+
+def run_ps(script):
+    try:
+        return subprocess.run(["powershell", "-NoProfile", "-Command", script], capture_output=True, text=True, timeout=60).stdout
+    except Exception as e:
+        return f"err {e}"
+
 WIN = os.name == "nt"
 MCP = os.environ["PCMCP"]
 AGENT = os.environ["PCAGENT"]
@@ -155,10 +162,14 @@ check("スイッチの置き場所は触れない", "pc_powershell", {"script": 
 check("許可の置き場所は触れない", "pc_powershell", {"script": f"Set-Content '{AD / 'allow.txt'}' x"}, True, "置き場所")
 check("鍵の場所の中身は許可が要る", "pc_files", {"action": "read", "path": "~/.ssh/id_rsa"}, True, "許可")
 if WIN:
-    check("取り置きに写してからごみ箱へ送る", "pc_trash", {"paths": [str(f)]}, False, "取り置き 30 日")
+    check("取り置きに写してから元を消す（ごみ箱は通さない）", "pc_trash", {"paths": [str(f)]}, False, "ごみ箱は通さない")
     print("    残っているか：", f.exists())
     if f.exists():
-        fails.append("ごみ箱へ送ったのに残っている")
+        fails.append("消したのに残っている")
+    rb = run_ps("(New-Object -ComObject Shell.Application).NameSpace(10).Items() | Where-Object { $_.Name -like 'trash-me*' } | Measure-Object | ForEach-Object Count")
+    print("    ごみ箱の中の trash-me：", rb.strip())
+    if rb.strip() not in ("", "0"):
+        fails.append("取り置きに写したのにごみ箱にも入っている")
     held = list((HD / "holding").glob("*/trash-me.txt"))
     print("    取り置きの中：", held)
     if not held or held[0].read_text().strip() != "test":

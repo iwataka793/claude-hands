@@ -355,7 +355,7 @@ func logAsk(p *pending, answer string) {
 // ---- 最後の動き（窓の下の LOG） ----
 
 var toolWords = map[string]string{
-	"pc_powershell": "PowerShell を動かした", "pc_trash": "ごみ箱へ送った", "pc_open": "開いた", "pc_ui_do": "窓の部品を押した",
+	"pc_powershell": "PowerShell を動かした", "pc_trash": "消した（取り置きへ）", "pc_open": "開いた", "pc_ui_do": "窓の部品を押した",
 	"pc_keys": "キーを打った", "pc_ui": "窓の部品を読んだ", "pc_screenshot": "画面を撮った", "pc_files": "ファイルを読んだ",
 	"pc_disk": "容量を調べた", "pc_problems": "不具合の記録を読んだ", "pc_processes": "動いているものを見た", "pc_apps": "アプリを見た",
 	"pc_windows": "窓の一覧を見た", "hands": "作業の区切り",

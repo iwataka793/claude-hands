@@ -1,7 +1,7 @@
 package main
 
 // iPhone のログを PC のファイルにも残す（覚えておける 3 万行からあふれた前のことも確かめられるように）。
-// 置き場所：%USERPROFILE%\devkit\iphone-mcp\logs\syslog.txt（200 MB で syslog.1.txt に回す。2 つだけ残す）。
+// 置き場所：%USERPROFILE%\devkit\iphone-mcp\logs\syslog.txt（100 MB で syslog.1.txt に回す。2 つだけ残すので合わせて 200 MB まで。容量の決まり）。
 // 中身は PC の中だけ。repo には入れない。
 
 import (
@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	logFileMax   = 200 << 20
+	logFileMax   = 100 << 20
 	logTimeStamp = "2006-01-02 15:04:05.000"
 )
 

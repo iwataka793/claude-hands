@@ -1,4 +1,6 @@
-# 消す：取り置き（$A.holding。30 日。Claude には消せない・取り出せない）に写してから、元をごみ箱へ。
+# 消す：取り置き（$A.holding。30 日。Claude には消せない・取り出せない）に写して中身が合うのを確かめてから、元を消す。
+# ごみ箱は通さない（取り置きとごみ箱で C を 2 回使わないため。2026-11-28。ごみ箱はカオルが自分で消したものだけ）。
+# 元を消せなかったときだけごみ箱へ送る。
 # $A.recycle が true のときだけ、取り置きに写さずにごみ箱へ（取り置きに入らない大きいもの。カオルに聞いてから）。
 Add-Type -AssemblyName Microsoft.VisualBasic
 # つなぎ目（ジャンクション・シンボリックリンク）の先は数えない・写さない
@@ -30,6 +32,19 @@ function CopyTree($src, $dst) {
       if ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) { continue }
       CopyTree $e.FullName (Join-Path $dst $e.Name)
     } else { CopyOne $e.FullName (Join-Path $dst $e.Name) }
+  }
+}
+# 取り置きに写せた元を消す。つなぎ目（ジャンクション）の先は消さない（.NET の Directory.Delete は中に入らない）
+function DropHeld($p) {
+  if (Test-Path -LiteralPath $p -PathType Container) {
+    foreach ($f in @(Get-ChildItem -LiteralPath $p -Recurse -Force -File -ErrorAction SilentlyContinue)) {
+      if ($f.Attributes -band [IO.FileAttributes]::ReadOnly) { $f.Attributes = $f.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly) }
+    }
+    [IO.Directory]::Delete($p, $true)
+  } else {
+    $i = Get-Item -LiteralPath $p -Force
+    if ($i.Attributes -band [IO.FileAttributes]::ReadOnly) { $i.Attributes = $i.Attributes -band (-bnot [IO.FileAttributes]::ReadOnly) }
+    [IO.File]::Delete($p)
   }
 }
 function ToRecycle($p) {
@@ -75,9 +90,12 @@ foreach ($p in $A.paths) {
       if ($got -ne $size) { throw "取り置きの写しの大きさが合いません（元 $size／写し $got）。元は消していません" }
       $held = $item
     }
-    ToRecycle $p
+    $via = ''
+    if ($held) {
+      try { DropHeld $p } catch { $via = '（元を消せず、ごみ箱へ送った：' + $_.Exception.Message + '）'; if (Test-Path -LiteralPath $p) { ToRecycle $p } }
+    } else { ToRecycle $p }
     if (Test-Path -LiteralPath $p) { 'ERROR: 残っている：' + $p; continue }
     $used += $size
-    if ($held) { 'ごみ箱へ（取り置き 30 日）：' + $p + ' → ' + $held } else { 'ごみ箱へ（取り置きなし）：' + $p }
+    if ($held) { '消した（取り置き 30 日・ごみ箱は通さない）：' + $p + ' → ' + $held + $via } else { 'ごみ箱へ（取り置きなし）：' + $p }
   } catch { 'ERROR: ' + $p + '：' + $_.Exception.Message }
 }

@@ -98,6 +98,19 @@ func runAgent() {
 	a.st.Audit("（起動）", "版 "+version, "ok", 0)
 
 	srv := &http.Server{Handler: http.HandlerFunc(a.handle), ReadHeaderTimeout: 10 * time.Second}
+	// 容量の決まり：動き出して 1 分後と、その後 1 時間ごとに、前の点検から 20 時間たっていれば点検する
+	go func() {
+		time.Sleep(time.Minute)
+		for {
+			if capacityDue() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+				out := a.capacityRun(ctx)
+				cancel()
+				a.st.Audit("（容量の点検）", strings.Join(out, " / "), "ok", 0)
+			}
+			time.Sleep(time.Hour)
+		}
+	}()
 	go func() {
 		// PC もブラウザもオフ（か使わない時間が続いた）→ 終わる。ブラウザだけオフ → Chrome とのつながりを切る
 		for range time.Tick(2 * time.Second) {
@@ -258,6 +271,11 @@ func (a *Agent) status() Reply {
 		"最近の記録：",
 	}
 	lines = append(lines[:len(lines)-1], guardLines()...)
+	notes, rest := capacityLines()
+	lines = append(lines, rest...)
+	if len(notes) > 0 {
+		lines = append(notes, lines...) // 知らせはいちばん上（Claude がチャットでもカオルに伝える）
+	}
 	lines = append(lines, "最近の記録：")
 	for _, l := range a.st.AuditTail(8) {
 		lines = append(lines, "  "+l)
